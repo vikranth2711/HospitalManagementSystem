@@ -22,20 +22,20 @@ struct adminTabBarView : View {
                             Text("Home")
                         }
                         .tag(0)
-                    ReportsContent()
+                    AdminDashboardView()
                         .tabItem {
-                            Image(systemName: "chart.bar.doc.horizontal")
-                            Text("Reports")
+                            Image(systemName: "person.3.sequence")
+                            Text("Staff")
                         }
                         .tag(1)
                     BillsContent()
                         .tabItem {
-                            Image(systemName: "dollarsign.circle")
-                            Text("Bills")
+                            Image(systemName: "newspaper")
+                            Text("Invoice")
                         }
                         .tag(2)
                 }
-                .accentColor(colorScheme == .dark ? .blue : Color(hex: "4A90E2"))
+                .accentColor(.main)
                 .animation(.easeInOut(duration: 0.3), value: selectedTab)
             }
             .sheet(isPresented: $showProfile) {

@@ -341,7 +341,7 @@ struct Login: View {
                 }
                 
                 .navigationDestination(isPresented: $navigateToAdminDashboard) {
-                    adminHomeView() // You'll need to create this view
+                    adminTabBarView() // You'll need to create this view
                         .navigationBarBackButtonHidden(true)
                 }
             }
