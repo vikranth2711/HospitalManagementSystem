@@ -9,7 +9,7 @@ struct HomePatient: View {
         NavigationStack {
             ZStack {
                 TabView(selection: $selectedTab) {
-                    // Home Tab Content
+                                
                     HomeContent(showProfile: $showProfile)
                         .tabItem {
                             Image(systemName: "house.fill")
@@ -25,11 +25,11 @@ struct HomePatient: View {
                         }
                         .tag(1)
                     
-                    // Bills Tab
-                    BillsContent()
+                    // Appointments Tab - Replacing Bills Tab
+                    PatientAppointView(appointments: getSampleAppointments())
                         .tabItem {
-                            Image(systemName: "dollarsign.circle")
-                            Text("Bills")
+                            Image(systemName: "calendar.badge.clock")
+                            Text("Appointments")
                         }
                         .tag(2)
                 }
@@ -41,15 +41,93 @@ struct HomePatient: View {
             }
         }
     }
+    
+    // Helper function to get sample appointments
+    private func getSampleAppointments() -> [AppointmentData] {
+        return [
+            AppointmentData(
+                doctorName: "Dr. Sarah Johnson",
+                specialty: "Cardiologist",
+                date: "Apr 15, 2025",
+                time: "10:30 AM",
+                status: .completed,
+                notes: "Regular checkup, blood pressure normal. Follow-up in 6 months recommended."
+            ),
+            AppointmentData(
+                doctorName: "Dr. Michael Chen",
+                specialty: "Dermatologist",
+                date: "Mar 28, 2025",
+                time: "2:15 PM",
+                status: .completed,
+                notes: "Skin condition follow-up, prescribed new medication. Apply topical cream twice daily."
+            ),
+            AppointmentData(
+                doctorName: "Dr. Emily Wilson",
+                specialty: "Orthopedist",
+                date: "Apr 25, 2025",
+                time: "9:00 AM",
+                status: .upcoming,
+                notes: "Annual joint assessment. Bring previous X-ray reports if available."
+            ),
+            AppointmentData(
+                doctorName: "Dr. Robert Garcia",
+                specialty: "Neurologist",
+                date: "Feb 10, 2025",
+                time: "1:45 PM",
+                status: .completed,
+                notes: "Headache consultation, recommended lifestyle changes."
+            )
+        ]
+    }
 }
 
-// Updated HomeContent View with square cards and appointment history
+// Updated HomeContent View with Recents section instead of History
 struct HomeContent: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var showProfile: Bool
     @State private var iconScale: CGFloat = 0.8
     @State private var opacity: Double = 0.0
-    @State private var showTestScheduling = false
+    
+    // Sample appointments data - now we'll filter to show only upcoming
+    private let appointments = [
+        AppointmentData(
+            doctorName: "Dr. Sarah Johnson",
+            specialty: "Cardiologist",
+            date: "Apr 15, 2025",
+            time: "10:30 AM",
+            status: .completed,
+            notes: "Regular checkup, blood pressure normal. Follow-up in 6 months recommended."
+        ),
+        AppointmentData(
+            doctorName: "Dr. Michael Chen",
+            specialty: "Dermatologist",
+            date: "Mar 28, 2025",
+            time: "2:15 PM",
+            status: .completed,
+            notes: "Skin condition follow-up, prescribed new medication. Apply topical cream twice daily."
+        ),
+        AppointmentData(
+            doctorName: "Dr. Emily Wilson",
+            specialty: "Orthopedist",
+            date: "Apr 25, 2025",
+            time: "9:00 AM",
+            status: .upcoming,
+            notes: "Annual joint assessment. Bring previous X-ray reports if available."
+        ),
+        AppointmentData(
+            doctorName: "Dr. Robert Garcia",
+            specialty: "Neurologist",
+            date: "Feb 10, 2025",
+            time: "1:45 PM",
+            status: .completed,
+            notes: "Headache consultation, recommended lifestyle changes."
+        )
+    ]
+    
+    // Filter to get only upcoming appointments
+    private var upcomingAppointments: [AppointmentData] {
+        return appointments.filter { $0.status == .upcoming }
+    }
     
     var body: some View {
         ZStack {
@@ -112,41 +190,51 @@ struct HomeContent: View {
                     .padding(.top, 16)
                     .padding(.horizontal)
                     
-                    // Two square cards side by side
-                    HStack(spacing: 20) {
-                        // Appointment Card with NavigationLink
+                    // Single appointment scheduling card (centered and wider)
+                    HStack {
+                        Spacer()
                         NavigationLink(destination: AppointmentSchedulingView()) {
                             SquareScheduleCard(
                                 icon: "calendar.badge.plus",
                                 title: "Schedule Appointment",
                                 color: colorScheme == .dark ? Color(hex: "1E88E5") : Color(hex: "2196F3")
                             )
+                            .frame(width: 300) // Wider card
                         }
                         .simultaneousGesture(TapGesture().onEnded {
                             triggerHaptic()
                         })
-                        
-                        // Test Card
-                        SquareScheduleCard(
-                            icon: "flask.fill",
-                            title: "Schedule Test",
-                            color: colorScheme == .dark ? Color(hex: "26A69A") : Color(hex: "009688"),
-                            action: {
-                                triggerHaptic()
-                                showTestScheduling = true
-                            }
-                        )
+                        Spacer()
                     }
-                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                     
-                    // Appointment History Section
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("History of Appointments")
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                            .padding(.horizontal)
+                        HStack {
+                            Text("Upcoming Appointments")
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                            
+                            Spacer()
+                            
+                          
+                        }
+                        .padding(.horizontal)
                         
-                        AppointmentHistoryView()
+                        // Only show upcoming appointments in Recents section
+                        if upcomingAppointments.isEmpty {
+                            Text("No upcoming appointments")
+                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
+                                .padding(.horizontal)
+                                .padding(.vertical, 20)
+                        } else {
+                            VStack(spacing: 16) {
+                                ForEach(upcomingAppointments) { appointment in
+                                    AppointmentCard(appointment: appointment)
+                                        .padding(.horizontal)
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(.vertical)
@@ -160,20 +248,16 @@ struct HomeContent: View {
                     iconScale = 1.0
                 }
             }
-            .sheet(isPresented: $showTestScheduling) {
-                TestSchedulingView()
-            }
         }
     }
-    
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
+    private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        let generator = UIImpactFeedbackGenerator(style: style)
         generator.prepare()
         generator.impactOccurred()
     }
 }
 
-// New Square Card Component (Modified to support NavigationLink)
+// Updated SquareScheduleCard Component
 struct SquareScheduleCard: View {
     let icon: String
     let title: String
@@ -191,38 +275,55 @@ struct SquareScheduleCard: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Icon with colored background
+            // Icon with gradient background
             ZStack {
                 Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 64, height: 64)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [color.opacity(0.3), color.opacity(0.1)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
+                    .shadow(color: color.opacity(0.3), radius: 5, x: 0, y: 3)
                 
                 Image(systemName: icon)
-                    .font(.system(size: 28))
+                    .font(.system(size: 32, weight: .medium))
                     .foregroundColor(color)
             }
             
             // Title
             Text(title)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
                 .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 12)
         }
-        .frame(minWidth: 0, maxWidth: .infinity)
-        .frame(height: 180) // Fixed height to ensure square shape
-        .aspectRatio(1, contentMode: .fit) // This ensures a square shape
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .frame(height: 200) // Slightly taller for better proportions
         .background(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 24)
                 .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
+                .shadow(
+                    color: colorScheme == .dark ? Color.black.opacity(0.4) : Color.gray.opacity(0.2),
+                    radius: 12, x: 0, y: 6
+                )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(color.opacity(0.3), lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [color.opacity(0.4), color.opacity(0.2)]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 2
+                )
         )
-        .scaleEffect(isPressed ? 0.96 : 1.0)
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
         .simultaneousGesture(
             action != nil ? TapGesture().onEnded {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -305,7 +406,7 @@ struct ScheduleCard: View {
     }
 }
 
-// Bills Tab Content
+// BillsContent remains the same but is no longer used in the TabView
 struct BillsContent: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var opacity: Double = 0.0
@@ -354,12 +455,10 @@ struct BillsContent: View {
     }
 }
 
-
-
-// Preview
 struct HomePatient_Previews: PreviewProvider {
     static var previews: some View {
         HomePatient()
             .previewDevice("iPhone 14")
     }
 }
+
