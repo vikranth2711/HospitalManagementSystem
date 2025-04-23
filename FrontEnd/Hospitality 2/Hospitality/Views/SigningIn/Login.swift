@@ -341,7 +341,7 @@ struct Login: View {
                 }
                 
                 .navigationDestination(isPresented: $navigateToAdminDashboard) {
-                    adminTabBarView() // You'll need to create this view
+                    AdminHomeView() // You'll need to create this view
                         .navigationBarBackButtonHidden(true)
                 }
             }
@@ -457,25 +457,43 @@ struct RoleButton: View {
     }
 }
 
-struct InfoField : View {
+struct InfoField: View {
     let title: String
     @Binding var text: String
     @FocusState var isTyping: Bool
+    
     var body: some View {
-        ZStack(alignment: .leading){
-            TextField("", text: $text).padding(.leading)
-                .frame(height: 55).focused($isTyping)
-                .background(isTyping ? .white : Color.primary, in:RoundedRectangle(cornerRadius: 14).stroke(lineWidth: 2))
+        ZStack(alignment: .leading) {
+            TextField("", text: $text)
+                .padding(.leading)
+                .padding(.top, 10)  // Added top padding to lower the text input
+                .frame(height: 55)
+                .focused($isTyping)
+                .keyboardType(.emailAddress)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+                .textContentType(.emailAddress)
+                .background(
+                    isTyping ? .main : Color.primary,
+                    in: RoundedRectangle(cornerRadius: 14)
+                        .stroke(lineWidth: 1)
+                )
                 .textFieldStyle(PlainTextFieldStyle())
-            Text(title).padding(.horizontal, 5)
-                .background(.bg.opacity(isTyping || !text.isEmpty ? 1 : 0))
-                .foregroundStyle(isTyping ? .white : Color.primary)
-                .padding(.leading).offset(y:isTyping || !text.isEmpty ? -27 : 0)
+            
+            Text(title)
+                .font(.system(size: isTyping || !text.isEmpty ? 13 : 17))  // More precise font size control
+                .padding(.horizontal, 5)
+                .background(Color(UIColor.clear))  // Better background handling
+                .foregroundStyle(isTyping ? .gray : Color.gray)
+                .padding(.leading, 11)
+                .offset(y: isTyping || !text.isEmpty ? -14 : 0)  // Adjusted offset values
+                .animation(.easeInOut(duration: 0.2), value: isTyping || !text.isEmpty)
                 .onTapGesture {
-                    isTyping.toggle()
+                    isTyping = true
                 }
         }
-        .animation(.linear(duration: 0.2), value: isTyping)
+        .padding(.top, 10)  // Added top padding to the entire container
+        .animation(.easeInOut(duration: 0.2), value: isTyping)
     }
 }
 
@@ -496,26 +514,28 @@ struct InfoFieldPassword: View {
                 }
             }
             .padding(.leading)
+            .padding(.top, 10)  // Added top padding to lower the text input
             .frame(height: 55)
             .focused($isTyping)
             .background(
-                isTyping ? Color.white : Color.primary,
-                in: RoundedRectangle(cornerRadius: 14).stroke(lineWidth: 2)
+                isTyping ? Color.main : Color.primary,
+                in: RoundedRectangle(cornerRadius: 14).stroke(lineWidth: 1)
             )
             .textFieldStyle(PlainTextFieldStyle())
 
             // Floating label
             Text(title)
+                .font(.system(size: isTyping || !text.isEmpty ? 13 : 17))  // Better font scaling
                 .padding(.horizontal, 5)
-                .background(Color.bg.opacity(isTyping || !text.isEmpty ? 1 : 0))
-                .foregroundStyle(isTyping ? .white : Color.primary)
-                .padding(.leading)
-                .offset(y: isTyping || !text.isEmpty ? -27 : 0)
+                .background(Color.clear.opacity(isTyping || !text.isEmpty ? 1 : 0))
+                .foregroundStyle(isTyping ? .gray : Color.gray)
+                .padding(.leading, 11)
+                .offset(y: isTyping || !text.isEmpty ? -14 : 0)  // Adjusted offset
                 .onTapGesture {
                     isTyping = true
                 }
 
-            // Show/Hide password button
+            // Show/Hide password button (unchanged)
             HStack {
                 Spacer()
                 Button(action: {
@@ -527,7 +547,8 @@ struct InfoFieldPassword: View {
                 }
             }
         }
-        .animation(.linear(duration: 0.2), value: isTyping)
+        .padding(.top, 10)  // Added container padding
+        .animation(.easeInOut(duration: 0.2), value: isTyping)
     }
 }
 
