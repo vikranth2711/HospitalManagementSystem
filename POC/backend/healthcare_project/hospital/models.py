@@ -19,6 +19,7 @@ class PatientDetails(models.Model):
     patient_dob = models.DateField()
     patient_gender = models.BooleanField()
     patient_blood_group = models.CharField(max_length=5)
+    profile_photo = models.ImageField(upload_to='patient_photos/', null=True, blank=True)
 
     def __str__(self):
         return f"Details for {self.patient.patient_name}"
@@ -58,6 +59,7 @@ class StaffDetails(models.Model):
     staff = models.OneToOneField(Staff, on_delete=models.CASCADE, related_name='staff_details')
     staff_dob = models.DateField()
     staff_address = models.TextField()
+    profile_photo = models.ImageField(upload_to='staff_photos/', null=True, blank=True)
 
     def __str__(self):
         return f"Details for {self.staff.staff_name}"
@@ -67,6 +69,7 @@ class LabTechnicianDetails(models.Model):
     certification = models.CharField(max_length=255)
     lab_experience_years = models.IntegerField()
     assigned_lab = models.CharField(max_length=255)
+    profile_photo = models.ImageField(upload_to='lab_tech_photos/', null=True, blank=True)
 
     def __str__(self):
         return f"Lab Technician: {self.staff.staff_name}"
@@ -85,6 +88,7 @@ class DoctorDetails(models.Model):
     doctor_experience_years = models.IntegerField()
     doctor_qualification = models.CharField(max_length=255)
     doctor_type = models.ForeignKey(DoctorType, on_delete=models.CASCADE, related_name='doctor_details')
+    profile_photo = models.ImageField(upload_to='doctor_photos/', null=True, blank=True)
 
     def __str__(self):
         return f"Doctor: {self.staff.staff_name}"
