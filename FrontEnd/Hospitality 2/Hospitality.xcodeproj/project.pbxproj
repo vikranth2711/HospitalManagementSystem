@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		213DE07D2DBB8026009D115F /* KeychainSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 213DE07C2DBB8026009D115F /* KeychainSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		336E5D352DAF5C4D00983DA5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -30,6 +34,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		3321AEBC2DB105E400838E93 /* New Folder */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "New Folder";
+			sourceTree = "<group>";
+		};
 		336E5D262DAF5C4C00983DA5 /* Hospitality */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Hospitality;
@@ -52,6 +61,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				213DE07D2DBB8026009D115F /* KeychainSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,6 +89,7 @@
 				336E5D372DAF5C4D00983DA5 /* HospitalityTests */,
 				336E5D412DAF5C4D00983DA5 /* HospitalityUITests */,
 				336E5D252DAF5C4C00983DA5 /* Products */,
+				3321AEBC2DB105E400838E93 /* New Folder */,
 			);
 			sourceTree = "<group>";
 		};
@@ -108,10 +119,12 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				3321AEBC2DB105E400838E93 /* New Folder */,
 				336E5D262DAF5C4C00983DA5 /* Hospitality */,
 			);
 			name = Hospitality;
 			packageProductDependencies = (
+				213DE07C2DBB8026009D115F /* KeychainSwift */,
 			);
 			productName = Hospitality;
 			productReference = 336E5D242DAF5C4C00983DA5 /* Hospitality.app */;
@@ -195,6 +208,9 @@
 			);
 			mainGroup = 336E5D1B2DAF5C4C00983DA5;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				213DE07B2DBB8026009D115F /* XCRemoteSwiftPackageReference "keychain-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 336E5D252DAF5C4C00983DA5 /* Products */;
 			projectDirPath = "";
@@ -554,6 +570,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		213DE07B2DBB8026009D115F /* XCRemoteSwiftPackageReference "keychain-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/evgenyneu/keychain-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 24.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		213DE07C2DBB8026009D115F /* KeychainSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 213DE07B2DBB8026009D115F /* XCRemoteSwiftPackageReference "keychain-swift" */;
+			productName = KeychainSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 336E5D1C2DAF5C4C00983DA5 /* Project object */;
 }
