@@ -38,7 +38,7 @@ class Command(BaseCommand):
                 staff_id=staff_id,
                 staff_name="System Admin",
                 role=admin_role,
-                staff_joining_date=date.today(),
+                created_at=date.today(),
                 staff_email="ra6857@srmist.edu.in",
                 staff_mobile="8778850830"
             )

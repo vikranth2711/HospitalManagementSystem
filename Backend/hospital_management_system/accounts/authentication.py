@@ -28,13 +28,16 @@ class JWTAuthentication(BaseAuthentication):
                     user = Patient.objects.get(patient_id=user_id)
                 except Patient.DoesNotExist:
                     raise AuthenticationFailed('Patient not found')
-            elif user_type == 'staff':
+            elif user_type in ['staff', 'admin']:  # Handle both staff and admin
                 try:
                     user = Staff.objects.get(staff_id=user_id)
                 except Staff.DoesNotExist:
                     raise AuthenticationFailed('Staff not found')
             else:
-                raise AuthenticationFailed('Invalid user type')
+                raise AuthenticationFailed(f'Invalid user type: {user_type}')
+            
+            # Add user_type attribute to the user object for easy access in views
+            user.user_type = user_type
             
             return (user, token)
         
@@ -42,3 +45,5 @@ class JWTAuthentication(BaseAuthentication):
             raise AuthenticationFailed('Token expired')
         except jwt.InvalidTokenError:
             raise AuthenticationFailed('Invalid token')
+        except Exception as e:
+            raise AuthenticationFailed(f'Authentication failed: {str(e)}')

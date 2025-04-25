@@ -13,6 +13,7 @@ class Patient(models.Model):
     patient_name = models.CharField(max_length=255)
     patient_email = models.EmailField()
     patient_mobile = models.CharField(max_length=20)
+    is_authenticated = models.BooleanField(default=True)
     patient_remark = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -25,7 +26,7 @@ class PatientDetails(models.Model):
     patient_blood_group = models.CharField(max_length=5)
     patient_address = models.TextField()
     profile_photo = models.ImageField(upload_to='patient_photos/', null=True, blank=True)
-
+    
     def __str__(self):
         return f"Details for {self.patient.patient_name}"
 
@@ -37,7 +38,8 @@ class Staff(models.Model):
     staff_email = models.EmailField()
     staff_mobile = models.CharField(max_length=20)
     on_leave = models.BooleanField(default=False)
-
+    is_authenticated = models.BooleanField(default=True)
+    
     def __str__(self):
         return self.staff_name
 
@@ -54,7 +56,7 @@ class StaffDetails(models.Model):
 class DoctorType(models.Model):
     doctor_type_id = models.AutoField(primary_key=True)
     doctor_type = models.CharField(max_length=100)
-
+    doctor_type_remark = models.TextField(blank=True, null=True)
     def __str__(self):
         return self.doctor_type
 
