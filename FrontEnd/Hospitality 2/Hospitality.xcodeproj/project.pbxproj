@@ -30,11 +30,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		3321AEBC2DB105E400838E93 /* New Folder */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "New Folder";
-			sourceTree = "<group>";
-		};
 		336E5D262DAF5C4C00983DA5 /* Hospitality */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Hospitality;
@@ -84,7 +79,6 @@
 				336E5D372DAF5C4D00983DA5 /* HospitalityTests */,
 				336E5D412DAF5C4D00983DA5 /* HospitalityUITests */,
 				336E5D252DAF5C4C00983DA5 /* Products */,
-				3321AEBC2DB105E400838E93 /* New Folder */,
 			);
 			sourceTree = "<group>";
 		};
@@ -114,7 +108,6 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				3321AEBC2DB105E400838E93 /* New Folder */,
 				336E5D262DAF5C4C00983DA5 /* Hospitality */,
 			);
 			name = Hospitality;
