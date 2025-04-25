@@ -8,52 +8,42 @@
 import SwiftUI
 
 struct LabTechniciansListView: View {
-    @State private var technicians: [LabTechnician] = [
-        LabTechnician(name: "Emily Rodriguez", email: "e.rodriguez@hospital.com", phone: "+1 (555) 234-5678", qualification: "MLT, ASCP", experience: "5", certifications: "ASCP Certified, Phlebotomy Certified", shift: "Morning", specialty: "Blood Work"),
-        LabTechnician(name: "David Kim", email: "d.kim@hospital.com", phone: "+1 (555) 345-6789", qualification: "BS in Medical Technology", experience: "3", certifications: "Molecular Biology Specialist", shift: "Afternoon", specialty: "Molecular Diagnostics")
-    ]
-    
+    @StateObject private var dataStore = MockHospitalDataStore()
     @State private var showingAddTechnician = false
     @State private var searchText = ""
     @State private var selectedSpecialty = "All"
-    @State private var selectedShift = "All"
     @State private var editMode: EditMode = .inactive
-    @State private var selectedTechnicians = Set<UUID>()
+    @State private var selectedTechnicians = Set<String>()
     @State private var showingDeleteConfirmation = false
     
     private var specialties: [String] {
         var specs = ["All"]
-        specs.append(contentsOf: Set(technicians.map { $0.specialty }).sorted())
+        let allSpecs = Set(dataStore.labs.map { $0.labName })
+        specs.append(contentsOf: allSpecs.sorted())
         return specs
     }
     
-    private var shifts: [String] {
-        var shiftList = ["All"]
-        shiftList.append(contentsOf: Set(technicians.map { $0.shift }).sorted())
-        return shiftList
-    }
-    
-    private var filteredTechnicians: [LabTechnician] {
-        var result = technicians
+    private var filteredTechnicians: [Staff] {
+        var result = dataStore.staff.filter { staff in
+            dataStore.labTechnicians.contains { $0.staffId == staff.id }
+        }
         
-        // Apply search filter
         if !searchText.isEmpty {
             result = result.filter {
-                $0.name.localizedCaseInsensitiveContains(searchText) ||
-                $0.specialty.localizedCaseInsensitiveContains(searchText) ||
-                $0.qualification.localizedCaseInsensitiveContains(searchText) ||
-                $0.certifications.localizedCaseInsensitiveContains(searchText)
+                $0.staffName.localizedCaseInsensitiveContains(searchText) ||
+                $0.staffEmail.localizedCaseInsensitiveContains(searchText)
             }
         }
         
-        // Apply specialty filter
         if selectedSpecialty != "All" {
-            result = result.filter { $0.specialty == selectedSpecialty }
-        }
-        
-        // Apply shift filter
-        if selectedShift != "All" {
-            result = result.filter { $0.shift == selectedShift }
+            result = result.filter { staff in
+                if let tech = dataStore.labTechnicians.first(where: { $0.staffId == staff.id }) {
+                    if let lab = dataStore.labs.first(where: { $0.id == tech.assignedLabId }) {
+                        return lab.labName == selectedSpecialty
+                    }
+                }
+                return false
+            }
         }
         
         return result
@@ -67,7 +57,7 @@ struct LabTechniciansListView: View {
                 .padding(.top, 8)
                 .background(Color(.systemGroupedBackground))
             
-            // Filter Section - Now more prominent
+            // Filter Section
             VStack(spacing: 12) {
                 HStack {
                     Text("FILTERS")
@@ -82,36 +72,24 @@ struct LabTechniciansListView: View {
                         title: "Specialty",
                         selection: $selectedSpecialty,
                         options: specialties,
-                        accentColor: .green
-                    )
-                    
-                    FilterPill(
-                        title: "Shift",
-                        selection: $selectedShift,
-                        options: shifts,
-                        accentColor: .blue
+                        accentColor: .main
                     )
                 }
                 .padding(.horizontal, 8)
             }
             .padding(.vertical, 8)
             .background(Color(.systemGroupedBackground))
-            .cornerRadius(12)
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
             
             // Technicians List
             List(selection: $selectedTechnicians) {
-                ForEach(filteredTechnicians) { technician in
-                    NavigationLink(destination: LabTechnicianDetailView(technician: binding(for: technician))) {
-                        LabTechnicianRow(technician: technician)
+                ForEach(filteredTechnicians) { staff in
+                    NavigationLink(destination: LabTechnicianDetailView(staff: staff)) {
+                        LabTechnicianRow(staff: staff)
                     }
-                    .tag(technician.id)
+                    .tag(staff.id)
                 }
                 .onDelete(perform: deleteTechnician)
             }
-            .listStyle(InsetListStyle())
         }
         .navigationTitle("Lab Technicians")
         .toolbar {
@@ -123,12 +101,14 @@ struct LabTechniciansListView: View {
                         }
                     }) {
                         Image(systemName: "trash")
+                            .tint(.red)
                     }
                     .disabled(selectedTechnicians.isEmpty)
                 }
                 
                 Button(action: { showingAddTechnician = true }) {
                     Image(systemName: "plus")
+                        .tint(.main)
                 }
                 
                 EditButton()
@@ -136,8 +116,8 @@ struct LabTechniciansListView: View {
         }
         .environment(\.editMode, $editMode)
         .sheet(isPresented: $showingAddTechnician) {
-            AddEditLabTechnicianView(technician: .constant(nil), onSave: { newTechnician in
-                technicians.append(newTechnician)
+            AddEditLabTechnicianView(onSave: { staff, techDetails in
+                dataStore.createLabTechnician(staff: staff, techDetails: techDetails)
                 showingAddTechnician = false
             })
         }
@@ -151,25 +131,235 @@ struct LabTechniciansListView: View {
                 ]
             )
         }
-    }
-    
-    private func binding(for technician: LabTechnician) -> Binding<LabTechnician> {
-        guard let index = technicians.firstIndex(where: { $0.id == technician.id }) else {
-            fatalError("Technician not found")
+        .onAppear {
+            dataStore.fetchStaff()
+            dataStore.fetchLabTechnicians()
+            dataStore.fetchLabs()
         }
-        return $technicians[index]
     }
     
     private func deleteTechnician(at offsets: IndexSet) {
-        technicians.remove(atOffsets: offsets)
+        let idsToDelete = offsets.map { filteredTechnicians[$0].id }
+        dataStore.deleteStaff(ids: idsToDelete)
     }
     
     private func deleteSelectedTechnicians() {
-        technicians.removeAll { technician in
-            selectedTechnicians.contains(technician.id)
-        }
+        dataStore.deleteStaff(ids: Array(selectedTechnicians))
         selectedTechnicians.removeAll()
         editMode = .inactive
+    }
+}
+
+struct LabTechnicianRow: View {
+    let staff: Staff
+    @EnvironmentObject var dataStore: MockHospitalDataStore
+    
+    var labTechnician: LabTechnicianDetails? {
+        dataStore.labTechnicians.first { $0.staffId == staff.id }
+    }
+    
+    var lab: Lab? {
+        guard let labId = labTechnician?.assignedLabId else { return nil }
+        return dataStore.labs.first { $0.id == labId }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.fill")
+                .resizable()
+                .frame(width: 40, height: 40)
+                .foregroundColor(.main)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(staff.staffName)
+                    .font(.headline)
+                
+                if let labName = lab?.labName {
+                    Text(labName)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            if let experience = labTechnician?.labExperienceYears {
+                Text("\(experience) yrs")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            if staff.onLeave {
+                Text("On Leave")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
+        }
+    }
+}
+
+struct AddEditLabTechnicianView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var dataStore: MockHospitalDataStore
+    
+    var onSave: (Staff, LabTechnicianDetails) -> Void
+    
+    @State private var name: String = ""
+    @State private var email: String = ""
+    @State private var mobile: String = ""
+    @State private var certification: String = ""
+    @State private var experience: String = ""
+    @State private var assignedLabId: String = ""
+    @State private var onLeave: Bool = false
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Personal Information")) {
+                    TextField("Full Name", text: $name)
+                    TextField("Email", text: $email)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                    TextField("Mobile", text: $mobile)
+                        .keyboardType(.phonePad)
+                }
+                
+                Section(header: Text("Professional Information")) {
+                    TextField("Certification ID", text: $certification)
+                    TextField("Experience (Years)", text: $experience)
+                        .keyboardType(.numberPad)
+                    
+                    Picker("Assigned Lab", selection: $assignedLabId) {
+                        ForEach(dataStore.labs) { lab in
+                            Text(lab.labName).tag(lab.id)
+                        }
+                    }
+                    
+                    Toggle("On Leave", isOn: $onLeave)
+                }
+            }
+            .navigationTitle("Add Lab Technician")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        let staff = Staff(
+                            id: UUID().uuidString,
+                            staffName: name,
+                            roleId: "lab_tech_role_id",
+                            createdAt: Date(),
+                            staffEmail: email,
+                            staffMobile: mobile,
+                            onLeave: onLeave
+                        )
+                        
+                        let techDetails = LabTechnicianDetails(
+                            id: UUID().uuidString,
+                            staffId: staff.id,
+                            certificationId: certification,
+                            labExperienceYears: Int(experience) ?? 0,
+                            assignedLabId: assignedLabId
+                        )
+                        
+                        onSave(staff, techDetails)
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .disabled(name.isEmpty || email.isEmpty || certification.isEmpty || assignedLabId.isEmpty)
+                }
+            }
+        }
+    }
+}
+
+struct LabTechnicianDetailView: View {
+    let staff: Staff
+    @EnvironmentObject var dataStore: MockHospitalDataStore
+    
+    var labTechnician: LabTechnicianDetails? {
+        dataStore.labTechnicians.first { $0.staffId == staff.id }
+    }
+    
+    var lab: Lab? {
+        guard let labId = labTechnician?.assignedLabId else { return nil }
+        return dataStore.labs.first { $0.id == labId }
+    }
+    
+    var body: some View {
+        List {
+            Section {
+                HStack {
+                    Spacer()
+                    Image(systemName: "person.crop.circle.fill")
+                        .resizable()
+                        .frame(width: 100, height: 100)
+                        .foregroundColor(.main)
+                    Spacer()
+                }
+                
+                HStack {
+                    Text("Name")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(staff.staffName)
+                }
+                
+                if let labName = lab?.labName {
+                    HStack {
+                        Text("Assigned Lab")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(labName)
+                    }
+                }
+                
+                if let experience = labTechnician?.labExperienceYears {
+                    HStack {
+                        Text("Experience")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(experience) years")
+                    }
+                }
+                
+                if let certification = labTechnician?.certificationId {
+                    HStack {
+                        Text("Certification")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(certification)
+                    }
+                }
+            }
+            
+            Section(header: Text("Contact")) {
+                HStack {
+                    Text("Email")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(staff.staffEmail)
+                }
+                
+                HStack {
+                    Text("Mobile")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(staff.staffMobile)
+                }
+            }
+            
+            if staff.onLeave {
+                Section {
+                    Text("Currently on leave")
+                        .foregroundColor(.orange)
+                }
+            }
+        }
+        .listStyle(InsetGroupedListStyle())
+        .navigationTitle(staff.staffName)
     }
 }
 
@@ -209,237 +399,6 @@ struct FilterPill<Selection: Hashable>: View {
                     .fill(selection as! String == "All" ? Color(.systemGray5) : accentColor)
             )
             .animation(.easeOut, value: selection)
-        }
-    }
-}
-
-struct LabTechnicianRow: View {
-    let technician: LabTechnician
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "person.crop.circle.fill")
-                .resizable()
-                .frame(width: 40, height: 40)
-                .foregroundColor(.green)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(technician.name)
-                    .font(.headline)
-                
-                Text(technician.specialty)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing) {
-                Text(technician.shift)
-                    .font(.subheadline)
-                    .foregroundColor(.green)
-                
-                Text("\(technician.experience) yrs")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.vertical, 8)
-    }
-}
-
-struct LabTechnicianDetailView: View {
-    @Binding var technician: LabTechnician
-    @State private var isEditing = false
-    
-    var body: some View {
-        List {
-            Section {
-                HStack {
-                    Spacer()
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(.green)
-                        .padding(.bottom, 8)
-                    Spacer()
-                }
-                
-                HStack {
-                    Text("Name")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(technician.name)
-                }
-                
-                HStack {
-                    Text("Specialty")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(technician.specialty)
-                }
-                
-                HStack {
-                    Text("Qualification")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(technician.qualification)
-                }
-                
-                HStack {
-                    Text("Experience")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(technician.experience) years")
-                }
-                
-                HStack {
-                    Text("Shift")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(technician.shift)
-                }
-            }
-            
-            Section(header: Text("Contact")) {
-                HStack {
-                    Text("Email")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(technician.email)
-                }
-                
-                HStack {
-                    Text("Phone")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(technician.phone)
-                }
-            }
-            
-            Section(header: Text("Certifications")) {
-                Text(technician.certifications)
-            }
-        }
-        .listStyle(InsetGroupedListStyle())
-        .navigationTitle(technician.name)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { isEditing = true }) {
-                    Text("Edit")
-                }
-            }
-        }
-        .sheet(isPresented: $isEditing) {
-            AddEditLabTechnicianView(technician: .constant(technician), onSave: { updatedTechnician in
-                technician = updatedTechnician
-                isEditing = false
-            })
-        }
-    }
-}
-
-struct AddEditLabTechnicianView: View {
-    @Environment(\.presentationMode) var presentationMode
-    @Binding var technician: LabTechnician?
-    var onSave: (LabTechnician) -> Void
-    
-    @State private var name: String
-    @State private var email: String
-    @State private var phone: String
-    @State private var qualification: String
-    @State private var experience: String
-    @State private var certifications: String
-    @State private var shift: String
-    @State private var specialty: String
-    
-    private var shifts = ["Morning", "Afternoon", "Evening", "Night", "Rotating"]
-    private var specialties = ["Blood Work", "Imaging", "Pathology", "Microbiology", "Biochemistry", "Molecular Diagnostics", "Cytology"]
-    
-    init(technician: Binding<LabTechnician?>, onSave: @escaping (LabTechnician) -> Void) {
-        self._technician = technician
-        self.onSave = onSave
-        
-        if let technician = technician.wrappedValue {
-            _name = State(initialValue: technician.name)
-            _email = State(initialValue: technician.email)
-            _phone = State(initialValue: technician.phone)
-            _qualification = State(initialValue: technician.qualification)
-            _experience = State(initialValue: technician.experience)
-            _certifications = State(initialValue: technician.certifications)
-            _shift = State(initialValue: technician.shift)
-            _specialty = State(initialValue: technician.specialty)
-        } else {
-            _name = State(initialValue: "")
-            _email = State(initialValue: "")
-            _phone = State(initialValue: "")
-            _qualification = State(initialValue: "")
-            _experience = State(initialValue: "")
-            _certifications = State(initialValue: "")
-            _shift = State(initialValue: shifts[0])
-            _specialty = State(initialValue: specialties[0])
-        }
-    }
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Personal Information")) {
-                    TextField("Full Name", text: $name)
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                    TextField("Phone Number", text: $phone)
-                        .keyboardType(.phonePad)
-                }
-                
-                Section(header: Text("Professional Information")) {
-                    Picker("Specialty", selection: $specialty) {
-                        ForEach(specialties, id: \.self) {
-                            Text($0)
-                        }
-                    }
-                    
-                    TextField("Qualification", text: $qualification)
-                    TextField("Experience (Years)", text: $experience)
-                        .keyboardType(.numberPad)
-                    
-                    Picker("Shift", selection: $shift) {
-                        ForEach(shifts, id: \.self) {
-                            Text($0)
-                        }
-                    }
-                }
-                
-                Section(header: Text("Certifications")) {
-                    TextEditor(text: $certifications)
-                        .frame(minHeight: 150)
-                }
-            }
-            .navigationTitle(technician == nil ? "Add Technician" : "Edit Technician")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        let newTechnician = LabTechnician(
-                            name: name,
-                            email: email,
-                            phone: phone,
-                            qualification: qualification,
-                            experience: experience,
-                            certifications: certifications,
-                            shift: shift,
-                            specialty: specialty
-                        )
-                        onSave(newTechnician)
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                    .disabled(name.isEmpty || email.isEmpty || specialty.isEmpty)
-                }
-            }
         }
     }
 }

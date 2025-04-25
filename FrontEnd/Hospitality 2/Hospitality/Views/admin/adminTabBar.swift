@@ -16,7 +16,7 @@ struct adminTabBarView : View {
         NavigationStack {
             ZStack {
                 TabView(selection: $selectedTab) {
-                    HomeContent(showProfile: $showProfile)
+                    AdminHomeView()
                         .tabItem {
                             Image(systemName: "house.fill")
                             Text("Home")

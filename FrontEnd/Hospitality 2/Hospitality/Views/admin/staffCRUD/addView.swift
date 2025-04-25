@@ -1,29 +1,30 @@
 //
-//  addView.swift
+//  AdminDashboardView.swift
 //  Hospitality
 //
 //  Created by admin@33 on 21/04/25.
 //
 
-import Foundation
 import SwiftUI
 
 struct AdminDashboardView: View {
+    @StateObject private var dataStore = MockHospitalDataStore()
+    
     var body: some View {
         NavigationView {
             List {
                 Section(header: Text("Medical Staff").font(.headline)) {
-                    NavigationLink(destination: DoctorsListView()) {
+                    NavigationLink(destination: DoctorsListView().environmentObject(dataStore)) {
                         Label("Doctors", systemImage: "stethoscope")
                     }
                     
-                    NavigationLink(destination: LabTechniciansListView()) {
+                    NavigationLink(destination: LabTechniciansListView().environmentObject(dataStore)) {
                         Label("Lab Technicians", systemImage: "person.text.rectangle")
                     }
                 }
                 
                 Section(header: Text("Services").font(.headline)) {
-                    NavigationLink(destination: LabTestsListView()) {
+                    NavigationLink(destination: LabTestsListView().environmentObject(dataStore)) {
                         Label("Lab Tests", systemImage: "testtube.2")
                     }
                 }
@@ -38,6 +39,7 @@ struct AdminDashboardView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack) // Prevents sidebar behavior on iPad
     }
 }
 

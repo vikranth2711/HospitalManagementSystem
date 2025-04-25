@@ -8,28 +8,41 @@
 import SwiftUI
 
 struct LabTestsListView: View {
-    @State private var tests: [LabTest] = [
-        LabTest(name: "Complete Blood Count (CBC)", description: "Measures various components of the blood", price: "$45", duration: "15 minutes", instructions: "No special preparation required"),
-        LabTest(name: "Basic Metabolic Panel", description: "Measures glucose, electrolytes, and kidney function", price: "$65", duration: "20 minutes", instructions: "Fasting for 8-12 hours required"),
-        LabTest(name: "Lipid Panel", description: "Measures cholesterol and triglycerides", price: "$55", duration: "20 minutes", instructions: "Fasting for 9-12 hours required")
-    ]
-    
+    @StateObject private var dataStore = MockHospitalDataStore()
     @State private var showingAddTest = false
     @State private var searchText = ""
+    @State private var selectedCategory = "All"
     @State private var editMode: EditMode = .inactive
-    @State private var selectedTests = Set<UUID>()
+    @State private var selectedTests = Set<String>()
     @State private var showingDeleteConfirmation = false
     
-    private var filteredTests: [LabTest] {
-        if searchText.isEmpty {
-            return tests
-        } else {
-            return tests.filter {
-                $0.name.localizedCaseInsensitiveContains(searchText) ||
-                $0.description.localizedCaseInsensitiveContains(searchText) ||
-                $0.price.localizedCaseInsensitiveContains(searchText)
+    private var categories: [String] {
+        var cats = ["All"]
+        let allCats = Set(dataStore.labTestCategories.map { $0.testCategoryName })
+        cats.append(contentsOf: allCats.sorted())
+        return cats
+    }
+    
+    private var filteredTests: [LabTestType] {
+        var result = dataStore.labTestTypes
+        
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.testName.localizedCaseInsensitiveContains(searchText) ||
+                ($0.testRemark?.localizedCaseInsensitiveContains(searchText) ?? false)
             }
         }
+        
+        if selectedCategory != "All" {
+            result = result.filter { test in
+                if let category = dataStore.labTestCategories.first(where: { $0.id == test.testCategoryId }) {
+                    return category.testCategoryName == selectedCategory
+                }
+                return false
+            }
+        }
+        
+        return result
     }
     
     var body: some View {
@@ -40,17 +53,39 @@ struct LabTestsListView: View {
                 .padding(.top, 8)
                 .background(Color(.systemGroupedBackground))
             
-            // List
+            // Filter Section
+            VStack(spacing: 12) {
+                HStack {
+                    Text("FILTERS")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.leading, 16)
+                    Spacer()
+                }
+                
+                HStack(spacing: 16) {
+                    FilterPill(
+                        title: "Category",
+                        selection: $selectedCategory,
+                        options: categories,
+                        accentColor: .main
+                    )
+                }
+                .padding(.horizontal, 8)
+            }
+            .padding(.vertical, 8)
+            .background(Color(.systemGroupedBackground))
+            
+            // Tests List
             List(selection: $selectedTests) {
                 ForEach(filteredTests) { test in
-                    NavigationLink(destination: LabTestDetailView(test: binding(for: test))) {
+                    NavigationLink(destination: LabTestDetailView(test: test)) {
                         LabTestRow(test: test)
                     }
                     .tag(test.id)
                 }
                 .onDelete(perform: deleteTest)
             }
-            .listStyle(InsetListStyle())
         }
         .navigationTitle("Lab Tests")
         .toolbar {
@@ -62,12 +97,14 @@ struct LabTestsListView: View {
                         }
                     }) {
                         Image(systemName: "trash")
+                            .tint(.red)
                     }
                     .disabled(selectedTests.isEmpty)
                 }
                 
                 Button(action: { showingAddTest = true }) {
                     Image(systemName: "plus")
+                        .tint(.main)
                 }
                 
                 EditButton()
@@ -75,8 +112,8 @@ struct LabTestsListView: View {
         }
         .environment(\.editMode, $editMode)
         .sheet(isPresented: $showingAddTest) {
-            AddEditLabTestView(test: .constant(nil), onSave: { newTest in
-                tests.append(newTest)
+            AddEditLabTestView(onSave: { test in
+                dataStore.createLabTestType(testType: test)
                 showingAddTest = false
             })
         }
@@ -90,132 +127,103 @@ struct LabTestsListView: View {
                 ]
             )
         }
-    }
-    
-    private func binding(for test: LabTest) -> Binding<LabTest> {
-        guard let index = tests.firstIndex(where: { $0.id == test.id }) else {
-            fatalError("Test not found")
+        .onAppear {
+            dataStore.fetchLabTestTypes()
+            dataStore.fetchLabTestCategories()
+            dataStore.fetchTargetOrgans()
         }
-        return $tests[index]
     }
     
     private func deleteTest(at offsets: IndexSet) {
-        tests.remove(atOffsets: offsets)
+        let idsToDelete = offsets.map { filteredTests[$0].id }
+        dataStore.deleteLabTestTypes(ids: idsToDelete)
     }
     
     private func deleteSelectedTests() {
-        tests.removeAll { test in
-            selectedTests.contains(test.id)
-        }
+        dataStore.deleteLabTestTypes(ids: Array(selectedTests))
         selectedTests.removeAll()
         editMode = .inactive
     }
 }
 
 struct LabTestRow: View {
-    let test: LabTest
+    let test: LabTestType
+    @EnvironmentObject var dataStore: MockHospitalDataStore
+    
+    var category: LabTestCategory? {
+        dataStore.labTestCategories.first { $0.id == test.testCategoryId }
+    }
+    
+    var targetOrgan: TargetOrgan? {
+        dataStore.targetOrgans.first { $0.id == test.testTargetOrganId }
+    }
     
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "testtube.2")
                 .resizable()
                 .frame(width: 30, height: 30)
-                .foregroundColor(.orange)
+                .foregroundColor(.main)
                 .padding(5)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(test.name)
+                Text(test.testName)
                     .font(.headline)
                 
-                Text(test.description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
+                if let categoryName = category?.testCategoryName {
+                    Text(categoryName)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Spacer()
             
-            VStack(alignment: .trailing) {
-                Text(test.price)
-                    .font(.subheadline)
-                    .foregroundColor(.orange)
-                Text(test.duration)
+            if let organ = targetOrgan {
+                Text(organ.targetOrganName)
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
             }
         }
-        .padding(.vertical, 8)
     }
 }
 
 struct AddEditLabTestView: View {
     @Environment(\.presentationMode) var presentationMode
-    @Binding var test: LabTest?
-    var onSave: (LabTest) -> Void
+    @EnvironmentObject var dataStore: MockHospitalDataStore
     
-    @State private var name: String
-    @State private var description: String
-    @State private var price: String
-    @State private var duration: String
-    @State private var instructions: String
-    @State private var showingCommonTests = false
+    var onSave: (LabTestType) -> Void
     
-    private let commonTests = [
-        ("Complete Blood Count (CBC)", "$45", "15 minutes", "Measures various components of blood", "No special preparation required"),
-        ("Basic Metabolic Panel", "$65", "20 minutes", "Measures glucose, electrolytes, and kidney function", "Fasting for 8-12 hours required"),
-        ("Lipid Panel", "$55", "20 minutes", "Measures cholesterol and triglycerides", "Fasting for 9-12 hours required"),
-        ("Thyroid Stimulating Hormone (TSH)", "$75", "15 minutes", "Measures thyroid function", "No special preparation required"),
-        ("Hemoglobin A1C", "$60", "15 minutes", "Measures average blood glucose levels", "No fasting required"),
-        ("Liver Function Test", "$85", "20 minutes", "Measures liver enzymes and proteins", "Fasting for 8-12 hours recommended")
-    ]
-    
-    init(test: Binding<LabTest?>, onSave: @escaping (LabTest) -> Void) {
-        self._test = test
-        self.onSave = onSave
-        
-        if let test = test.wrappedValue {
-            _name = State(initialValue: test.name)
-            _description = State(initialValue: test.description)
-            _price = State(initialValue: test.price)
-            _duration = State(initialValue: test.duration)
-            _instructions = State(initialValue: test.instructions)
-        } else {
-            _name = State(initialValue: "")
-            _description = State(initialValue: "")
-            _price = State(initialValue: "")
-            _duration = State(initialValue: "")
-            _instructions = State(initialValue: "")
-        }
-    }
+    @State private var testName: String = ""
+    @State private var testCategoryId: String = ""
+    @State private var testTargetOrganId: String = ""
+    @State private var testRemark: String = ""
     
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("Test Information")) {
-                    HStack {
-                        TextField("Test Name", text: $name)
-                        Button(action: { showingCommonTests = true }) {
-                            Image(systemName: "list.bullet")
-                                .foregroundColor(.blue)
+                    TextField("Test Name", text: $testName)
+                    
+                    Picker("Category", selection: $testCategoryId) {
+                        ForEach(dataStore.labTestCategories) { category in
+                            Text(category.testCategoryName).tag(category.id)
                         }
                     }
                     
-                    TextField("Price", text: $price)
-                        .keyboardType(.decimalPad)
-                    TextField("Duration", text: $duration)
+                    Picker("Target Organ", selection: $testTargetOrganId) {
+                        ForEach(dataStore.targetOrgans) { organ in
+                            Text(organ.targetOrganName).tag(organ.id)
+                        }
+                    }
                 }
                 
-                Section(header: Text("Description")) {
-                    TextEditor(text: $description)
+                Section(header: Text("Remarks")) {
+                    TextEditor(text: $testRemark)
                         .frame(minHeight: 100)
                 }
-                
-                Section(header: Text("Patient Instructions")) {
-                    TextEditor(text: $instructions)
-                        .frame(minHeight: 150)
-                }
             }
-            .navigationTitle(test == nil ? "Add Test" : "Edit Test")
+            .navigationTitle("Add Lab Test")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
@@ -224,77 +232,35 @@ struct AddEditLabTestView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        let newTest = LabTest(
-                            name: name,
-                            description: description,
-                            price: price,
-                            duration: duration,
-                            instructions: instructions
+                        let test = LabTestType(
+                            id: UUID().uuidString,
+                            testName: testName,
+                            testCategoryId: testCategoryId,
+                            testTargetOrganId: testTargetOrganId,
+                            testRemark: testRemark.isEmpty ? nil : testRemark
                         )
-                        onSave(newTest)
+                        
+                        onSave(test)
                         presentationMode.wrappedValue.dismiss()
                     }
-                    .disabled(name.isEmpty || price.isEmpty)
+                    .disabled(testName.isEmpty || testCategoryId.isEmpty || testTargetOrganId.isEmpty)
                 }
             }
-            .sheet(isPresented: $showingCommonTests) {
-                CommonTestsView { selectedTest in
-                    name = selectedTest.0
-                    price = selectedTest.1
-                    duration = selectedTest.2
-                    description = selectedTest.3
-                    instructions = selectedTest.4
-                    showingCommonTests = false
-                }
-            }
-        }
-    }
-}
-
-struct CommonTestsView: View {
-    var onSelect: ((String, String, String, String, String)) -> Void
-    
-    private let commonTests = [
-        ("Complete Blood Count (CBC)", "$45", "15 minutes", "Measures various components of blood", "No special preparation required"),
-        ("Basic Metabolic Panel", "$65", "20 minutes", "Measures glucose, electrolytes, and kidney function", "Fasting for 8-12 hours required"),
-        ("Lipid Panel", "$55", "20 minutes", "Measures cholesterol and triglycerides", "Fasting for 9-12 hours required"),
-        ("Thyroid Stimulating Hormone (TSH)", "$75", "15 minutes", "Measures thyroid function", "No special preparation required"),
-        ("Hemoglobin A1C", "$60", "15 minutes", "Measures average blood glucose levels", "No fasting required"),
-        ("Liver Function Test", "$85", "20 minutes", "Measures liver enzymes and proteins", "Fasting for 8-12 hours recommended")
-    ]
-    
-    var body: some View {
-        NavigationView {
-            List(commonTests, id: \.0) { test in
-                Button(action: { onSelect(test) }) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(test.0)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Text(test.3)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        HStack {
-                            Text(test.1)
-                                .foregroundColor(.orange)
-                            Spacer()
-                            Text(test.2)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-            .listStyle(InsetGroupedListStyle())
-            .navigationTitle("Common Tests")
-            .navigationBarItems(trailing: Button("Cancel") { onSelect(("", "", "", "", "")) })
         }
     }
 }
 
 struct LabTestDetailView: View {
-    @Binding var test: LabTest
-    @State private var isEditing = false
+    let test: LabTestType
+    @EnvironmentObject var dataStore: MockHospitalDataStore
+    
+    var category: LabTestCategory? {
+        dataStore.labTestCategories.first { $0.id == test.testCategoryId }
+    }
+    
+    var targetOrgan: TargetOrgan? {
+        dataStore.targetOrgans.first { $0.id == test.testTargetOrganId }
+    }
     
     var body: some View {
         List {
@@ -303,46 +269,35 @@ struct LabTestDetailView: View {
                     Text("Test Name")
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(test.name)
+                    Text(test.testName)
                 }
                 
-                HStack {
-                    Text("Price")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(test.price)
+                if let categoryName = category?.testCategoryName {
+                    HStack {
+                        Text("Category")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(categoryName)
+                    }
                 }
                 
-                HStack {
-                    Text("Duration")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(test.duration)
+                if let organName = targetOrgan?.targetOrganName {
+                    HStack {
+                        Text("Target Organ")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(organName)
+                    }
                 }
             }
             
-            Section(header: Text("Description")) {
-                Text(test.description)
-            }
-            
-            Section(header: Text("Patient Instructions")) {
-                Text(test.instructions)
+            if let remark = test.testRemark {
+                Section(header: Text("Remarks")) {
+                    Text(remark)
+                }
             }
         }
         .listStyle(InsetGroupedListStyle())
-        .navigationTitle(test.name)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { isEditing = true }) {
-                    Text("Edit")
-                }
-            }
-        }
-        .sheet(isPresented: $isEditing) {
-            AddEditLabTestView(test: .constant(test), onSave: { updatedTest in
-                test = updatedTest
-                isEditing = false
-            })
-        }
+        .navigationTitle(test.testName)
     }
 }

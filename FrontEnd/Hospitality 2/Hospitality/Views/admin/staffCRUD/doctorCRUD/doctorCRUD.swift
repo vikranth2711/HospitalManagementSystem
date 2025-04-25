@@ -9,34 +9,19 @@ import Foundation
 import SwiftUI
 
 struct DoctorsListView: View {
-    @State private var doctors: [RegistrationDoctors] = [
-        RegistrationDoctors(name: "Dr. Sarah Johnson", email: "s.johnson@hospital.com", phone: "+1 (555) 123-4567",
-                department: "Cardiology", specialization: "Interventional Cardiology", qualification: "MD, PhD",
-                experience: "12", availability: "Mon-Fri: 9AM-5PM", bio: "Cardiologist with extensive experience in interventional procedures.",
-                fees: "$250", shifts: ["Morning", "Afternoon"]),
-        
-        RegistrationDoctors(name: "Dr. Michael Chen", email: "m.chen@hospital.com", phone: "+1 (555) 987-6543",
-                department: "Neurology", specialization: "Neurodegenerative Disorders", qualification: "MD",
-                experience: "8", availability: "Mon-Wed-Fri: 10AM-4PM", bio: "Specializes in neurodegenerative disorders.",
-                fees: "$200", shifts: ["Afternoon"]),
-        
-        RegistrationDoctors(name: "Dr. Emily Rodriguez", email: "e.rodriguez@hospital.com", phone: "+1 (555) 456-7890",
-                department: "Pediatrics", specialization: "Neonatology", qualification: "MD",
-                experience: "5", availability: "Tue-Thu-Sat: 8AM-2PM", bio: "Specializes in newborn care and neonatal intensive care.",
-                fees: "$180", shifts: ["Morning"])
-    ]
-    
+    @ObservedObject private var dataStore = MockHospitalDataStore()
     @State private var showingAddDoctor = false
     @State private var searchText = ""
     @State private var selectedDepartment = "All"
     @State private var selectedShift = "All"
     @State private var editMode: EditMode = .inactive
-    @State private var selectedDoctors = Set<UUID>()
+    @State private var selectedDoctors = Set<String>()
     @State private var showingDeleteConfirmation = false
     
     private var departments: [String] {
         var depts = ["All"]
-        depts.append(contentsOf: Set(doctors.map { $0.department }).sorted())
+        let allDepts = Set(dataStore.doctors.map { $0.doctorSpecialization })
+        depts.append(contentsOf: allDepts.sorted())
         return depts
     }
     
@@ -44,26 +29,24 @@ struct DoctorsListView: View {
         ["All", "Morning", "Afternoon", "Evening", "Night"]
     }
     
-    private var filteredDoctors: [RegistrationDoctors] {
-        var result = doctors
+    private var filteredDoctors: [Staff] {
+        var result = dataStore.staff.filter { staff in
+            dataStore.doctors.contains { $0.staffId == staff.id }
+        }
         
-        // Apply search filter
         if !searchText.isEmpty {
             result = result.filter {
-                $0.name.localizedCaseInsensitiveContains(searchText) ||
-                $0.department.localizedCaseInsensitiveContains(searchText) ||
-                $0.specialization.localizedCaseInsensitiveContains(searchText)
+                $0.staffName.localizedCaseInsensitiveContains(searchText) ||
+                $0.staffEmail.localizedCaseInsensitiveContains(searchText)
             }
         }
         
-        // Apply department filter
         if selectedDepartment != "All" {
-            result = result.filter { $0.department == selectedDepartment }
-        }
-        
-        // Apply shift filter
-        if selectedShift != "All" {
-            result = result.filter { $0.shifts.contains(selectedShift) }
+            result = result.filter { staff in
+                dataStore.doctors.contains {
+                    $0.staffId == staff.id && $0.doctorSpecialization == selectedDepartment
+                }
+            }
         }
         
         return result
@@ -106,26 +89,20 @@ struct DoctorsListView: View {
                         .padding(.horizontal, 8)
                     }
                     .padding(.vertical, 8)
-                    .background(Color(.systemGroupedBackground))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
                 }
             }
             .background(Color(.systemGroupedBackground))
             
             // Doctors List
             List(selection: $selectedDoctors) {
-                ForEach(filteredDoctors) { doctor in
-                    NavigationLink(destination: DoctorDetailView(doctor: binding(for: doctor))) {
-                        DoctorRow(doctor: doctor)
+                ForEach(filteredDoctors) { staff in
+                    NavigationLink(destination: DoctorDetailView(staff: staff, dataStore: dataStore)) {
+                        DoctorRow(staff: staff, dataStore: dataStore)
                     }
-                    .tag(doctor.id)
+                    .tag(staff.id)
                 }
                 .onDelete(perform: deleteDoctor)
             }
-            .listStyle(InsetListStyle())
         }
         .navigationTitle("Doctors")
         .toolbar {
@@ -152,151 +129,111 @@ struct DoctorsListView: View {
         }
         .environment(\.editMode, $editMode)
         .sheet(isPresented: $showingAddDoctor) {
-            AddEditDoctorView(doctor: .constant(nil), onSave: { newDoctor in
-                doctors.append(newDoctor)
+            AddEditDoctorView(dataStore: dataStore) { staff, doctorDetails, staffDetails in
+                dataStore.createDoctor(staff: staff, doctorDetails: doctorDetails, staffDetails: staffDetails)
                 showingAddDoctor = false
-            })
+            }
         }
         .actionSheet(isPresented: $showingDeleteConfirmation) {
             ActionSheet(
                 title: Text("Delete Doctors"),
                 message: Text("Are you sure you want to delete \(selectedDoctors.count) doctor(s)?"),
                 buttons: [
-                    .destructive(Text("Delete"), action: deleteSelectedDoctors),
+                    .destructive(Text("Delete"), action: { deleteSelectedDoctors() }),
                     .cancel()
                 ]
             )
         }
-    }
-    
-    private func binding(for doctor: RegistrationDoctors) -> Binding<RegistrationDoctors> {
-        guard let index = doctors.firstIndex(where: { $0.id == doctor.id }) else {
-            fatalError("Doctor not found")
+        .onAppear {
+            dataStore.fetchStaff()
+            dataStore.fetchDoctors()
+            dataStore.fetchDoctorTypes()
         }
-        return $doctors[index]
     }
     
     private func deleteDoctor(at offsets: IndexSet) {
-        doctors.remove(atOffsets: offsets)
+        let idsToDelete = offsets.map { filteredDoctors[$0].id }
+        dataStore.deleteStaff(ids: idsToDelete)
     }
     
     private func deleteSelectedDoctors() {
-        doctors.removeAll { doctor in
-            selectedDoctors.contains(doctor.id)
-        }
+        dataStore.deleteStaff(ids: Array(selectedDoctors))
         selectedDoctors.removeAll()
         editMode = .inactive
     }
 }
 
 struct DoctorRow: View {
-    let doctor: RegistrationDoctors
+    let staff: Staff
+    @ObservedObject var dataStore: MockHospitalDataStore
+    
+    var doctorDetails: DoctorDetails? {
+        dataStore.doctors.first { $0.staffId == staff.id }
+    }
+    
+    var doctorType: DoctorType? {
+        guard let doctor = doctorDetails else { return nil }
+        return dataStore.doctorTypes.first { $0.id == doctor.doctorTypeId }
+    }
     
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "person.crop.circle.fill")
                 .resizable()
                 .frame(width: 40, height: 40)
-                .foregroundColor(colorForDepartment(doctor.department))
+                .foregroundColor(.main)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(doctor.name)
+                Text(staff.staffName)
                     .font(.headline)
                 
-                Text("\(doctor.department) - \(doctor.specialization)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                if let specialization = doctorDetails?.doctorSpecialization {
+                    Text(specialization)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
-                HStack {
-                    ForEach(doctor.shifts, id: \.self) { shift in
-                        Text(shift)
-                            .font(.caption2)
-                            .padding(4)
-                            .background(shiftColor(shift))
-                            .cornerRadius(4)
-                    }
+                if let type = doctorType {
+                    Text(type.doctorTypeName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
             
             Spacer()
             
-            Text(doctor.fees)
-                .font(.subheadline)
-                .foregroundColor(.main)
-        }
-        .padding(.vertical, 8)
-    }
-    
-    private func colorForDepartment(_ department: String) -> Color {
-        switch department {
-        case "Cardiology": return .main
-        case "Neurology": return .main
-        case "Pediatrics": return .main
-        default: return .gray
-        }
-    }
-    
-    private func shiftColor(_ shift: String) -> Color {
-        switch shift {
-        case "Morning": return Color.blue.opacity(0.2)
-        case "Afternoon": return Color.orange.opacity(0.2)
-        case "Evening": return Color.purple.opacity(0.2)
-        case "Night": return Color.black.opacity(0.2)
-        default: return Color.gray.opacity(0.2)
+            if staff.onLeave {
+                Text("On Leave")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
         }
     }
 }
 
 struct AddEditDoctorView: View {
     @Environment(\.presentationMode) var presentationMode
-    @Binding var doctor: RegistrationDoctors?
-    var onSave: (RegistrationDoctors) -> Void
+    @ObservedObject var dataStore: MockHospitalDataStore
     
-    @State private var name: String
-    @State private var email: String
-    @State private var phone: String
-    @State private var department: String
-    @State private var specialization: String
-    @State private var qualification: String
-    @State private var experience: String
-    @State private var availability: String
-    @State private var bio: String
-    @State private var fees: String
-    @State private var selectedShifts: Set<String>
+    var onSave: (Staff, DoctorDetails, StaffDetails) -> Void
     
-    private var departments = ["Cardiology", "Neurology", "Pediatrics", "Orthopedics", "Dermatology", "Oncology"]
-    private var shifts = ["Morning", "Afternoon", "Evening", "Night"]
+    // Staff fields
+    @State private var name: String = ""
+    @State private var email: String = ""
+    @State private var mobile: String = ""
+    @State private var onLeave: Bool = false
+    @State private var joiningDate: Date = Date()
     
-    init(doctor: Binding<RegistrationDoctors?>, onSave: @escaping (RegistrationDoctors) -> Void) {
-        self._doctor = doctor
-        self.onSave = onSave
-        
-        if let doctor = doctor.wrappedValue {
-            _name = State(initialValue: doctor.name)
-            _email = State(initialValue: doctor.email)
-            _phone = State(initialValue: doctor.phone)
-            _department = State(initialValue: doctor.department)
-            _specialization = State(initialValue: doctor.specialization)
-            _qualification = State(initialValue: doctor.qualification)
-            _experience = State(initialValue: doctor.experience)
-            _availability = State(initialValue: doctor.availability)
-            _bio = State(initialValue: doctor.bio)
-            _fees = State(initialValue: doctor.fees)
-            _selectedShifts = State(initialValue: Set(doctor.shifts))
-        } else {
-            _name = State(initialValue: "")
-            _email = State(initialValue: "")
-            _phone = State(initialValue: "")
-            _department = State(initialValue: departments[0])
-            _specialization = State(initialValue: "")
-            _qualification = State(initialValue: "")
-            _experience = State(initialValue: "")
-            _availability = State(initialValue: "")
-            _bio = State(initialValue: "")
-            _fees = State(initialValue: "")
-            _selectedShifts = State(initialValue: [])
-        }
-    }
+    // Doctor fields
+    @State private var specialization: String = ""
+    @State private var license: String = ""
+    @State private var experience: String = ""
+    @State private var doctorTypeId: String = ""
+    
+    // StaffDetails fields
+    @State private var dob: Date = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
+    @State private var address: String = ""
+    @State private var qualifications: String = ""
     
     var body: some View {
         NavigationView {
@@ -305,48 +242,34 @@ struct AddEditDoctorView: View {
                     TextField("Full Name", text: $name)
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
-                    TextField("Phone Number", text: $phone)
+                        .autocapitalization(.none)
+                    TextField("Mobile", text: $mobile)
                         .keyboardType(.phonePad)
+                    DatePicker("Date of Birth", selection: $dob, displayedComponents: .date)
+                }
+                
+                Section(header: Text("Address")) {
+                    TextField("Address", text: $address)
                 }
                 
                 Section(header: Text("Professional Information")) {
-                    Picker("Department", selection: $department) {
-                        ForEach(departments, id: \.self) {
-                            Text($0)
+                    TextField("Specialization", text: $specialization)
+                    TextField("Qualifications", text: $qualifications)
+                    TextField("License Number", text: $license)
+                    TextField("Experience (Years)", text: $experience)
+                        .keyboardType(.numberPad)
+                    
+                    Picker("Doctor Type", selection: $doctorTypeId) {
+                        ForEach(dataStore.doctorTypes) { type in
+                            Text(type.doctorTypeName).tag(type.id)
                         }
                     }
                     
-                    TextField("Specialization", text: $specialization)
-                    TextField("Qualification", text: $qualification)
-                    TextField("Experience (Years)", text: $experience)
-                        .keyboardType(.numberPad)
-                    TextField("Consultation Fees", text: $fees)
-                        .keyboardType(.decimalPad)
-                }
-                
-                Section(header: Text("Shifts")) {
-                    ForEach(shifts, id: \.self) { shift in
-                        MultipleSelectionRow(title: shift, isSelected: selectedShifts.contains(shift)) {
-                            if selectedShifts.contains(shift) {
-                                selectedShifts.remove(shift)
-                            } else {
-                                selectedShifts.insert(shift)
-                            }
-                        }
-                    }
-                }
-                
-                Section(header: Text("Availability")) {
-                    TextEditor(text: $availability)
-                        .frame(minHeight: 100)
-                }
-                
-                Section(header: Text("Bio")) {
-                    TextEditor(text: $bio)
-                        .frame(minHeight: 150)
+                    DatePicker("Joining Date", selection: $joiningDate, displayedComponents: .date)
+                    Toggle("On Leave", isOn: $onLeave)
                 }
             }
-            .navigationTitle(doctor == nil ? "Add Doctor" : "Edit Doctor")
+            .navigationTitle("Add Doctor")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
@@ -355,46 +278,138 @@ struct AddEditDoctorView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        let newDoctor = RegistrationDoctors(
-                            name: name,
-                            email: email,
-                            phone: phone,
-                            department: department,
-                            specialization: specialization,
-                            qualification: qualification,
-                            experience: experience,
-                            availability: availability,
-                            bio: bio,
-                            fees: fees,
-                            shifts: Array(selectedShifts)
+                        let staff = Staff(
+                            id: UUID().uuidString,
+                            staffName: name,
+                            roleId: "doctor_role_id",
+                            createdAt: joiningDate,
+                            staffEmail: email,
+                            staffMobile: mobile,
+                            onLeave: onLeave
                         )
-                        onSave(newDoctor)
+                        
+                        let doctorDetails = DoctorDetails(
+                            id: UUID().uuidString,
+                            staffId: staff.id,
+                            doctorSpecialization: specialization,
+                            doctorLicense: license,
+                            doctorExperienceYears: Int(experience) ?? 0,
+                            doctorTypeId: doctorTypeId
+                        )
+                        
+                        let staffDetails = StaffDetails(
+                            id: UUID().uuidString,
+                            staffId: staff.id,
+                            staffDob: dob,
+                            staffAddress: address,
+                            staffQualifications: qualifications,
+                            staffPhoto: nil
+                        )
+                        
+                        onSave(staff, doctorDetails, staffDetails)
                         presentationMode.wrappedValue.dismiss()
                     }
-                    .disabled(name.isEmpty || email.isEmpty || department.isEmpty || selectedShifts.isEmpty)
+                    .disabled(name.isEmpty || email.isEmpty || specialization.isEmpty || doctorTypeId.isEmpty || qualifications.isEmpty)
                 }
             }
         }
     }
 }
 
-struct MultipleSelectionRow: View {
-    var title: String
-    var isSelected: Bool
-    var action: () -> Void
-
+struct DoctorDetailView: View {
+    let staff: Staff
+    @ObservedObject var dataStore: MockHospitalDataStore
+    
+    var doctorDetails: DoctorDetails? {
+        dataStore.doctors.first { $0.staffId == staff.id }
+    }
+    
+    var doctorType: DoctorType? {
+        guard let doctor = doctorDetails else { return nil }
+        return dataStore.doctorTypes.first { $0.id == doctor.doctorTypeId }
+    }
+    
     var body: some View {
-        Button(action: action) {
-            HStack {
-                Text(title)
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark")
+        List {
+            Section {
+                HStack {
+                    Spacer()
+                    Image(systemName: "person.crop.circle.fill")
+                        .resizable()
+                        .frame(width: 100, height: 100)
                         .foregroundColor(.main)
+                    Spacer()
+                }
+                
+                HStack {
+                    Text("Name")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(staff.staffName)
+                }
+                
+                if let specialization = doctorDetails?.doctorSpecialization {
+                    HStack {
+                        Text("Specialization")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(specialization)
+                    }
+                }
+                
+                if let experience = doctorDetails?.doctorExperienceYears {
+                    HStack {
+                        Text("Experience")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(experience) years")
+                    }
+                }
+                
+                if let type = doctorType {
+                    HStack {
+                        Text("Type")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(type.doctorTypeName)
+                    }
+                }
+                
+                if let license = doctorDetails?.doctorLicense {
+                    HStack {
+                        Text("License")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(license)
+                    }
+                }
+            }
+            
+            Section(header: Text("Contact")) {
+                HStack {
+                    Text("Email")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(staff.staffEmail)
+                }
+                
+                HStack {
+                    Text("Mobile")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(staff.staffMobile)
+                }
+            }
+            
+            if staff.onLeave {
+                Section {
+                    Text("Currently on leave")
+                        .foregroundColor(.orange)
                 }
             }
         }
-        .foregroundColor(.primary)
+        .listStyle(InsetGroupedListStyle())
+        .navigationTitle(staff.staffName)
     }
 }
 
@@ -420,101 +435,6 @@ struct SearchBar: View {
             .padding(8)
             .background(Color(.systemGray6))
             .cornerRadius(10)
-        }
-    }
-}
-
-struct DoctorDetailView: View {
-    @Binding var doctor: RegistrationDoctors
-    @State private var isEditing = false
-    
-    var body: some View {
-        List {
-            Section {
-                HStack {
-                    Spacer()
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(.main)
-                        .padding(.bottom, 8)
-                    Spacer()
-                }
-                
-                HStack {
-                    Text("Name")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(doctor.name)
-                }
-                
-                HStack {
-                    Text("Specialization")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(doctor.specialization)
-                }
-                
-                HStack {
-                    Text("Qualification")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(doctor.qualification)
-                }
-                
-                HStack {
-                    Text("Experience")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(doctor.experience) years")
-                }
-                
-                HStack {
-                    Text("Fees")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(doctor.fees)
-                }
-            }
-            
-            Section(header: Text("Contact")) {
-                HStack {
-                    Text("Email")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(doctor.email)
-                }
-                
-                HStack {
-                    Text("Phone")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(doctor.phone)
-                }
-            }
-            
-            Section(header: Text("Availability")) {
-                Text(doctor.availability)
-            }
-            
-            Section(header: Text("Bio")) {
-                Text(doctor.bio)
-            }
-        }
-        .listStyle(InsetGroupedListStyle())
-        .navigationTitle(doctor.name)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { isEditing = true }) {
-                    Text("Edit")
-                }
-            }
-        }
-        .sheet(isPresented: $isEditing) {
-            AddEditDoctorView(doctor: .constant(doctor), onSave: { updatedDoctor in
-                doctor = updatedDoctor
-                isEditing = false
-            })
         }
     }
 }
