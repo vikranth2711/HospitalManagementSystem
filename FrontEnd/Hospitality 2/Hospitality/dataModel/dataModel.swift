@@ -89,16 +89,13 @@ struct TargetOrgan: Identifiable, Codable {
 // MARK: - Patient Models
 struct Patient: Identifiable, Codable {
     let id: String
-    let patient_id: String
-    let patient_name: String
-    let patient_email: String?
-    let patient_mobile: String
-    let patient_remark: String?
-    let patient_dob: Date
-    let patient_gender: String
-    let patient_blood_group: String?
-    let patient_address: String
-    let patient_photo: Data?
+    let patientName: String
+    let patientEmail: String?
+    let patientMobile: String
+    let patientDob: Date
+    let patientGender: String
+    let patientBloodGroup: String?
+    let patientRemark: String?
 }
 
 struct PatientDetails: Identifiable, Codable {

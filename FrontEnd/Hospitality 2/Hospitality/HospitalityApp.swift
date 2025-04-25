@@ -11,7 +11,8 @@ import SwiftUI
 struct HospitalityApp: App {
     var body: some Scene {
         WindowGroup {
-            SplashScreen()
+            SignUpView()
+                
         }
     }
 }
