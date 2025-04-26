@@ -441,83 +441,6 @@ class DoctorDetailView(APIView):
         return Response({"message": "Doctor deleted successfully"}, 
                       status=status.HTTP_204_NO_CONTENT)
 
-# class CreateDoctorView(APIView):
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAdminStaff]
-    
-#     def post(self, request, *args, **kwargs):
-#         # Extract and validate required fields
-#         staff_name = request.data.get('staff_name')
-#         staff_email = request.data.get('staff_email')
-#         staff_mobile = request.data.get('staff_mobile')
-#         specialization = request.data.get('specialization')
-#         license = request.data.get('license')
-#         experience_years = request.data.get('experience_years')
-#         doctor_type_id = request.data.get('doctor_type_id')
-#         staff_joining_date = request.data.get('staff_joining_date')
-        
-#         # Validate required fields
-#         if not all([staff_name, staff_email, staff_mobile, specialization, 
-#                    license, experience_years, doctor_type_id, staff_joining_date]):
-#             return Response({"error": "Missing required fields"}, 
-#                           status=status.HTTP_400_BAD_REQUEST)
-                          
-#         # Check if email already exists
-#         if Staff.objects.filter(staff_email=staff_email).exists():
-#             return Response({"error": "Staff with this email already exists"}, 
-#                           status=status.HTTP_400_BAD_REQUEST)
-                          
-#         # Get doctor role
-#         try:
-#             role = Role.objects.get(role_name='Doctor')
-#         except Role.DoesNotExist:
-#             return Response({"error": "Doctor role not found"}, 
-#                           status=status.HTTP_400_BAD_REQUEST)
-                          
-#         # Verify doctor type exists
-#         try:
-#             doctor_type = DoctorType.objects.get(doctor_type_id=doctor_type_id)
-#         except DoctorType.DoesNotExist:
-#             return Response({"error": f"Doctor type with ID {doctor_type_id} not found"}, 
-#                           status=status.HTTP_400_BAD_REQUEST)
-                          
-#         # Generate unique staff ID
-#         staff_id = f"DOC{uuid.uuid4().hex[:8].upper()}"
-#         while Staff.objects.filter(staff_id=staff_id).exists():
-#             staff_id = f"DOC{uuid.uuid4().hex[:8].upper()}"
-            
-#         # Create the staff
-#         try:
-#             # Parse date
-#             joining_date = datetime.datetime.strptime(staff_joining_date, '%Y-%m-%d').date()
-            
-#             staff = Staff.objects.create(
-#                 staff_id=staff_id,
-#                 staff_name=staff_name,
-#                 role=role,
-#                 created_at=joining_date,
-#                 staff_email=staff_email,
-#                 staff_mobile=staff_mobile
-#             )
-            
-#             # Create doctor details
-#             DoctorDetails.objects.create(
-#                 staff=staff,
-#                 doctor_specialization=specialization,
-#                 doctor_license=license,
-#                 doctor_experience_years=int(experience_years),
-#                 doctor_type=doctor_type
-#             )
-            
-#             return Response({
-#                 "message": "Doctor created successfully",
-#                 "staff_id": staff.staff_id
-#             }, status=status.HTTP_201_CREATED)
-            
-#         except Exception as e:
-#             return Response({"error": str(e)}, 
-#                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 class CreateDoctorView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminStaff]
@@ -609,3 +532,4 @@ class CreateDoctorView(APIView):
         except Exception as e:
             return Response({"error": str(e)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

@@ -570,3 +570,293 @@ All API endpoints will return appropriate error responses with HTTP status codes
   "details": "Error details here"
 }
 ```
+
+# Unrestricted APIs
+
+## 📘 API Documentation: Hospital Management System
+
+**Base URL:** `/api/hospital/unrestricted/`
+
+---
+
+### 1. 🩺 Get All Doctors
+
+**Endpoint:** `/api/hospital/unrestricted/api/doctors/`  
+**Method:** `GET`  
+**Auth:** JWT Token (Authenticated)
+
+**Response:**
+```json
+[
+  {
+    "staff_id": "DOC123",
+    "staff_name": "Dr. Jane Doe",
+    "specialization": "Cardiology",
+    "doctor_type": "Consultant",
+    "on_leave": false
+  }
+]
+```
+
+---
+
+### 2. 🧑‍⚕️ Doctor Detail
+
+**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/`  
+**Method:** `GET`  
+**Auth:** JWT Token (Authenticated)
+
+**Response:**
+```json
+{
+  "staff_id": "DOC123",
+  "staff_name": "Dr. Jane Doe",
+  "specialization": "Cardiology",
+  "doctor_type": "Consultant",
+  "on_leave": false
+}
+```
+
+---
+
+### 3. 📅 Available Slots for a Doctor on a Date
+
+**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/slots/?date=YYYY-MM-DD`  
+**Method:** `GET`  
+**Auth:** JWT Token (Authenticated)
+
+**Query Param:** `date` (required, format `YYYY-MM-DD`)
+
+**Response:**
+```json
+[
+  {
+    "slot_id": 1,
+    "slot_start_time": "10:00:00",
+    "slot_duration": "00:30:00",
+    "is_booked": false
+  }
+]
+```
+
+---
+
+### 4. 🗓️ Book Appointment
+
+**Endpoint:** `/api/hospital/unrestricted/api/appointments/`  
+**Method:** `POST`  
+**Auth:** JWT Token (Authenticated)
+
+**Request Body:**
+```json
+{
+  "date": "2025-05-01",
+  "staff_id": "DOC123",
+  "slot_id": 1,
+  "reason": "Routine Checkup"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Appointment booked",
+  "appointment_id": 101
+}
+```
+
+---
+
+### 5. 📜 Appointment History (Patient/Doctor)
+
+**Endpoint:** `/api/hospital/unrestricted/api/appointments/history/`  
+**Method:** `GET`  
+**Auth:** JWT Token (Authenticated)
+
+**Response:**
+```json
+[
+  {
+    "appointment_id": 101,
+    "date": "2025-05-01",
+    "slot_id": 1,
+    "staff_id": "DOC123",
+    "patient_id": "PAT456",
+    "status": "upcoming"
+  }
+]
+```
+
+---
+
+### 6. 📋 Appointment Detail
+
+**Endpoint:** `/api/hospital/unrestricted/api/appointments/<appointment_id>/`  
+**Method:** `GET`  
+**Auth:** JWT Token (Authenticated)
+
+**Response:**
+```json
+{
+  "appointment_id": 101,
+  "date": "2025-05-01",
+  "slot_id": 1,
+  "staff_id": "DOC123",
+  "patient_id": "PAT456",
+  "prescription": {
+    "prescription_id": 10,
+    "remarks": "Take rest",
+    "medicines": [
+      {
+        "medicine_name": "Paracetamol",
+        "dosage": "500mg",
+        "fasting_required": false
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 7. 🩺 Admin View - All Appointments
+
+**Endpoint:** `/api/hospital/unrestricted/api/appointments/admin/`  
+**Method:** `GET`  
+**Auth:** JWT Token (Admin)
+
+**Response:**
+```json
+[
+  {
+    "appointment_id": 101,
+    "date": "2025-05-01",
+    "slot_id": 1,
+    "staff_id": "DOC123",
+    "patient_id": "PAT456"
+  }
+]
+```
+
+---
+
+### 8. 🧑 Patient Detail
+
+**Endpoint:** `/api/hospital/unrestricted/api/patients/<patient_id>/`  
+**Method:** `GET`  
+**Auth:** JWT Token (Authenticated)
+
+**Response:**
+```json
+{
+  "patient_id": "PAT456",
+  "patient_name": "John Smith",
+  "patient_email": "john@example.com",
+  "patient_mobile": "1234567890",
+  "dob": "1990-01-01",
+  "gender": "Male",
+  "blood_group": "O+",
+  "address": "123 Main St",
+  "profile_photo": "http://localhost:8000/media/profile_photos/john.jpg"
+}
+```
+
+---
+
+### 9. 💓 Enter Patient Vitals
+
+**Endpoint:** `/api/hospital/unrestricted/api/appointments/<appointment_id>/vitals/`  
+**Method:** `POST`  
+**Auth:** JWT Token (Authenticated)
+
+**Request Body:**
+```json
+{
+  "height": 170,
+  "weight": 70,
+  "heartrate": 80,
+  "spo2": 98,
+  "temperature": 98.6
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Vitals saved"
+}
+```
+
+---
+
+### 10. 💊 Submit Prescription
+
+**Endpoint:** `/api/hospital/unrestricted/api/appointments/<appointment_id>/prescription/`  
+**Method:** `POST`  
+**Auth:** JWT Token (Authenticated)
+
+**Request Body:**
+```json
+{
+  "remarks": "Take after meals",
+  "medicines": [
+    {
+      "medicine_id": 1,
+      "dosage": "1 tablet",
+      "fasting_required": false
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Prescription submitted"
+}
+```
+
+---
+
+### 11. 🕘 Assign Doctor Shift
+
+**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/shifts/`  
+**Method:** `POST`  
+**Auth:** JWT Token (Admin)
+
+**Request Body:**
+```json
+{
+  "shift_id": 3,
+  "date": "2025-05-01"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Shift assigned"
+}
+```
+
+---
+
+### 12. ⏱️ All Slots Assigned to a Doctor
+
+**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/all-slots/`  
+**Method:** `GET`  
+**Auth:** JWT Token (Authenticated)
+
+**Response:**
+```json
+[
+  {
+    "slot_id": 1,
+    "slot_start_time": "10:00:00",
+    "slot_duration": "00:30:00",
+    "shift": "Morning Shift",
+    "date": "2025-05-01"
+  }
+]
+```
+
