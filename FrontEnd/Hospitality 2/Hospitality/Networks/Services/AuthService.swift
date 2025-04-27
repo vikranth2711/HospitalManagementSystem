@@ -127,6 +127,32 @@ struct PatientDoctorListResponse: Codable {
     let on_leave: Bool
 }
 
+struct PatientSpecificDoctorResponse: Codable {
+    let staff_id: String
+    let staff_name: String
+    let specialization: String
+    let doctor_type: String
+    let on_leave: Bool
+}
+
+struct PatientSlotListResponse: Codable {
+    let slot_id: Int
+    let slot_start_time: String
+    let slot_duration: Int
+    let is_booked: Bool
+}
+
+struct PatientAppointRequest: Codable {
+    let date: String
+    let staff_id: String
+    let slot_id: Int
+    let reason: String
+}
+
+struct PatientAppointResponse: Codable {
+    let message: String
+    let appointment_id: Int
+}
 
 class AuthService {
     static let shared = AuthService()

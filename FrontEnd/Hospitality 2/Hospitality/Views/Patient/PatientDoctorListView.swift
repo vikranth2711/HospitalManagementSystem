@@ -122,48 +122,51 @@ struct DoctorCardView: View {
     let doctor: PatientDoctorListResponse
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Doctor image placeholder
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 60, height: 60)
+        NavigationLink(destination: PatientDoctorDetailView(doctorId: doctor.staff_id)) {
+            VStack(alignment: .leading, spacing: 8) {
+                // Doctor image placeholder
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 60, height: 60)
+                    
+                    Image(systemName: "person.fill")
+                        .font(.title)
+                        .foregroundColor(.blue)
+                }
+                .frame(maxWidth: .infinity)
                 
-                Image(systemName: "person.fill")
-                    .font(.title)
-                    .foregroundColor(.blue)
-            }
-            .frame(maxWidth: .infinity)
-            
-            // Doctor info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(doctor.staff_name)
-                    .font(.headline)
-                    .lineLimit(1)
-                
-                Text(doctor.specialization)
-                    .font(.subheadline)
+                // Doctor info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(doctor.staff_name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    
+                    Text(doctor.specialization)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                    
+                    HStack {
+                        Image(systemName: "stethoscope")
+                        Text(doctor.doctor_type)
+                    }
+                    .font(.caption)
                     .foregroundColor(.secondary)
-                    .lineLimit(1)
-                
-                HStack {
-                    Image(systemName: "stethoscope")
-                    Text(doctor.doctor_type)
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-                
-                if doctor.on_leave {
-                    Text("On Leave")
-                        .font(.caption)
-                        .foregroundColor(.orange)
+                    
+                    if doctor.on_leave {
+                        Text("On Leave")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
                 }
             }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
