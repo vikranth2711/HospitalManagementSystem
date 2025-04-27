@@ -4,157 +4,146 @@ import UIKit // For haptic feedback
 struct ProfileView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
-    @State private var iconPulse: CGFloat = 1.0
-    @State private var cardScale: CGFloat = 0.8
-    @State private var cardOpacity: Double = 0.0
+    @State private var showLogoutConfirmation = false
     
     var body: some View {
-        ZStack {
-            // Background with gradient matching app's aesthetic
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
-                    colorScheme == .dark ? Color(hex: "1A202C") : Color(hex: "F0F8FF")
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Background circles for visual effect
-            ForEach(0..<8) { _ in
-                Circle()
-                    .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
-                    .frame(width: CGFloat.random(in: 50...200))
-                    .position(
-                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-                    )
-                    .blur(radius: 3)
-            }
-            
-            // Modal content
-            VStack(spacing: 10) {
-                // Close button
-                HStack {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Profile Header
+                    VStack {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(Color(hex: "4A90E2"))
+                            .padding(.bottom, 10)
+                        
+                        Text(UserDefaults.email)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text(UserDefaults.userType)
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 30)
+                    
+                    // Account Section
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("ACCOUNT")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding(.horizontal)
+                        
+                        NavigationLink(destination: Text("Edit Profile")) {
+                            ProfileRow(icon: "person.fill", title: "Edit Profile")
+                        }
+                        
+                        NavigationLink(destination: Text("Change Password")) {
+                            ProfileRow(icon: "lock.fill", title: "Change Password")
+                        }
+                    }
+                    
+                    Divider()
+                        .padding(.vertical, 10)
+                    
+                    // Settings Section
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("SETTINGS")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding(.horizontal)
+                        
+                        NavigationLink(destination: Text("Notifications")) {
+                            ProfileRow(icon: "bell.fill", title: "Notifications")
+                        }
+                        
+                        NavigationLink(destination: Text("Privacy")) {
+                            ProfileRow(icon: "hand.raised.fill", title: "Privacy")
+                        }
+                    }
+                    
                     Spacer()
                     
+                    // Logout Button
                     Button(action: {
-                        triggerHaptic()
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            dismiss()
-                        }
+                        showLogoutConfirmation = true
                     }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-                            .padding(8)
-                            .background(
-                                Circle()
-                                    .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.blue.opacity(0.1))
-                            )
-                    }
-                    .padding(.trailing, 20)
-                }
-                .padding(.top, 20)
-                
-                // Profile content
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Profile avatar
-                        ZStack {
-                            Circle()
-                                .fill(colorScheme == .dark ? Color(hex: "1E88E5").opacity(0.2) : Color(hex: "4A90E2").opacity(0.15))
-                                .frame(width: 120, height: 120)
-                                .scaleEffect(iconPulse)
-                            
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 90, height: 90)
-                                .foregroundColor(colorScheme == .dark ? Color(hex: "1E88E5") : Color(hex: "4A90E2"))
-                                .shadow(color: colorScheme == .dark ? Color(hex: "1E88E5").opacity(0.4) : Color(hex: "4A90E2").opacity(0.3), radius: 8)
+                        HStack {
+                            Image(systemName: "arrow.left.square.fill")
+                                .foregroundColor(.red)
+                            Text("Log Out")
+                                .foregroundColor(.red)
+                                .fontWeight(.semibold)
                         }
-                        
-                        Text("John Doe")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                        
-                        Text("Patient ID: P-12345")
-                            .font(.system(size: 16, weight: .medium, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-                        
-                        // Menu items
-                        VStack(spacing: 0) {
-                            ProfileMenuItem(icon: "person.fill", title: "Personal Information")
-                            ProfileMenuItem(icon: "heart.fill", title: "Medical History")
-                            ProfileMenuItem(icon: "bell.fill", title: "Notifications")
-                            ProfileMenuItem(icon: "gearshape.fill", title: "Settings")
-                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
                         .background(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                                .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.red.opacity(0.1))
                         )
-                        .padding(.horizontal, 20)
-                        
-                        // Logout button
-                        Button(action: {
-                            triggerHaptic()
-                            // Logout action
-                        }) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [
-                                                colorScheme == .dark ? Color(hex: "1E88E5") : Color(hex: "4A90E2"),
-                                                colorScheme == .dark ? Color(hex: "1976D2") : Color(hex: "5E5CE6")
-                                            ]),
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(height: 58)
-                                    .shadow(color: colorScheme == .dark ? Color(hex: "1E88E5").opacity(0.4) : Color(hex: "4A90E2").opacity(0.4), radius: 12, x: 0, y: 6)
-                                
-                                HStack {
-                                    Image(systemName: "arrow.right.square.fill")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    
-                                    Text("Logout")
-                                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 40)
                     }
-                    .padding(.vertical, 20)
+                    .padding(.top, 30)
+                    .padding(.horizontal)
+                }
+                .padding()
+            }
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
-            .frame(maxWidth: 400) // Limit max width for better alignment on larger screens
-            .scaleEffect(cardScale)
-            .opacity(cardOpacity)
-        }
-        .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                cardScale = 1.0
-                cardOpacity = 1.0
-            }
-            withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                iconPulse = 1.05
+            .alert("Log Out", isPresented: $showLogoutConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Log Out", role: .destructive) {
+                    logout()
+                }
+            } message: {
+                Text("Are you sure you want to log out?")
             }
         }
     }
     
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.prepare()
-        generator.impactOccurred()
+    private func logout() {
+        // Clear all user defaults
+        UserDefaults.clearAuthData()
+        
+        // Dismiss the profile view
+        dismiss()
+        
+        // Post notification to trigger root view change
+        NotificationCenter.default.post(name: .logout, object: nil)
     }
+}
+
+struct ProfileRow: View {
+    let icon: String
+    let title: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .frame(width: 30)
+                .foregroundColor(Color(hex: "4A90E2"))
+            Text(title)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .foregroundColor(.gray)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.gray.opacity(0.05))
+        .padding(.horizontal)
+            )
+    }
+}
+            
+extension Notification.Name {
+        static let logout = Notification.Name("logout")
 }
 
 struct ProfileMenuItem: View {

@@ -150,18 +150,18 @@ struct AdminHomeView: View {
                     .tag(0)
                     
                     // Reports Tab
-                    ReportsContent()
+                    AdminDashboardView()
                         .tabItem {
-                            Image(systemName: "chart.bar.doc.horizontal")
-                            Text("Reports")
+                            Image(systemName: "person.3.sequence")
+                            Text("Staff")
                         }
                         .tag(1)
                     
                     // Bills Tab
                     BillsContent()
                         .tabItem {
-                            Image(systemName: "dollarsign.circle")
-                            Text("Bills")
+                            Image(systemName: "newspaper")
+                            Text("Invoice")
                         }
                         .tag(2)
                 }

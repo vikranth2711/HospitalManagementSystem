@@ -7,7 +7,7 @@ struct AuthEndpoint {
         static let signup = "/accounts/patient-signup"
         static let updateProfile = "/accounts/patient/update-profile"
     }
-
+    
     struct PatientLogin {
         static let requestOTP = "/accounts/request-otp"
         static let login = "/accounts/login"
@@ -15,7 +15,6 @@ struct AuthEndpoint {
     
     struct AdminLogin {
         static let requestOTP = "/accounts/request-otp/"
-        static let login = "/accounts/login"
-        
-        
+        static let login = "/accounts/login/"
+    }
 }

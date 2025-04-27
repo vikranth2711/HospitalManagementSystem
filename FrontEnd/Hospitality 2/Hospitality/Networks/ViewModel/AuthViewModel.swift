@@ -9,21 +9,64 @@ import SwiftUI
 import Combine
 import Foundation
 
-
 class AuthViewModel: ObservableObject {
-    @Published var otpMessage: String = ""
-    private var cancellables = Set<AnyCancellable>()
-
-    func sendOTP(email: String) {
-        AuthService.shared.requestOTP(email: email)
+    @Published var isLoading = false
+    @Published var errorMessage = ""
+    @Published var showError = false
+    @Published var isOTPSent = false
+    
+    func sendOTP(email: String, password: String, userType: String) {
+        isLoading = true
+        errorMessage = ""
+        isOTPSent = false
+        
+        AuthService.shared.requestOTP(email: email, password: password, userType: userType)
             .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { completion in
-                if case let .failure(error) = completion {
-                    print("Error: \(error)")
+            .sink(receiveCompletion: { [weak self] completion in
+                self?.isLoading = false
+                switch completion {
+                case .failure(let error):
+                    self?.errorMessage = error.localizedDescription
+                    self?.showError = true
+                case .finished:
+                    break
                 }
-            }, receiveValue: { response in
-                self.otpMessage = response.message
+            }, receiveValue: { [weak self] response in
+                self?.isLoading = false
+                self?.isOTPSent = response.success && response.requires_otp
+                if !response.success {
+                    self?.errorMessage = response.message
+                    self?.showError = true
+                }
             })
             .store(in: &cancellables)
     }
+    
+    func verifyOTP(email: String, otp: String, userType: String, completion: @escaping (AdminLoginResponse.LoginResponse?) -> Void) {
+        print("AuthViewModel: Starting OTP verification for email: \(email), userType: \(userType)")
+        isLoading = true
+        errorMessage = ""
+        
+        AuthService.shared.verifyOTP(email: email, otp: otp, userType: userType)
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { [weak self] result in
+                self?.isLoading = false
+                switch result {
+                case .failure(let error):
+                    print("AuthViewModel: OTP verification failed: \(error)")
+                    self?.errorMessage = "Failed to verify OTP: \(error.localizedDescription)"
+                    self?.showError = true
+                    completion(nil)
+                case .finished:
+                    print("AuthViewModel: OTP verification completed")
+                }
+            }, receiveValue: { response in
+                print("AuthViewModel: Verification response received: \(response)")
+                self.isLoading = false
+                completion(response)
+            })
+            .store(in: &cancellables)
+    }
+    
+    private var cancellables = Set<AnyCancellable>()
 }

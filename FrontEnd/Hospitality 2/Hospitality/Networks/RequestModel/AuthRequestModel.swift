@@ -33,28 +33,36 @@ struct AuthRequest {
             let user_type: String
         }
         
-        //email,password, -> get otp
-        
         struct LoginRequest: Codable {
             let email: String
             let otp: String
-            //            let password: String
             let user_type: String
         }
     }
     
     struct AdminLoginRequest {
-        
         struct OTPRequest: Codable {
             let email: String
-            let user_type: String
+            let userType: String
             let password: String
+            
+            enum CodingKeys: String, CodingKey {
+                case email
+                case userType = "user_type"
+                case password
+            }
         }
         
         struct LoginRequest: Codable {
             let email: String
             let otp: String
-            let user_type: String
+            let userType: String
+            
+            enum CodingKeys: String, CodingKey {
+                case email
+                case otp
+                case userType = "user_type"
+            }
         }
     }
     

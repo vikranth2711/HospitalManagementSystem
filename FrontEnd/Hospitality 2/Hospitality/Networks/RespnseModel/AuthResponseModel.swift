@@ -42,12 +42,15 @@ struct AuthResponse {
         }
     }
     
-    struct AdminLoginResponse{
-        struct OtpResponse : Codable {
+    struct AdminLoginResponse {
+        struct OtpResponse: Codable {
             let message: String
-            let status: Bool
-            
+            let user_id: String
+            let user_type: String
+            let requires_otp: Bool
+            let success: Bool
         }
+        
         struct LoginResponse: Codable {
             let message: String
             let user_id: String
@@ -55,7 +58,20 @@ struct AuthResponse {
             let access_token: String
             let refresh_token: String
             let status: Bool
-            
+        }
+    }
+
+    struct AdminLoginRequest {
+        struct OTPRequest: Codable {
+            let email: String
+            let user_type: String
+            let password: String
+        }
+        
+        struct LoginRequest: Codable {
+            let email: String
+            let otp: String
+            let user_type: String
         }
     }
     
