@@ -581,7 +581,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 1. 🩺 Get All Doctors
 
-**Endpoint:** `/api/hospital/unrestricted/api/doctors/`  
+**Endpoint:** `/api/hospital/general/doctors/`  
 **Method:** `GET`  
 **Auth:** JWT Token (Authenticated)
 
@@ -602,7 +602,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 2. 🧑‍⚕️ Doctor Detail
 
-**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/`  
+**Endpoint:** `/api/hospital/general/doctors/<staff_id>/`  
 **Method:** `GET`  
 **Auth:** JWT Token (Authenticated)
 
@@ -621,7 +621,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 3. 📅 Available Slots for a Doctor on a Date
 
-**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/slots/?date=YYYY-MM-DD`  
+**Endpoint:** `/api/hospital/general/doctors/<staff_id>/slots/?date=YYYY-MM-DD`  
 **Method:** `GET`  
 **Auth:** JWT Token (Authenticated)
 
@@ -643,7 +643,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 4. 🗓️ Book Appointment
 
-**Endpoint:** `/api/hospital/unrestricted/api/appointments/`  
+**Endpoint:** `/api/hospital/general/appointments/`  
 **Method:** `POST`  
 **Auth:** JWT Token (Authenticated)
 
@@ -669,7 +669,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 5. 📜 Appointment History (Patient/Doctor)
 
-**Endpoint:** `/api/hospital/unrestricted/api/appointments/history/`  
+**Endpoint:** `/api/hospital/general/appointments/history/`  
 **Method:** `GET`  
 **Auth:** JWT Token (Authenticated)
 
@@ -691,7 +691,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 6. 📋 Appointment Detail
 
-**Endpoint:** `/api/hospital/unrestricted/api/appointments/<appointment_id>/`  
+**Endpoint:** `/api/hospital/general/appointments/<appointment_id>/`  
 **Method:** `GET`  
 **Auth:** JWT Token (Authenticated)
 
@@ -721,7 +721,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 7. 🩺 Admin View - All Appointments
 
-**Endpoint:** `/api/hospital/unrestricted/api/appointments/admin/`  
+**Endpoint:** `/api/hospital/general/appointments/admin/`  
 **Method:** `GET`  
 **Auth:** JWT Token (Admin)
 
@@ -742,7 +742,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 8. 🧑 Patient Detail
 
-**Endpoint:** `/api/hospital/unrestricted/api/patients/<patient_id>/`  
+**Endpoint:** `/api/hospital/general/patients/<patient_id>/`  
 **Method:** `GET`  
 **Auth:** JWT Token (Authenticated)
 
@@ -765,7 +765,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 9. 💓 Enter Patient Vitals
 
-**Endpoint:** `/api/hospital/unrestricted/api/appointments/<appointment_id>/vitals/`  
+**Endpoint:** `/api/hospital/general/appointments/<appointment_id>/vitals/`  
 **Method:** `POST`  
 **Auth:** JWT Token (Authenticated)
 
@@ -791,7 +791,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 10. 💊 Submit Prescription
 
-**Endpoint:** `/api/hospital/unrestricted/api/appointments/<appointment_id>/prescription/`  
+**Endpoint:** `/api/hospital/general/appointments/<appointment_id>/prescription/`  
 **Method:** `POST`  
 **Auth:** JWT Token (Authenticated)
 
@@ -820,7 +820,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 11. 🕘 Assign Doctor Shift
 
-**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/shifts/`  
+**Endpoint:** `/api/hospital/general/doctors/<staff_id>/shifts/`  
 **Method:** `POST`  
 **Auth:** JWT Token (Admin)
 
@@ -843,7 +843,7 @@ All API endpoints will return appropriate error responses with HTTP status codes
 
 ### 12. ⏱️ All Slots Assigned to a Doctor
 
-**Endpoint:** `/api/hospital/unrestricted/api/doctors/<staff_id>/all-slots/`  
+**Endpoint:** `/api/hospital/general/doctors/<staff_id>/all-slots/`  
 **Method:** `GET`  
 **Auth:** JWT Token (Authenticated)
 
@@ -872,7 +872,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** POST
-- **Endpoint:** `/api/appointments/`
+- **Endpoint:** `/api/hospital/general/appointments/`
 - **Authentication:** JWT Bearer Token
 - **Content-Type:** application/json
 
@@ -905,7 +905,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** GET
-- **Endpoint:** `/api/appointments/history/`
+- **Endpoint:** `/api/hospital/general/appointments/history/`
 - **Authentication:** JWT Bearer Token
 
 **Response (200 OK):**
@@ -936,7 +936,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** GET
-- **Endpoint:** `/api/appointments/{appointment_id}/`
+- **Endpoint:** `/api/hospital/general/appointments/{appointment_id}/`
 - **Authentication:** JWT Bearer Token
 
 **Response (200 OK):**
@@ -991,7 +991,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** GET
-- **Endpoint:** `/api/appointments/admin/`
+- **Endpoint:** `/api/hospital/general/appointments/admin/`
 - **Authentication:** JWT Bearer Token (Admin/Doctor only)
 
 **Response (200 OK):**
@@ -1024,7 +1024,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** POST
-- **Endpoint:** `/api/appointments/{appointment_id}/vitals/`
+- **Endpoint:** `/api/hospital/general/appointments/{appointment_id}/vitals/`
 - **Authentication:** JWT Bearer Token
 - **Content-Type:** application/json
 
@@ -1050,7 +1050,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** GET
-- **Endpoint:** `/api/patients/{patient_id}/latest-vitals/`
+- **Endpoint:** `/api/hospital/general/patients/{patient_id}/latest-vitals/`
 - **Authentication:** JWT Bearer Token
 
 **Response (200 OK):**
@@ -1079,7 +1079,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** POST
-- **Endpoint:** `/api/appointments/{appointment_id}/diagnosis/`
+- **Endpoint:** `/api/hospital/general/appointments/{appointment_id}/diagnosis/`
 - **Authentication:** JWT Bearer Token (Doctor only)
 - **Content-Type:** application/json
 
@@ -1109,7 +1109,7 @@ Below is a comprehensive guide to the new APIs for appointments, vitals, and dia
 
 **Request:**
 - **Method:** GET
-- **Endpoint:** `/api/diagnosis/{diagnosis_id}/`
+- **Endpoint:** `/api/hospital/general/diagnosis/{diagnosis_id}/`
 - **Authentication:** JWT Bearer Token
 
 **Response (200 OK):**
