@@ -4,27 +4,6 @@ import Foundation
 
 struct AuthResponse {
     
-    struct PatientSignUpResponse {
-        
-        struct OTPResponse: Codable {
-            let message: String
-            let status: Bool
-        }
-        
-        struct SignUpResponse: Codable {
-            let message: String
-            let patient_id: Int
-            let access_token: String
-            let refresh_token: String
-            let status: Bool
-        }
-        
-        struct UpdatePatientDetailsResponse: Codable {
-            let message: String
-            let status: Bool
-        }
-    }
-    
     struct PatientLoginRequest {
         
         struct OTPResponse: Codable {
@@ -91,5 +70,26 @@ struct AuthResponse {
 
 
     }
+    
+    struct PatientSignUpResponse {
+            
+            struct OTPResponse: Codable {
+                let message: String
+                let status: String
+            }
+            
+            struct SignUpResponse: Codable {
+                let message: String
+                let patient_id: String
+                let access_token: String
+                let refresh_token: String
+            }
+            
+            struct UpdatePatientDetailsResponse: Codable {
+                let message: String
+                let created: Bool
+                let success: Bool
+            }
+        }
     
 }

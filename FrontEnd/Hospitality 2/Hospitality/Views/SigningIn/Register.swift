@@ -1,26 +1,32 @@
 import SwiftUI
 import Combine
+
 struct Register: View {
+    @StateObject private var viewModel = UserSignupViewModel()
+    
     @State private var currentStep = 1
-    @State private var name = ""
-    @State private var phone = ""
-    @State private var email = ""
-    @State private var otpCode = ""
-    @State private var dob = Date()
-    @State private var bloodGroup = ""
-    @State private var gender: String?
-    @State private var isLoading = false
-    @State private var showError = false
-    @State private var errorMessage = ""
-    @State private var navigateToHome = false
-    @FocusState private var focusedField: Field?
-    @Environment(\.dismiss) var dismiss
+        @State private var name = ""
+        @State private var phone = ""
+        @State private var email = ""
+        @State private var password = ""
+        @State private var confirmPassword = ""
+        @State private var otpCode = ""
+        @State private var dob = Date()
+        @State private var bloodGroup = ""
+        @State private var gender: String?
+        @State private var isLoading = false
+        @State private var showError = false
+        @State private var errorMessage = ""
+        @State private var navigateToHome = false
+        @State private var isPasswordVisible = false
+        @State private var isConfirmPasswordVisible = false
+        @FocusState private var focusedField: Field?
+        @Environment(\.dismiss) var dismiss
     
     enum Field: Hashable {
-        case name, phone, email, otp
+        case name, phone, email,password,confirmPassword, otp
     }
     
-    private let authService = AuthenticationService()
     @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
@@ -74,6 +80,27 @@ struct Register: View {
             } message: {
                 Text(errorMessage)
             }
+            .onChange(of: viewModel.errorMessage) { newValue in
+                if !newValue.isEmpty {
+                    showError(message: newValue)
+                }
+            }
+            .onChange(of: viewModel.otpRequestSuccess) { success in
+                if success {
+                    currentStep = 2
+                }
+            }
+            .onChange(of: viewModel.signupSuccess) { success in
+                if success {
+                    currentStep = 3
+                }
+            }
+            .onChange(of: viewModel.profileUpdateSuccess) { success in
+                if success {
+                    navigateToHome = true
+                    print("Profile updated successfully")
+                }
+            }
         }
     }
     
@@ -98,6 +125,45 @@ struct Register: View {
                 }
                 .keyboardType(.emailAddress)
                 .submitLabel(.done)
+            
+            // Password Field
+                        PasswordField(
+                            title: "Password",
+                            text: $password,
+                            isVisible: $isPasswordVisible
+                        )
+                        .focused($focusedField, equals: .password)
+                        .submitLabel(.next)
+                        
+                        // Confirm Password Field
+                        PasswordField(
+                            title: "Confirm Password",
+                            text: $confirmPassword,
+                            isVisible: $isConfirmPasswordVisible
+                        )
+                        .focused($focusedField, equals: .confirmPassword)
+                        .submitLabel(.done)
+                        
+                        // Password strength indicator
+                        if !password.isEmpty {
+                            PasswordStrengthView(password: password)
+                        }
+                        
+                        // Password match indicator
+                        if !confirmPassword.isEmpty {
+                            HStack {
+                                Image(systemName: password == confirmPassword ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(password == confirmPassword ? .green : .red)
+                                
+                                Text(password == confirmPassword ? "Passwords match" : "Passwords don't match")
+                                    .font(.caption)
+                                    .foregroundColor(password == confirmPassword ? .green : .red)
+                                
+                                Spacer()
+                            }
+                            .padding(.top, -12)
+                            .padding(.leading, 4)
+                        }
         }
     }
     
@@ -179,6 +245,7 @@ struct Register: View {
         }
         .padding(.horizontal, 16)
     }
+    
     // MARK: - Continue Button
     @ViewBuilder
     private func ContinueButton() -> some View {
@@ -187,7 +254,7 @@ struct Register: View {
                 Text(currentStep == 3 ? "Complete Registration" : "Continue")
                     .font(.headline)
                 
-                if isLoading {
+                if viewModel.isLoading {
                     ProgressView()
                         .padding(.leading, 8)
                 } else {
@@ -206,10 +273,10 @@ struct Register: View {
                     ))
             )
             .shadow(color: Color(hex: "4A90E2").opacity(0.3), radius: 10, x: 0, y: 4)
-            .opacity(isLoading ? 0.8 : 1)
+            .opacity(viewModel.isLoading ? 0.8 : 1)
         }
         .buttonStyle(BouncyButtonStyle())
-        .disabled(isLoading)
+        .disabled(viewModel.isLoading)
     }
     
     // MARK: - Handlers
@@ -228,7 +295,6 @@ struct Register: View {
     }
     
     private func validateStep1() {
-       
         guard !name.isEmpty else {
             showError(message: "Please enter your full name")
             return
@@ -241,26 +307,8 @@ struct Register: View {
             showError(message: "Please enter your email address")
             return
         }
-        isLoading = true
-        authService.requestOTP(email: email)
-            .receive(on: DispatchQueue.main)
-                        .sink(receiveCompletion: { completion in
-                            isLoading = false
-                            switch completion {
-                            case .finished:
-                                break
-                            case .failure(let error):
-                                let errorMsg = (error as? NetworkError)?.localizedDescription ?? "Failed to send OTP. Please try again."
-                                showError(message: errorMsg)
-                            }
-                        }, receiveValue: { response in
-                            if response.status == "success" {
-                                currentStep = 2
-                            } else {
-                                showError(message: response.message)
-                            }
-                        })
-                        .store(in: &cancellables)
+        print("Button pressed")
+        viewModel.requestOTP(email: email)
     }
     
     private func validateStep2() {
@@ -269,56 +317,38 @@ struct Register: View {
             return
         }
         
-        isLoading = true
+        guard let phoneInt = Int(phone) else {
+            showError(message: "Invalid phone number format")
+            return
+        }
         
-        authService.verifyOTP(email: email, otp: otpCode, patientName: name, patientMobile: phone)
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { completion in
-                isLoading = false
-                switch completion {
-                case .finished:
-                    break
-                case .failure(let error):
-                    print("🔴 OTP Verification Error: \(error)")
-                    let errorMsg = (error as? NetworkError)?.localizedDescription ?? "Failed to verify OTP. Please try again."
-                    showError(message: errorMsg)
-                }
-            }, receiveValue: { response in
-                // Print the entire response for debugging
-                print("🔍 Full authentication response: \(response)")
-                
-                // Store tokens in UserDefaults or a secure storage
-                if let token = response.access_token {
-                    // Print token before saving
-                    print("🔑 Received access token: \(token)")
-                    UserDefaults.standard.set(token, forKey: "accessToken")
-                } else {
-                    print("⚠️ No access token received")
-                }
-                
-                if let refreshToken = response.refresh_token {
-                    print("🔄 Received refresh token: \(refreshToken)")
-                    UserDefaults.standard.set(refreshToken, forKey: "refreshToken")
-                } else {
-                    print("⚠️ No refresh token received")
-                }
-                
-                if let patientId = response.patient_id {
-                    print("👤 Received patient ID: \(patientId)")
-                    UserDefaults.standard.set(patientId, forKey: "patientId")
-                } else {
-                    print("⚠️ No patient ID received")
-                }
-                
-                // Move to next step
-                currentStep = 3
-            })
-            .store(in: &cancellables)
+        // Password validation - make sure passwords were entered and match
+        guard !password.isEmpty else {
+            showError(message: "Please enter a password")
+            return
+        }
+        
+        guard password == confirmPassword else {
+            showError(message: "Passwords don't match")
+            return
+        }
+        
+        // Minimum password length check
+        guard password.count >= 8 else {
+            showError(message: "Password must be at least 8 characters")
+            return
+        }
+        
+        viewModel.completeSignup(
+            email: email,
+            otp: otpCode,
+            patientName: name,
+            patientPhone: phoneInt,
+            patientPassword: password // Use the user input password instead of hardcoded value
+        )
     }
     
     private func completeRegistration() {
-        // Validate date of birth (check if it's a reasonable date)
-        print("📦 All UserDefaults: \(UserDefaults.standard.dictionaryRepresentation())")
         let calendar = Calendar.current
         let currentYear = calendar.component(.year, from: Date())
         let dobYear = calendar.component(.year, from: dob)
@@ -333,34 +363,19 @@ struct Register: View {
             return
         }
         
-        guard let gender = gender, !gender.isEmpty else {
+        guard let genderString = gender, !genderString.isEmpty else {
             showError(message: "Please select gender")
             return
         }
         
-        isLoading = true
+        let genderBoolean = (genderString == "Male")
         
-        authService.updatePatientProfile(dob: dob, gender: gender, bloodGroup: bloodGroup)
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { completion in
-                isLoading = false
-                switch completion {
-                case .finished:
-                    break
-                case .failure(let error):
-                    let errorMsg = (error as? NetworkError)?.localizedDescription ?? "Failed to update profile. Please try again."
-                    showError(message: errorMsg)
-                }
-            }, receiveValue: { response in
-                if response.created == true{
-                    // Profile updated successfully
-                    navigateToHome = true
-                    print("Profile updated successfully")
-                } else {
-                    showError(message: response.message)
-                }   
-            })
-            .store(in: &cancellables)
+        viewModel.updatePatientProfile(
+            patientDob: dob,
+            patientGender: genderBoolean,
+            patientBloodGroup: bloodGroup,
+            patientAddress: "Default Address" // You might want to add an address field to your form
+        )
     }
     
     private func showError(message: String) {
@@ -451,6 +466,119 @@ struct StickyHeaderView: View {
         }
     }
 }
+
+// MARK: - Password Field
+struct PasswordField: View {
+    var title: String
+    @Binding var text: String
+    @Binding var isVisible: Bool
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Color(hex: "4A5568"))
+                .padding(.leading, 4)
+            
+            HStack {
+                if isVisible {
+                    TextField("", text: $text)
+                        .foregroundColor(.primary)
+                } else {
+                    SecureField("", text: $text)
+                        .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                Button(action: { isVisible.toggle() }) {
+                    Image(systemName: isVisible ? "eye.slash.fill" : "eye.fill")
+                        .foregroundColor(Color(hex: "4A90E2"))
+                }
+                .padding(.trailing, 12)
+            }
+            .padding(.vertical, 15)
+            .padding(.horizontal, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1.5)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(
+                        colorScheme == .dark ? Color(hex: "1A202C").opacity(0.4) : Color.white.opacity(0.6)
+                    ))
+            )
+        }
+    }
+}
+
+// MARK: - Password Strength View
+struct PasswordStrengthView: View {
+    var password: String
+    @Environment(\.colorScheme) var colorScheme
+    
+    private var strength: Int {
+        var score = 0
+        
+        if password.count >= 8 { score += 1 }
+        if password.rangeOfCharacter(from: .uppercaseLetters) != nil { score += 1 }
+        if password.rangeOfCharacter(from: .decimalDigits) != nil { score += 1 }
+        if password.rangeOfCharacter(from: .punctuationCharacters) != nil { score += 1 }
+        
+        return score
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Password Strength:")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                
+                Text(strengthLabel)
+                    .font(.caption)
+                    .foregroundColor(strengthColor)
+                
+                Spacer()
+            }
+            
+            HStack(spacing: 4) {
+                ForEach(0..<4) { index in
+                    Capsule()
+                        .fill(index < strength ? strengthColor :
+                            colorScheme == .dark ? Color.gray.opacity(0.3) : Color.gray.opacity(0.2))
+                        .frame(height: 4)
+                        .animation(.spring(), value: strength)
+                }
+            }
+        }
+        .padding(.top, -4)
+        .padding(.horizontal, 4)
+    }
+    
+    private var strengthLabel: String {
+        switch strength {
+        case 0: return "Very Weak"
+        case 1: return "Weak"
+        case 2: return "Medium"
+        case 3: return "Strong"
+        case 4: return "Very Strong"
+        default: return ""
+        }
+    }
+    
+    private var strengthColor: Color {
+        switch strength {
+        case 0, 1: return .red
+        case 2: return .orange
+        case 3: return .yellow
+        case 4: return .green
+        default: return .gray
+        }
+    }
+}
+
+
+
 
 struct DatePickerField: View {
     @Binding var selectedDate: Date

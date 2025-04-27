@@ -4,26 +4,26 @@ import Foundation
 struct AuthRequest {
     
     struct PatientSignUpRequest {
-        
-        struct OTPRequest: Codable {
-            let email: String
+            
+            struct OTPRequest: Codable {
+                let email: String
+            }
+            
+            struct SignUpRequest: Codable {
+                let email: String
+                let otp: String
+                let patient_name: String
+                let patient_mobile: Int
+                let password: String
+            }
+            
+            struct UpdatePatientDetailsRequest: Codable {
+                let patient_dob: Date
+                let patient_gender: Bool
+                let patient_blood_group: String
+                let patient_address: String
+            }
         }
-        
-        struct SignUpRequest: Codable {
-            let email: String
-            let otp: String
-            let patient_name: String
-            let patient_phone: Int
-            let patient_password: String
-        }
-        
-        struct UpdatePatientDetailsRequest: Codable {
-            let patient_dob: Date
-            let patient_gender: Bool
-            let patient_blood_group: String
-            let patient_address: String
-        }
-    }
     
     struct PatientLoginRequest {
         

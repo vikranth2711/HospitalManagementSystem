@@ -234,7 +234,7 @@ struct AddEditDoctorView: View {
     @State private var dob: Date = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
     @State private var address: String = ""
     @State private var qualifications: String = ""
-    
+
     var body: some View {
         NavigationView {
             Form {
@@ -261,12 +261,11 @@ struct AddEditDoctorView: View {
                     
                     Picker("Doctor Type", selection: $doctorTypeId) {
                         ForEach(dataStore.doctorTypes) { type in
-                            Text(type.doctorTypeName).tag(type.id)
+                            Text(type.doctorTypeName).tag(String(type.id))
                         }
                     }
                     
                     DatePicker("Joining Date", selection: $joiningDate, displayedComponents: .date)
-                    Toggle("On Leave", isOn: $onLeave)
                 }
             }
             .navigationTitle("Add Doctor")
@@ -278,38 +277,112 @@ struct AddEditDoctorView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        let staff = Staff(
-                            id: UUID().uuidString,
-                            staffName: name,
-                            roleId: "doctor_role_id",
-                            createdAt: joiningDate,
-                            staffEmail: email,
-                            staffMobile: mobile,
-                            onLeave: onLeave
-                        )
-                        
-                        let doctorDetails = DoctorDetails(
-                            id: UUID().uuidString,
-                            staffId: staff.id,
-                            doctorSpecialization: specialization,
-                            doctorLicense: license,
-                            doctorExperienceYears: Int(experience) ?? 0,
-                            doctorTypeId: doctorTypeId
-                        )
-                        
-                        let staffDetails = StaffDetails(
-                            id: UUID().uuidString,
-                            staffId: staff.id,
-                            staffDob: dob,
-                            staffAddress: address,
-                            staffQualifications: qualifications,
-                            staffPhoto: nil
-                        )
-                        
-                        onSave(staff, doctorDetails, staffDetails)
-                        presentationMode.wrappedValue.dismiss()
+                        saveDoctor()
                     }
-                    .disabled(name.isEmpty || email.isEmpty || specialization.isEmpty || doctorTypeId.isEmpty || qualifications.isEmpty)
+                    .disabled(name.isEmpty || email.isEmpty || mobile.isEmpty ||
+                             specialization.isEmpty || qualifications.isEmpty ||
+                             license.isEmpty || experience.isEmpty ||
+                             doctorTypeId.isEmpty || address.isEmpty)
+                }
+            }
+        }
+    }
+    
+    private func saveDoctor() {
+        // Validate inputs
+        guard !name.isEmpty,
+              !email.isEmpty,
+              !mobile.isEmpty,
+              !specialization.isEmpty,
+              !license.isEmpty,
+              !experience.isEmpty,
+              !doctorTypeId.isEmpty,
+              !qualifications.isEmpty,
+              !address.isEmpty else {
+            // Show error to user
+            return
+        }
+        
+        // Convert experience to Int
+        guard let experienceYears = Int(experience) else {
+            // Show error to user
+            return
+        }
+        
+        // Convert doctorTypeId to Int
+        guard let doctorTypeID = Int(doctorTypeId) else {
+            // Show error to user
+            return
+        }
+        
+        // Format dates
+        let joiningDateString = CreateDoctorRequest.formattedDate(from: joiningDate)
+        let dobString = CreateDoctorRequest.formattedDate(from: dob)
+        
+        // Call the service
+        DoctorService.shared.createDoctor(
+            name: name,
+            email: email,
+            mobile: mobile,
+            specialization: specialization,
+            license: license,
+            experienceYears: experienceYears,
+            doctorTypeId: doctorTypeID,
+            joiningDate: joiningDate,
+            dob: dobString,
+            address: address,
+            qualifications: qualifications
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let response):
+                    print("Doctor created successfully with ID: \(response.staff_id)")
+                    
+                    // Create local objects
+                    let staff = Staff(
+                        id: response.staff_id,
+                        staffName: self.name,
+                        roleId: "doctor_role_id",
+                        createdAt: self.joiningDate,
+                        staffEmail: self.email,
+                        staffMobile: self.mobile,
+                        onLeave: self.onLeave
+                    )
+                    
+                    let doctorDetails = DoctorDetails(
+                        id: UUID().uuidString,
+                        staffId: response.staff_id,
+                        doctorSpecialization: self.specialization,
+                        doctorLicense: self.license,
+                        doctorExperienceYears: experienceYears,
+                        doctorTypeId: self.doctorTypeId
+                    )
+                    
+                    let staffDetails = StaffDetails(
+                        id: UUID().uuidString,
+                        staffId: response.staff_id,
+                        staffDob: self.dob,
+                        staffAddress: self.address,
+                        staffQualifications: self.qualifications,
+                        staffPhoto: nil
+                    )
+                    
+                    // Save to local data store
+                    self.dataStore.createDoctor(
+                        staff: staff,
+                        doctorDetails: doctorDetails,
+                        staffDetails: staffDetails
+                    )
+                    
+                    // Call the completion handler
+                    self.onSave(staff, doctorDetails, staffDetails)
+                    
+                    // Dismiss the view
+                    self.presentationMode.wrappedValue.dismiss()
+                    
+                case .failure(let error):
+                    print("Failed to create doctor: \(error)")
+                    // Handle error - show error message to user
                 }
             }
         }
@@ -435,98 +508,6 @@ struct SearchBar: View {
             .padding(8)
             .background(Color(.systemGray6))
             .cornerRadius(10)
-        }
-    }
-}
-
-extension AddEditDoctorView {
-    func saveDoctor() {
-        // Validate inputs
-        guard !name.isEmpty,
-              !email.isEmpty,
-              !mobile.isEmpty,
-              !specialization.isEmpty,
-              !license.isEmpty,
-              !experience.isEmpty,
-              !doctorTypeId.isEmpty,
-              !qualifications.isEmpty else {
-            // Show error to user
-            return
-        }
-        
-        // Convert experience to Int
-        guard let experienceYears = Int(experience) else {
-            // Show error to user
-            return
-        }
-        
-        // Convert doctorTypeId to Int
-        guard let doctorTypeID = Int(doctorTypeId) else {
-            // Show error to user
-            return
-        }
-        
-        // Call the service
-        DoctorService.shared.createDoctor(
-            name: name,
-            email: email,
-            mobile: mobile,
-            specialization: specialization,
-            license: license,
-            experienceYears: experienceYears,
-            doctorTypeId: doctorTypeID,
-            joiningDate: joiningDate
-        ) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let response):
-                    print("Doctor created successfully with ID: \(response.staff_id)")
-                    // Handle success - maybe dismiss the view or show success message
-                    
-                    // Create local objects and save to data store
-                    let staff = Staff(
-                        id: response.staff_id,
-                        staffName: self.name,
-                        roleId: "doctor_role_id",
-                        createdAt: self.joiningDate,
-                        staffEmail: self.email,
-                        staffMobile: self.mobile,
-                        onLeave: self.onLeave
-                    )
-                    
-                    let doctorDetails = DoctorDetails(
-                        id: UUID().uuidString,
-                        staffId: response.staff_id,
-                        doctorSpecialization: self.specialization,
-                        doctorLicense: self.license,
-                        doctorExperienceYears: experienceYears,
-                        doctorTypeId: self.doctorTypeId
-                    )
-                    
-                    let staffDetails = StaffDetails(
-                        id: UUID().uuidString,
-                        staffId: response.staff_id,
-                        staffDob: self.dob,
-                        staffAddress: self.address,
-                        staffQualifications: self.qualifications,
-                        staffPhoto: nil
-                    )
-                    
-                    // Save to local data store
-                    self.dataStore.createDoctor(
-                        staff: staff,
-                        doctorDetails: doctorDetails,
-                        staffDetails: staffDetails
-                    )
-                    
-                    // Dismiss the view
-                    self.presentationMode.wrappedValue.dismiss()
-                    
-                case .failure(let error):
-                    print("Failed to create doctor: \(error)")
-                    // Handle error - show error message to user
-                }
-            }
         }
     }
 }

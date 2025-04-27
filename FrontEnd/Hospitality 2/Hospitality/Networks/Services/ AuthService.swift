@@ -45,13 +45,16 @@ struct AdminLoginRequest {
 // MARK: - Request and Response Models
 struct CreateDoctorRequest: Codable {
     let staff_name: String
-    let staff_email: String
     let staff_mobile: String
-    let specialization: String
+    let staff_joining_date: String
+    let staff_email: String
     let license: String
     let experience_years: Int
+    let staff_qualification: String
     let doctor_type_id: Int
-    let staff_joining_date: String
+    let staff_dob: String
+    let staff_address: String
+    let specialization: String
     
     // Helper to format date
     static func formattedDate(from date: Date) -> String {
@@ -207,28 +210,36 @@ class DoctorService {
         experienceYears: Int,
         doctorTypeId: Int,
         joiningDate: Date,
+        dob: String,
+        address: String,
+        qualifications: String,
         completion: @escaping (Result<CreateDoctorResponse, DoctorCreationError>) -> Void
     ) {
-        // Format the date
-        let dateString = CreateDoctorRequest.formattedDate(from: joiningDate)
+        // Format the joining date
+        let joiningDateString = CreateDoctorRequest.formattedDate(from: joiningDate)
         
         // Create request body
         let requestBody = CreateDoctorRequest(
             staff_name: name,
-            staff_email: email,
             staff_mobile: mobile,
-            specialization: specialization,
+            staff_joining_date: joiningDateString,
+            staff_email: email,
             license: license,
             experience_years: experienceYears,
+            staff_qualification: qualifications,
             doctor_type_id: doctorTypeId,
-            staff_joining_date: dateString
+            staff_dob: dob,
+            staff_address: address,
+            specialization: specialization
         )
         
+        print(requestBody)
         // Create URL
-        guard let url = URL(string: "\(baseURL)/api/admin/doctors/create/") else {
+        guard let url = URL(string: "\(baseURL)/hospital/admin/doctors/create/") else {
             completion(.failure(.invalidURL))
             return
         }
+        print("\(UserDefaults.accessToken)")
         
         // Create request
         var request = URLRequest(url: url)

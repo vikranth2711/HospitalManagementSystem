@@ -15,10 +15,15 @@ struct RootView: View {
     var body: some View {
         Group {
             if isLoggedIn {
-                if userType == "Admin" {
+                switch userType {
+                case "admin":
                     AdminHomeView()
-                } else {
+                case "staff":
+                    DoctorDashboard()
+                case "patient":
                     HomePatient()
+                default:
+                    Onboarding()
                 }
             } else {
                 Onboarding()

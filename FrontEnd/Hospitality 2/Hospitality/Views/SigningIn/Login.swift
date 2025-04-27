@@ -223,7 +223,7 @@ struct Login: View {
         case email, password, otp
     }
 
-    let roles = ["Admin", "Staff", "patient"]
+    let roles = ["admin", "staff", "patient"]
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -275,17 +275,20 @@ struct Login: View {
                 .frame(width: geometry.size.width)
                 .edgesIgnoringSafeArea(.all)
                 .navigationDestination(for: String.self) { destination in
-                    switch destination {
-                    case "AdminHome":
-                        AdminHomeView()
-                            .navigationBarBackButtonHidden(true)
-                    case "PatientHome":
-                        HomePatient()
-                            .navigationBarBackButtonHidden(true)
-                    default:
-                        EmptyView()
-                    }
-                }
+                                    switch destination {
+                                    case "AdminHome":
+                                        AdminHomeView()
+                                            .navigationBarBackButtonHidden(true)
+                                    case "PatientHome":
+                                        HomePatient()
+                                            .navigationBarBackButtonHidden(true)
+                                    case "DoctorDashboard":
+                                        DoctorDashboard()
+                                            .navigationBarBackButtonHidden(true)
+                                    default:
+                                        EmptyView()
+                                    }
+                                }
             }
             .onReceive(keyboardPublisher) { output in
                 withAnimation(.easeOut(duration: 0.25)) {
@@ -362,35 +365,42 @@ struct Login: View {
     }
 
     private func handleLoginResponse(response: AdminLoginResponse.LoginResponse) {
-        print("Login: Handling Login Response: success=\(response.success)")
-        if response.success {
-            // Set all user defaults
-            UserDefaults.isLoggedIn = true
-            UserDefaults.userId = response.user_id
-            UserDefaults.userType = response.user_type
-            UserDefaults.accessToken = response.access_token
-            UserDefaults.refreshToken = response.refresh_token
-            UserDefaults.email = email
-            
-            // Force synchronize
-            UserDefaults.standard.synchronize()
-            
-            print("Login: UserDefaults updated - isLoggedIn: \(UserDefaults.isLoggedIn)")
-            
-            DispatchQueue.main.async {
-                navigationPath.removeLast(navigationPath.count) // Clear entire stack
-                if response.user_type == "Admin" {
-                    navigationPath.append("AdminHome")
-                } else {
-                    navigationPath.append("PatientHome")
+            print("Login: Handling Login Response: success=\(response.success)")
+            if response.success {
+                // Set all user defaults
+                UserDefaults.isLoggedIn = true
+                UserDefaults.userId = response.user_id
+                UserDefaults.userType = response.user_type
+                UserDefaults.accessToken = response.access_token
+                UserDefaults.refreshToken = response.refresh_token
+                UserDefaults.email = email
+                
+                // Force synchronize
+                UserDefaults.standard.synchronize()
+                
+                print("Login: UserDefaults updated - isLoggedIn: \(UserDefaults.isLoggedIn)")
+                
+                DispatchQueue.main.async {
+                    navigationPath.removeLast(navigationPath.count) // Clear entire stack
+                    switch response.user_type {
+                    case "admin":
+                        navigationPath.append("AdminHome")
+                    case "staff":
+                        navigationPath.append("DoctorDashboard")
+                    case "patient":
+                        navigationPath.append("PatientHome")
+                    default:
+                        print("Unknown user type: \(response.user_type)")
+                        authViewModel.errorMessage = "Unsupported user type"
+                        authViewModel.showError = true
+                    }
                 }
+            } else {
+                print("Login failed: \(response.message)")
+                authViewModel.errorMessage = response.message
+                authViewModel.showError = true
             }
-        } else {
-            print("Login failed: \(response.message)")
-            authViewModel.errorMessage = response.message
-            authViewModel.showError = true
         }
-    }
 
     private func loginAction() {
         guard !email.isEmpty else {
@@ -855,7 +865,7 @@ struct FormCard: View {
                 .accessibilityLabel("User type selection")
             
             HStack(spacing: 10) {
-                ForEach(["Admin", "Staff", "patient"], id: \.self) { role in
+                ForEach(["admin", "staff", "patient"], id: \.self) { role in
                     RoleButton(
                         role: role,
                         isSelected: selectedRole == role,

@@ -69,15 +69,15 @@ struct FollowUp: Identifiable, Codable {
     let followUpRemarks: String?
 }
 
-// MARK: - Prescription Models
-struct Prescription: Identifiable, Codable {
-    let id: String
-    let medicineName: String
-    let medicineDosage: [String: String]
-    let fastingRequired: Bool
-    let appointmentId: String
-    let prescriptionRemarks: String?
-}
+//// MARK: - Prescription Models
+//struct Prescription: Identifiable, Codable {
+//    let id: String
+//    let medicineName: String
+//    let medicineDosage: [String: String]
+//    let fastingRequired: Bool
+//    let appointmentId: String
+//    let prescriptionRemarks: String?
+//}
 
 // MARK: - Target Organ Models
 struct TargetOrgan: Identifiable, Codable {
@@ -85,6 +85,27 @@ struct TargetOrgan: Identifiable, Codable {
     let targetOrganName: String
     let targetOrganRemark: String?
 }
+
+struct Prescription1{
+    let prescriptionID :String
+    let appointmentID :String
+    let prescriptionRemarks :String
+}
+
+struct Medicine{
+    let medicineID : String
+    let medicineName : String
+    let medicineRemarks : String
+}
+
+struct PrescribedMedicine{
+    let prescribedMedicineID: String
+    let prescriptionID :String
+    let medicineID : String
+    let medicineDosage: [String: String]
+    let fastingRequired: String
+}
+
 
 // MARK: - Patient Models
 struct Patient: Identifiable, Codable {
@@ -107,14 +128,14 @@ struct PatientDetails: Identifiable, Codable {
 }
 
 struct PatientVitals: Identifiable, Codable {
-    let id: String
-    let patientId: String
-    let patientHeight: Double
-    let patientWeight: Double
-    let patientHeartrate: Int
-    let patientSpo2: Int
-    let patientTemperature: Double
-    let appointmentId: String
+    var id: String
+    var patientId: String
+    var patientHeight: Double
+    var patientWeight: Double
+    var patientHeartrate: Int
+    var patientSpo2: Int
+    var patientTemperature: Double
+    var appointmentId: String
 }
 
 // MARK: - Staff Models
@@ -227,7 +248,7 @@ class HospitalDataStore: ObservableObject {
     @Published var staff: [Staff] = []
     @Published var doctors: [DoctorDetails] = []
     @Published var labTests: [LabTest] = []
-    @Published var prescriptions: [Prescription] = []
+    @Published var prescriptions: [Prescription1] = []
     
     // CRUD functions would be implemented here
     func fetchPatients() {
