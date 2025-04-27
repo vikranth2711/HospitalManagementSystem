@@ -13,6 +13,8 @@ struct PatientDoctorListView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var searchText = ""
+    @Environment(\.presentationMode) var presentationMode
+    var onAppointmentBooked: (() -> Void)?
     
     var body: some View {
         VStack {

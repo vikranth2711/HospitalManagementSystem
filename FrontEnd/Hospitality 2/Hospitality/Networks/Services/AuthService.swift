@@ -154,6 +154,18 @@ struct PatientAppointResponse: Codable {
     let appointment_id: Int
 }
 
+struct PatientAppointHistoryListResponse: Identifiable, Codable {
+    let appointment_id: Int
+    let date: String
+    let slot_id: Int
+    let staff_id: String
+    let patient_id: Int
+    let status: String
+    let reason: String?
+
+    var id: Int { appointment_id } // 👈 Add this
+}
+
 class AuthService {
     static let shared = AuthService()
     static let baseURL = Constants.baseURL

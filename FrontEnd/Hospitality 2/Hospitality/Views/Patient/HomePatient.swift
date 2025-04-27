@@ -81,53 +81,18 @@ struct HomePatient: View {
     }
 }
 
-// Updated HomeContent View with Recents section instead of History
 struct HomeContent: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var showProfile: Bool
     @State private var iconScale: CGFloat = 0.8
     @State private var opacity: Double = 0.0
+    @State private var appointmentHistory: [PatientAppointHistoryListResponse] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var lastRefreshTime = Date()
     
-    // Sample appointments data - now we'll filter to show only upcoming
-    private let appointments = [
-        AppointmentData(
-            doctorName: "Dr. Sarah Johnson",
-            specialty: "Cardiologist",
-            date: "Apr 15, 2025",
-            time: "10:30 AM",
-            status: .completed,
-            notes: "Regular checkup, blood pressure normal. Follow-up in 6 months recommended."
-        ),
-        AppointmentData(
-            doctorName: "Dr. Michael Chen",
-            specialty: "Dermatologist",
-            date: "Mar 28, 2025",
-            time: "2:15 PM",
-            status: .completed,
-            notes: "Skin condition follow-up, prescribed new medication. Apply topical cream twice daily."
-        ),
-        AppointmentData(
-            doctorName: "Dr. Emily Wilson",
-            specialty: "Orthopedist",
-            date: "Apr 25, 2025",
-            time: "9:00 AM",
-            status: .upcoming,
-            notes: "Annual joint assessment. Bring previous X-ray reports if available."
-        ),
-        AppointmentData(
-            doctorName: "Dr. Robert Garcia",
-            specialty: "Neurologist",
-            date: "Feb 10, 2025",
-            time: "1:45 PM",
-            status: .completed,
-            notes: "Headache consultation, recommended lifestyle changes."
-        )
-    ]
-    
-    // Filter to get only upcoming appointments
-    private var upcomingAppointments: [AppointmentData] {
-        return appointments.filter { $0.status == .upcoming }
-    }
+    // For pull-to-refresh
+    @State private var isRefreshing = false
     
     var body: some View {
         ZStack {
@@ -142,7 +107,7 @@ struct HomeContent: View {
             )
             .ignoresSafeArea()
             
-            // Background circles similar to onboarding
+            // Background circles
             ForEach(0..<8) { _ in
                 Circle()
                     .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
@@ -154,52 +119,71 @@ struct HomeContent: View {
                     .blur(radius: 3)
             }
             
-            ScrollView {
+            RefreshableScrollView(onRefresh: { done in
+                refreshAppointments {
+                    done()
+                }
+            }) {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Header with profile icon on the right
+                    // Header with profile icon and refresh button
                     HStack {
                         VStack(alignment: .leading) {
                             Text("Welcome to Patient Dashboard")
                                 .font(.system(size: 24, weight: .bold, design: .rounded))
                                 .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
                             
-                            Text("What would you like to do today?")
-                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                            Text("Last updated: \(lastRefreshTime.formatted(date: .omitted, time: .shortened))")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
                                 .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
                         }
                         
                         Spacer()
                         
-                        Button(action: {
-                            triggerHaptic()
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                showProfile = true
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                withAnimation {
+                                    refreshAppointments()
+                                }
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
                             }
-                        }) {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
-                                .padding(8)
-                                .background(
-                                    Circle()
-                                        .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.blue.opacity(0.1))
-                                )
-                                .scaleEffect(iconScale)
+                            
+                            Button(action: {
+                                triggerHaptic()
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                    showProfile = true
+                                }
+                            }) {
+                                Image(systemName: "person.crop.circle.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
+                                    .padding(8)
+                                    .background(
+                                        Circle()
+                                            .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.blue.opacity(0.1))
+                                    )
+                                    .scaleEffect(iconScale)
+                            }
                         }
                     }
                     .padding(.top, 16)
                     .padding(.horizontal)
                     
-                    // Single appointment scheduling card (centered and wider)
+                    // Schedule Appointment Card
                     HStack {
                         Spacer()
-                        NavigationLink(destination: PatientDoctorListView()) {
+                        NavigationLink(destination: PatientDoctorListView(onAppointmentBooked: {
+                            // Refresh when returning from booking
+                            refreshAppointments()
+                        })) {
                             SquareScheduleCard(
                                 icon: "calendar.badge.plus",
                                 title: "Schedule Appointment",
                                 color: colorScheme == .dark ? Color(hex: "1E88E5") : Color(hex: "2196F3")
                             )
-                            .frame(width: 300) // Wider card
+                            .frame(width: 300)
                         }
                         .simultaneousGesture(TapGesture().onEnded {
                             triggerHaptic()
@@ -208,30 +192,34 @@ struct HomeContent: View {
                     }
                     .padding(.vertical, 8)
                     
+                    // Appointment History Section
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Text("Upcoming Appointments")
+                            Text("Recent Appointments")
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                                 .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
                             
                             Spacer()
                             
-                          
+                            if isLoading && !isRefreshing {
+                                ProgressView()
+                            }
                         }
                         .padding(.horizontal)
                         
-                        // Only show upcoming appointments in Recents section
-                        if upcomingAppointments.isEmpty {
-                            Text("No upcoming appointments")
-                                .font(.system(size: 16, weight: .medium, design: .rounded))
-                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
-                                .padding(.horizontal)
-                                .padding(.vertical, 20)
+                        if let error = errorMessage {
+                            ErrorView(message: error) {
+                                refreshAppointments {}
+                            }
+
+                        } else if appointmentHistory.isEmpty {
+                            EmptyStateView(message: "Not There", icon: "bar")
                         } else {
                             VStack(spacing: 16) {
-                                ForEach(upcomingAppointments) { appointment in
-                                    AppointmentCard(appointment: appointment)
+                                ForEach(appointmentHistory.sorted(by: { $0.appointment_id > $1.appointment_id })) { appointment in
+                                    AppointmentHistoryCard(appointment: appointment)
                                         .padding(.horizontal)
+                                        .transition(.opacity.combined(with: .scale(0.95)))
                                 }
                             }
                         }
@@ -247,13 +235,182 @@ struct HomeContent: View {
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.1)) {
                     iconScale = 1.0
                 }
+                refreshAppointments()
             }
         }
     }
+    
+    private func refreshAppointments(completion: @escaping () -> Void = {}) {
+        isLoading = true
+        errorMessage = nil
+        
+        guard let url = URL(string: "\(Constants.baseURL)/hospital/general/appointments/history/") else {
+            errorMessage = "Invalid URL"
+            isLoading = false
+            completion()
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                isRefreshing = false
+                lastRefreshTime = Date()
+                
+                if let error = error {
+                    errorMessage = error.localizedDescription
+                    completion()
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    errorMessage = "Invalid response"
+                    completion()
+                    return
+                }
+                
+                guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                    errorMessage = "Server error: \(httpResponse.statusCode)"
+                    completion()
+                    return
+                }
+                
+                do {
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode([PatientAppointHistoryListResponse].self, from: data)
+                    withAnimation {
+                        appointmentHistory = response
+                    }
+                } catch {
+                    errorMessage = "Failed to decode response: \(error.localizedDescription)"
+                }
+                completion()
+            }
+        }.resume()
+    }
+    
     private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
         let generator = UIImpactFeedbackGenerator(style: style)
         generator.prepare()
         generator.impactOccurred()
+    }
+}
+
+struct RefreshableScrollView<Content: View>: View {
+    let onRefresh: (@escaping () -> Void) -> Void
+    let content: () -> Content
+    
+    init(onRefresh: @escaping (@escaping () -> Void) -> Void, @ViewBuilder content: @escaping () -> Content) {
+        self.onRefresh = onRefresh
+        self.content = content
+    }
+    
+    var body: some View {
+        if #available(iOS 15.0, *) {
+            ScrollView {
+                content()
+                    .refreshable {
+                        await withCheckedContinuation { continuation in
+                            onRefresh {
+                                continuation.resume()
+                            }
+                        }
+                    }
+            }
+        } else {
+            ScrollView {
+                content()
+            }
+        }
+    }
+}
+
+struct AppointmentHistoryCard: View {
+    let appointment: PatientAppointHistoryListResponse
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Appointment \(appointment.appointment_id)")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    
+                    Text("\(appointment.date) • Slot \(appointment.slot_id)")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .gray)
+                }
+                
+                Spacer()
+                
+                StatusBadge(status: appointment.status)
+            }
+            
+            if let reason = appointment.reason, !reason.isEmpty {
+                Text("Reason: \(reason)")
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .gray)
+            } else {
+                Text("No reason provided")
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .gray.opacity(0.7))
+                    .italic()
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
+                .shadow(
+                    color: colorScheme == .dark ? Color.black.opacity(0.4) : Color.gray.opacity(0.2),
+                    radius: 5, x: 0, y: 2
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+struct StatusBadge: View {
+    let status: String
+    @Environment(\.colorScheme) var colorScheme
+    
+    var backgroundColor: Color {
+        switch status.lowercased() {
+        case "completed":
+            return .green
+        case "upcoming":
+            return .orange
+        case "cancelled":
+            return .red
+        case "missed":
+            return .purple
+        default:
+            return .gray
+        }
+    }
+    
+    var textColor: Color {
+        colorScheme == .dark ? .white : .white
+    }
+    
+    var body: some View {
+        Text(status.capitalized)
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(backgroundColor)
+            )
+            .foregroundColor(textColor)
     }
 }
 
@@ -462,3 +619,13 @@ struct HomePatient_Previews: PreviewProvider {
     }
 }
 
+extension PatientAppointHistoryListResponse {
+    var formattedDate: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        guard let date = dateFormatter.date(from: date) else { return date }
+        
+        dateFormatter.dateStyle = .medium
+        return dateFormatter.string(from: date)
+    }
+}
