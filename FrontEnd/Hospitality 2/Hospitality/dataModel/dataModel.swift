@@ -284,6 +284,11 @@ class MockHospitalDataStore: ObservableObject {
         loadMockData()
     }
     
+    func updateFromAPI(staff: [Staff], doctorDetails: [DoctorDetails]) {
+        self.staff = staff
+        self.doctors = doctorDetails
+    }
+    
     private func loadMockData() {
         // Mock Doctor Types
         doctorTypes = [

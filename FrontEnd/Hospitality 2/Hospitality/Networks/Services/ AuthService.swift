@@ -78,16 +78,29 @@ enum DoctorCreationError: Error {
     case unknownError
 }
 
-struct DoctorListResponse {
+struct DoctorListResponse: Codable {
     let staff_id: String
     let staff_name: String
     let staff_email: String
     let staff_mobile: String
     let specialization: String
-    let licence: String
+    let license: String
     let experience_years: Int
     let doctor_type: String
     let on_leave: Bool
+    
+    // Add CodingKeys if needed to match your API response
+    enum CodingKeys: String, CodingKey {
+        case staff_id
+        case staff_name
+        case staff_email
+        case staff_mobile
+        case specialization
+        case license
+        case experience_years
+        case doctor_type
+        case on_leave
+    }
 }
 
 class AuthService {
@@ -284,6 +297,49 @@ class DoctorService {
             // Decode the response
             do {
                 let response = try JSONDecoder().decode(CreateDoctorResponse.self, from: data)
+                completion(.success(response))
+            } catch {
+                print("Decoding error: \(error)")
+                completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+    
+    func fetchDoctors(completion: @escaping (Result<[DoctorListResponse], DoctorCreationError>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/hospital/admin/doctors/") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            if httpResponse.statusCode == 401 {
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode([DoctorListResponse].self, from: data)
                 completion(.success(response))
             } catch {
                 print("Decoding error: \(error)")

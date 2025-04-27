@@ -17,6 +17,8 @@ struct DoctorsListView: View {
     @State private var editMode: EditMode = .inactive
     @State private var selectedDoctors = Set<String>()
     @State private var showingDeleteConfirmation = false
+    @State private var isLoading = false
+    @State private var errorMessage: String?
     
     private var departments: [String] {
         var depts = ["All"]
@@ -105,6 +107,9 @@ struct DoctorsListView: View {
             }
         }
         .navigationTitle("Doctors")
+        .onAppear {
+            fetchDoctors()
+        }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 if editMode == .active {
@@ -148,6 +153,51 @@ struct DoctorsListView: View {
             dataStore.fetchStaff()
             dataStore.fetchDoctors()
             dataStore.fetchDoctorTypes()
+        }
+    }
+    
+    private func fetchDoctors() {
+        isLoading = true
+        errorMessage = nil
+        
+        DoctorService.shared.fetchDoctors { result in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                switch result {
+                case .success(let doctors):
+                    // Convert API response to your local data models
+                    let staffList = doctors.map { doctor in
+                        Staff(
+                            id: doctor.staff_id,
+                            staffName: doctor.staff_name,
+                            roleId: "doctor_role_id",
+                            createdAt: Date(), // You might need to get this from the API
+                            staffEmail: doctor.staff_email,
+                            staffMobile: doctor.staff_mobile,
+                            onLeave: doctor.on_leave
+                        )
+                    }
+                    
+                    let doctorDetailsList = doctors.map { doctor in
+                        DoctorDetails(
+                            id: UUID().uuidString,
+                            staffId: doctor.staff_id,
+                            doctorSpecialization: doctor.specialization,
+                            doctorLicense: doctor.license,
+                            doctorExperienceYears: doctor.experience_years,
+                            doctorTypeId: "" // You might need to get this from the API
+                        )
+                    }
+                    
+                    // Update your data store
+                    dataStore.staff = staffList
+                    dataStore.doctors = doctorDetailsList
+                    
+                case .failure(let error):
+                    errorMessage = "Failed to load doctors: \(error.localizedDescription)"
+                }
+            }
         }
     }
     
