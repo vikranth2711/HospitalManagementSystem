@@ -193,7 +193,7 @@ struct HomeContent: View {
                     // Single appointment scheduling card (centered and wider)
                     HStack {
                         Spacer()
-                        NavigationLink(destination: AppointmentSchedulingView()) {
+                        NavigationLink(destination: PatientDoctorListView()) {
                             SquareScheduleCard(
                                 icon: "calendar.badge.plus",
                                 title: "Schedule Appointment",
