@@ -7,7 +7,7 @@ from accounts.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .models import (Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType, 
                      Schedule, Appointment, Slot, PatientDetails, Patient, PatientVitals,
-                     PrescribedMedicine, Prescription, Shift)
+                     PrescribedMedicine, Prescription, Shift, Diagnosis)
 from .permissions import IsAdminStaff
 import uuid
 import datetime
@@ -77,6 +77,44 @@ class DoctorSlotsView(APIView):
                 })
         return Response(slots, status=200)
 
+# class BookAppointmentView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         patient = request.user
+#         data = request.data
+#         date = data.get("date")
+#         staff_id = data.get("staff_id")
+#         slot_id = data.get("slot_id")
+#         reason = data.get("reason")
+
+#         if not all([date, staff_id, slot_id, reason]):
+#             return Response({"error": "Missing required fields"}, status=400)
+
+#         try:
+#             slot = Slot.objects.get(slot_id=slot_id)
+#             staff = Staff.objects.get(staff_id=staff_id)
+#         except (Slot.DoesNotExist, Staff.DoesNotExist):
+#             return Response({"error": "Invalid staff or slot"}, status=400)
+
+#         # Check if slot is available
+#         slot_datetime = datetime.strptime(date, "%Y-%m-%d")
+#         if Appointment.objects.filter(
+#             staff=staff, slot=slot, created_at__date=slot_datetime
+#         ).exists():
+#             return Response({"error": "Slot already booked"}, status=409)
+
+#         appointment = Appointment.objects.create(
+#             patient=patient,
+#             staff=staff,
+#             slot=slot,
+#         )
+#         # Optionally, save the reason in a remark field or a related model
+#         appointment.patient.patient_remark = reason
+#         appointment.patient.save()
+#         return Response({"message": "Appointment booked", "appointment_id": appointment.appointment_id}, status=201)
+
 class BookAppointmentView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -99,9 +137,13 @@ class BookAppointmentView(APIView):
             return Response({"error": "Invalid staff or slot"}, status=400)
 
         # Check if slot is available
-        slot_datetime = datetime.strptime(date, "%Y-%m-%d")
+        try:
+            appointment_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
+            
         if Appointment.objects.filter(
-            staff=staff, slot=slot, created_at__date=slot_datetime
+            staff=staff, slot=slot, created_at__date=appointment_date
         ).exists():
             return Response({"error": "Slot already booked"}, status=409)
 
@@ -109,11 +151,150 @@ class BookAppointmentView(APIView):
             patient=patient,
             staff=staff,
             slot=slot,
+            reason=reason,
+            status='upcoming'
         )
-        # Optionally, save the reason in a remark field or a related model
-        appointment.patient.patient_remark = reason
-        appointment.patient.save()
-        return Response({"message": "Appointment booked", "appointment_id": appointment.appointment_id}, status=201)
+        
+        return Response({
+            "message": "Appointment booked", 
+            "appointment_id": appointment.appointment_id
+        }, status=201)
+
+class DiagnosisCreateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, appointment_id):
+        # Check if user is a doctor or staff
+        if not hasattr(request.user, 'staff_id'):
+            return Response({"error": "Only staff can create diagnoses"}, status=403)
+            
+        # Get the appointment
+        appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+        # Check if this staff is assigned to this appointment
+        if appointment.staff.staff_id != request.user.staff_id:
+            return Response({"error": "You are not authorized to diagnose this appointment"}, status=403)
+            
+        # Get diagnosis data
+        diagnosis_data = request.data.get("diagnosis_data", {})
+        lab_test_required = request.data.get("lab_test_required", False)
+        follow_up_required = request.data.get("follow_up_required", False)
+        
+        if not diagnosis_data:
+            return Response({"error": "Diagnosis data is required"}, status=400)
+            
+        # Create the diagnosis
+        diagnosis = Diagnosis.objects.create(
+            appointment=appointment,
+            diagnosis_data=diagnosis_data,
+            lab_test_required=lab_test_required,
+            follow_up_required=follow_up_required
+        )
+        
+        # Mark the appointment as completed
+        appointment.status = 'completed'
+        appointment.save()
+        
+        return Response({
+            "message": "Diagnosis created and appointment marked as completed",
+            "diagnosis_id": diagnosis.diagnosis_id
+        }, status=201)
+
+class DiagnosisDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, diagnosis_id):
+        diagnosis = get_object_or_404(Diagnosis, diagnosis_id=diagnosis_id)
+        
+        # Check if user has permission to view this diagnosis
+        user = request.user
+        if hasattr(user, 'patient_id'):
+            # Patients can only view their own diagnoses
+            if diagnosis.appointment.patient.patient_id != user.patient_id:
+                return Response({"error": "Not authorized to view this diagnosis"}, status=403)
+        elif hasattr(user, 'staff_id'):
+            # Staff can view diagnoses for appointments they're assigned to
+            if diagnosis.appointment.staff.staff_id != user.staff_id:
+                # Check if admin staff
+                try:
+                    is_admin = user.role.role_permissions.get('is_admin', False)
+                    if not is_admin:
+                        return Response({"error": "Not authorized to view this diagnosis"}, status=403)
+                except:
+                    return Response({"error": "Not authorized to view this diagnosis"}, status=403)
+        else:
+            return Response({"error": "Invalid user"}, status=403)
+            
+        data = {
+            "diagnosis_id": diagnosis.diagnosis_id,
+            "diagnosis_data": diagnosis.diagnosis_data,
+            "lab_test_required": diagnosis.lab_test_required,
+            "follow_up_required": diagnosis.follow_up_required,
+            "appointment": {
+                "appointment_id": diagnosis.appointment.appointment_id,
+                "date": diagnosis.appointment.created_at.date(),
+                "patient_id": diagnosis.appointment.patient.patient_id,
+                "patient_name": diagnosis.appointment.patient.patient_name,
+                "staff_id": diagnosis.appointment.staff.staff_id,
+                "staff_name": diagnosis.appointment.staff.staff_name
+            }
+        }
+        
+        return Response(data, status=200)
+
+# class AppointmentHistoryView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         if hasattr(user, 'patient_id'):
+#             appointments = Appointment.objects.filter(patient=user)
+#         elif hasattr(user, 'staff_id'):
+#             appointments = Appointment.objects.filter(staff=user)
+#         else:
+#             return Response({"error": "Invalid user"}, status=403)
+
+#         data = []
+#         for app in appointments:
+#             data.append({
+#                 "appointment_id": app.appointment_id,
+#                 "date": app.created_at.date(),
+#                 "slot_id": app.slot.slot_id,
+#                 "staff_id": app.staff.staff_id,
+#                 "patient_id": app.patient.patient_id,
+#                 "status": "completed" if app.created_at < datetime.now() else "upcoming"
+#             })
+#         return Response(data, status=200)
+from django.utils import timezone
+
+# class AppointmentHistoryView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         if hasattr(user, 'patient_id'):
+#             appointments = Appointment.objects.filter(patient=user)
+#         elif hasattr(user, 'staff_id'):
+#             appointments = Appointment.objects.filter(staff=user)
+#         else:
+#             return Response({"error": "Invalid user"}, status=403)
+
+#         data = []
+#         now = timezone.now()  # <-- correct timezone-aware now
+#         for app in appointments:
+#             data.append({
+#                 "appointment_id": app.appointment_id,
+#                 "date": app.created_at.date(),
+#                 "slot_id": app.slot.slot_id,
+#                 "staff_id": app.staff.staff_id,
+#                 "patient_id": app.patient.patient_id,
+#                 "status": "completed" if app.created_at < now else "upcoming"
+#             })
+#         return Response(data, status=200)
 
 class AppointmentHistoryView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -128,6 +309,15 @@ class AppointmentHistoryView(APIView):
         else:
             return Response({"error": "Invalid user"}, status=403)
 
+        # Update statuses for appointments that should be marked as missed
+        now = timezone.now()
+        for appointment in appointments:
+            # If appointment date has passed and status is still 'upcoming', mark as 'missed'
+            appointment_datetime = appointment.created_at
+            if appointment.status == 'upcoming' and appointment_datetime < now:
+                appointment.status = 'missed'
+                appointment.save()
+
         data = []
         for app in appointments:
             data.append({
@@ -136,9 +326,43 @@ class AppointmentHistoryView(APIView):
                 "slot_id": app.slot.slot_id,
                 "staff_id": app.staff.staff_id,
                 "patient_id": app.patient.patient_id,
-                "status": "completed" if app.created_at < datetime.now() else "upcoming"
+                "status": app.status,
+                "reason": app.reason
             })
         return Response(data, status=200)
+
+
+# class AppointmentDetailView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, appointment_id):
+#         appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+#         prescription = appointment.prescriptions.first()
+#         prescription_data = None
+#         if prescription:
+#             prescription_data = {
+#                 "prescription_id": prescription.prescription_id,
+#                 "remarks": prescription.prescription_remarks,
+#                 "medicines": [
+#                     {
+#                         "medicine_name": pm.medicine.medicine_name,
+#                         "dosage": pm.medicine_dosage,
+#                         "fasting_required": pm.fasting_required
+#                     }
+#                     for pm in prescription.prescribed_medicines.all()
+#                 ]
+#             }
+#         data = {
+#             "appointment_id": appointment.appointment_id,
+#             "date": appointment.created_at.date(),
+#             "slot_id": appointment.slot.slot_id,
+#             "staff_id": appointment.staff.staff_id,
+#             "patient_id": appointment.patient.patient_id,
+#             "reason": appointment.reason,
+#             "prescription": prescription_data
+#         }
+#         return Response(data, status=200)
 
 class AppointmentDetailView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -146,6 +370,12 @@ class AppointmentDetailView(APIView):
 
     def get(self, request, appointment_id):
         appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+        # Check if status needs updating (if it's 'upcoming' but date has passed)
+        if appointment.status == 'upcoming' and appointment.created_at < timezone.now():
+            appointment.status = 'missed'
+            appointment.save()
+            
         prescription = appointment.prescriptions.first()
         prescription_data = None
         if prescription:
@@ -161,15 +391,48 @@ class AppointmentDetailView(APIView):
                     for pm in prescription.prescribed_medicines.all()
                 ]
             }
+            
+        # Get diagnosis if it exists
+        diagnosis = appointment.diagnoses.first()
+        diagnosis_data = None
+        if diagnosis:
+            diagnosis_data = {
+                "diagnosis_id": diagnosis.diagnosis_id,
+                "diagnosis_data": diagnosis.diagnosis_data,
+                "lab_test_required": diagnosis.lab_test_required,
+                "follow_up_required": diagnosis.follow_up_required
+            }
+            
         data = {
             "appointment_id": appointment.appointment_id,
             "date": appointment.created_at.date(),
             "slot_id": appointment.slot.slot_id,
             "staff_id": appointment.staff.staff_id,
             "patient_id": appointment.patient.patient_id,
-            "prescription": prescription_data
+            "status": appointment.status,
+            "reason": appointment.reason,
+            "prescription": prescription_data,
+            "diagnosis": diagnosis_data
         }
         return Response(data, status=200)
+
+# class AllAppointmentsView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAdminStaff]  # Or doctor-specific permission
+
+#     def get(self, request):
+#         appointments = Appointment.objects.all()
+#         data = [
+#             {
+#                 "appointment_id": app.appointment_id,
+#                 "date": app.created_at.date(),
+#                 "slot_id": app.slot.slot_id,
+#                 "staff_id": app.staff.staff_id,
+#                 "patient_id": app.patient.patient_id
+#             }
+#             for app in appointments
+#         ]
+#         return Response(data, status=200)
 
 class AllAppointmentsView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -177,13 +440,23 @@ class AllAppointmentsView(APIView):
 
     def get(self, request):
         appointments = Appointment.objects.all()
+        
+        # Update statuses for appointments that should be marked as missed
+        now = timezone.now()
+        for appointment in appointments:
+            if appointment.status == 'upcoming' and appointment.created_at < now:
+                appointment.status = 'missed'
+                appointment.save()
+                
         data = [
             {
                 "appointment_id": app.appointment_id,
                 "date": app.created_at.date(),
                 "slot_id": app.slot.slot_id,
                 "staff_id": app.staff.staff_id,
-                "patient_id": app.patient.patient_id
+                "patient_id": app.patient.patient_id,
+                "status": app.status,
+                "reason": app.reason
             }
             for app in appointments
         ]
@@ -216,6 +489,28 @@ class PatientDetailView(APIView):
                 "patient_mobile": patient.patient_mobile
             }
         return Response(data, status=200)
+
+class GetLatestPatientVitalsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, patient_id):
+        # Get the latest vitals for the patient
+        latest_vitals = PatientVitals.objects.filter(patient_id=patient_id).order_by('-created_at').first()
+        
+        if not latest_vitals:
+            return Response({"error": "No vitals found for this patient."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = {
+            "patient_height": latest_vitals.patient_height,
+            "patient_weight": latest_vitals.patient_weight,
+            "patient_heartrate": latest_vitals.patient_heartrate,
+            "patient_spo2": latest_vitals.patient_spo2,
+            "patient_temperature": latest_vitals.patient_temperature,
+            "created_at": latest_vitals.created_at,
+            "appointment_id": latest_vitals.appointment_id.appointment_id
+        }
+        return Response(data, status=status.HTTP_200_OK)
 
 class EnterPatientVitalsView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -258,7 +553,7 @@ class SubmitPrescriptionView(APIView):
 
 class AssignDoctorShiftView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAdminStaff]
+    permission_classes = [IsAuthenticated]#[IsAdminStaff]
 
     def post(self, request, staff_id):
         shift_id = request.data.get("shift_id")

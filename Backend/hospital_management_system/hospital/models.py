@@ -126,17 +126,42 @@ class Slot(models.Model):
     def __str__(self):
         return f"Slot {self.slot_id} ({self.slot_start_time}, {self.slot_duration} min)"
                     
+# class Appointment(models.Model):
+#     appointment_id = models.AutoField(primary_key=True)
+#     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments')
+#     staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='appointments')
+#     slot = models.ForeignKey(Slot, on_delete=models.CASCADE, null=False, blank=True, related_name='appointments')
+#     tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='appointments')
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     status = models.CharField(max_length=100)
+#     def __str__(self):
+#         return f"Appointment for {self.patient.patient_name} with {self.staff.staff_name} at {self.created_at}"
+
 class Appointment(models.Model):
+    STATUS_CHOICES = (
+        ('upcoming', 'Upcoming'),
+        ('completed', 'Completed'),
+        ('missed', 'Missed'),
+    )
+    
     appointment_id = models.AutoField(primary_key=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments')
     staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='appointments')
     slot = models.ForeignKey(Slot, on_delete=models.CASCADE, null=False, blank=True, related_name='appointments')
     tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='appointments')
     created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+    reason = models.TextField(blank=True, null=True)  # Added to store appointment reason
 
     def __str__(self):
         return f"Appointment for {self.patient.patient_name} with {self.staff.staff_name} at {self.created_at}"
-
+    
+    def save(self, *args, **kwargs):
+        # Auto-update status based on time if not explicitly set
+        if not self.pk and not self.status:
+            self.status = 'upcoming'
+        super().save(*args, **kwargs)
+        
 class PatientVitals(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='vitals')
     appointment_id = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='vitals')

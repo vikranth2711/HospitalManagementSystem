@@ -31,6 +31,12 @@ urlpatterns = [
     path('unrestricted/api/doctors/<str:staff_id>/shifts/', functional_views.AssignDoctorShiftView.as_view(), name='assign-shift'),
     path('unrestricted/api/doctors/<str:staff_id>/all-slots/', functional_views.DoctorAllSlotsView.as_view(), name='doctor-all-slots'),
 
+    path('unrestricted/api/appointments/<int:appointment_id>/diagnosis/', functional_views.DiagnosisCreateView.as_view(), name='create-diagnosis'),
+    path('unrestricted/api/diagnosis/<int:diagnosis_id>/', functional_views.DiagnosisDetailView.as_view(), name='diagnosis-detail'),
+    
+    # In your urls.py
+    path('unrestricted/api/patients/<int:patient_id>/latest-vitals/', functional_views.GetLatestPatientVitalsView.as_view(), name='latest-patient-vitals'),
+
     # # Staff Management URLs (existing)
     # path('api/staff/profile/', views.StaffProfileView.as_view(), name='staff-profile'),
     # path('api/admin/profile/', views.AdminProfileView.as_view(), name='admin-profile'),

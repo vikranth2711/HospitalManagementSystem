@@ -860,3 +860,296 @@ All API endpoints will return appropriate error responses with HTTP status codes
 ]
 ```
 
+# New APIs
+
+# API Documentation for Hospital Management System
+
+Below is a comprehensive guide to the new APIs for appointments, vitals, and diagnosis in your hospital management system.
+
+## Appointment APIs
+
+### 1. Book Appointment
+
+**Request:**
+- **Method:** POST
+- **Endpoint:** `/api/appointments/`
+- **Authentication:** JWT Bearer Token
+- **Content-Type:** application/json
+
+**Request Body:**
+```json
+{
+  "date": "2025-05-15",
+  "staff_id": "DOC12345AB",
+  "slot_id": 3,
+  "reason": "Recurring headache and fever"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "message": "Appointment booked",
+  "appointment_id": 42
+}
+```
+
+**Error Response (409 Conflict):**
+```json
+{
+  "error": "Slot already booked"
+}
+```
+
+### 2. Get Appointment History
+
+**Request:**
+- **Method:** GET
+- **Endpoint:** `/api/appointments/history/`
+- **Authentication:** JWT Bearer Token
+
+**Response (200 OK):**
+```json
+[
+  {
+    "appointment_id": 42,
+    "date": "2025-05-15",
+    "slot_id": 3,
+    "staff_id": "DOC12345AB",
+    "patient_id": 101,
+    "status": "upcoming",
+    "reason": "Recurring headache and fever"
+  },
+  {
+    "appointment_id": 38,
+    "date": "2025-04-20",
+    "slot_id": 5,
+    "staff_id": "DOC98765CD",
+    "patient_id": 101,
+    "status": "completed",
+    "reason": "Annual checkup"
+  }
+]
+```
+
+### 3. Get Appointment Details
+
+**Request:**
+- **Method:** GET
+- **Endpoint:** `/api/appointments/{appointment_id}/`
+- **Authentication:** JWT Bearer Token
+
+**Response (200 OK):**
+```json
+{
+  "appointment_id": 42,
+  "date": "2025-05-15",
+  "slot_id": 3,
+  "staff_id": "DOC12345AB",
+  "patient_id": 101,
+  "status": "upcoming",
+  "reason": "Recurring headache and fever",
+  "prescription": null,
+  "diagnosis": null
+}
+```
+
+**Response with Prescription and Diagnosis (200 OK):**
+```json
+{
+  "appointment_id": 38,
+  "date": "2025-04-20",
+  "slot_id": 5,
+  "staff_id": "DOC98765CD",
+  "patient_id": 101,
+  "status": "completed",
+  "reason": "Annual checkup",
+  "prescription": {
+    "prescription_id": 24,
+    "remarks": "Take with food",
+    "medicines": [
+      {
+        "medicine_name": "Paracetamol",
+        "dosage": {"morning": 1, "afternoon": 0, "evening": 1},
+        "fasting_required": false
+      }
+    ]
+  },
+  "diagnosis": {
+    "diagnosis_id": 15,
+    "diagnosis_data": {
+      "condition": "Seasonal flu",
+      "notes": "Patient showing typical symptoms"
+    },
+    "lab_test_required": false,
+    "follow_up_required": true
+  }
+}
+```
+
+### 4. Get All Appointments (Admin/Doctor)
+
+**Request:**
+- **Method:** GET
+- **Endpoint:** `/api/appointments/admin/`
+- **Authentication:** JWT Bearer Token (Admin/Doctor only)
+
+**Response (200 OK):**
+```json
+[
+  {
+    "appointment_id": 42,
+    "date": "2025-05-15",
+    "slot_id": 3,
+    "staff_id": "DOC12345AB",
+    "patient_id": 101,
+    "status": "upcoming",
+    "reason": "Recurring headache and fever"
+  },
+  {
+    "appointment_id": 41,
+    "date": "2025-05-14",
+    "slot_id": 2,
+    "staff_id": "DOC12345AB",
+    "patient_id": 102,
+    "status": "upcoming",
+    "reason": "Skin rash"
+  }
+]
+```
+
+## Patient Vitals APIs
+
+### 1. Enter Patient Vitals
+
+**Request:**
+- **Method:** POST
+- **Endpoint:** `/api/appointments/{appointment_id}/vitals/`
+- **Authentication:** JWT Bearer Token
+- **Content-Type:** application/json
+
+**Request Body:**
+```json
+{
+  "height": 175.5,
+  "weight": 70.2,
+  "heartrate": 72,
+  "spo2": 98.5,
+  "temperature": 36.8
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "message": "Vitals saved"
+}
+```
+
+### 2. Get Latest Patient Vitals
+
+**Request:**
+- **Method:** GET
+- **Endpoint:** `/api/patients/{patient_id}/latest-vitals/`
+- **Authentication:** JWT Bearer Token
+
+**Response (200 OK):**
+```json
+{
+  "patient_height": 175.5,
+  "patient_weight": 70.2,
+  "patient_heartrate": 72,
+  "patient_spo2": 98.5,
+  "patient_temperature": 36.8,
+  "created_at": "2025-04-27T10:45:00Z",
+  "appointment_id": 42
+}
+```
+
+**Error Response (404 Not Found):**
+```json
+{
+  "error": "No vitals found for this patient."
+}
+```
+
+## Diagnosis APIs
+
+### 1. Create Diagnosis
+
+**Request:**
+- **Method:** POST
+- **Endpoint:** `/api/appointments/{appointment_id}/diagnosis/`
+- **Authentication:** JWT Bearer Token (Doctor only)
+- **Content-Type:** application/json
+
+**Request Body:**
+```json
+{
+  "diagnosis_data": {
+    "condition": "Migraine",
+    "severity": "Moderate",
+    "notes": "Patient reports recurring episodes",
+    "symptoms": ["Headache", "Light sensitivity", "Nausea"]
+  },
+  "lab_test_required": true,
+  "follow_up_required": true
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "message": "Diagnosis created and appointment marked as completed",
+  "diagnosis_id": 16
+}
+```
+
+### 2. Get Diagnosis Details
+
+**Request:**
+- **Method:** GET
+- **Endpoint:** `/api/diagnosis/{diagnosis_id}/`
+- **Authentication:** JWT Bearer Token
+
+**Response (200 OK):**
+```json
+{
+  "diagnosis_id": 16,
+  "diagnosis_data": {
+    "condition": "Migraine",
+    "severity": "Moderate",
+    "notes": "Patient reports recurring episodes",
+    "symptoms": ["Headache", "Light sensitivity", "Nausea"]
+  },
+  "lab_test_required": true,
+  "follow_up_required": true,
+  "appointment": {
+    "appointment_id": 42,
+    "date": "2025-04-27",
+    "patient_id": 101,
+    "patient_name": "John Doe",
+    "staff_id": "DOC12345AB",
+    "staff_name": "Dr. Sarah Smith"
+  }
+}
+```
+
+## Status Field Implementation
+
+The Appointment model now includes a status field with three possible values:
+- **upcoming**: Default status for new appointments
+- **completed**: Set when a doctor submits a diagnosis
+- **missed**: Automatically set when an appointment date has passed without a diagnosis
+
+The status is used in all appointment-related APIs to help filter and display appointments appropriately. When a doctor creates a diagnosis for an appointment, the status is automatically updated to "completed".
+
+## Authentication and Permissions
+
+All APIs require JWT authentication. The token should be included in the Authorization header:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Certain APIs (like creating a diagnosis) have additional permission requirements to ensure only authorized personnel can perform those actions.
