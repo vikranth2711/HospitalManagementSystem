@@ -283,8 +283,9 @@ struct Login: View {
                                         HomePatient()
                                             .navigationBarBackButtonHidden(true)
                                     case "DoctorDashboard":
-                                        DoctorDashboard()
-                                            .navigationBarBackButtonHidden(true)
+                                        let staffId = UserDefaults.userId
+                                            DoctorDashboardView(doctorId: staffId)
+                                                .navigationBarBackButtonHidden(true)
                                     default:
                                         EmptyView()
                                     }

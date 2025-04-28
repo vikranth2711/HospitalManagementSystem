@@ -213,7 +213,7 @@ struct HomeContent: View {
                             }
 
                         } else if appointmentHistory.isEmpty {
-                            EmptyStateView(message: "Not There", icon: "bar")
+                            EmptyStateView(icon: "Not There", title: "bar", message: "jhfyhfillf")
                         } else {
                             VStack(spacing: 16) {
                                 ForEach(appointmentHistory.sorted(by: { $0.appointment_id > $1.appointment_id })) { appointment in

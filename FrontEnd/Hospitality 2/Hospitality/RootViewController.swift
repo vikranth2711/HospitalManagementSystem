@@ -11,6 +11,7 @@ import SwiftUI
 struct RootView: View {
     @AppStorage("isLoggedIn") private var isLoggedIn = false
     @AppStorage("userType") private var userType = ""
+    @AppStorage("userId") private var userId = ""
     
     var body: some View {
         Group {
@@ -19,7 +20,7 @@ struct RootView: View {
                 case "admin":
                     AdminHomeView()
                 case "staff":
-                    DoctorDashboard()
+                    DoctorDashboardView(doctorId: userId)
                 case "patient":
                     HomePatient()
                 default:

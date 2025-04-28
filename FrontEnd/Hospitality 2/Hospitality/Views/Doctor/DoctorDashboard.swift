@@ -1,501 +1,140 @@
 import SwiftUI
 
-struct DoctorDashboard: View {
-    @StateObject private var dataStore = HospitalDataStore()
+struct DoctorDashboardView: View {
+    @StateObject private var viewModel = DoctorViewModel()
     @State private var selectedTab = 0
-    @State private var iconScale: CGFloat = 1.0
-
-    var body: some View {
-        TabView(selection: $selectedTab) {
-            // Tab 1: Home
-            HomeView()
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
-                }
-                .tag(0)
-            
-            // Tab 2: Appointments
-            AppointmentsView()
-                .tabItem {
-                    Label("Appointments", systemImage: "calendar")
-                }
-                .tag(1)
-            
-            // Tab 3: Schedule
-            ScheduleView()
-                .tabItem {
-                    Label("Schedule", systemImage: "clock.fill")
-                }
-                .tag(2)
-        }
-        .environmentObject(dataStore)
-        .accentColor(.blue)
-        .onAppear {
-            animateIcon()
-        }
-    }
-    
-    // MARK: - Helper Functions
-    private func animateIcon() {
-        withAnimation(Animation.spring(response: 0.5, dampingFraction: 0.6).repeatForever(autoreverses: true)) {
-            iconScale = 1.05
-        }
-    }
-}
-
-// MARK: - Home View
-struct HomeView: View {
-    @EnvironmentObject var dataStore: HospitalDataStore
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var showProfile = false
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    welcomeHeader
-                    todayAppointmentsSection
-                    recentPatientsSection
-                }
-                .padding()
-            }
-            .sheet(isPresented: $showProfile) {
-                DocProfile()
-            }
-        }
-    }
-    
-    private var welcomeHeader: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text("Welcome Back")
-                    .font(.title2)
-                    .bold()
-                Text("Today's summary")
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            
-            Button(action: {
-                triggerHaptic()
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    showProfile = true
-                }
-            }) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
-                    .padding(8)
-                    .background(
-                        Circle()
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.blue.opacity(0.1))
-                    )
-            }
-        }
-    }
-    
-    private var todayAppointmentsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionHeader(title: "Today's Appointments", icon: "calendar")
-            
-            if dataStore.appointments.filter { Calendar.current.isDateInToday($0.createdAt) }.isEmpty {
-                EmptyStateView(message: "No appointments today", icon: "calendar.badge.plus")
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(dataStore.appointments.filter { Calendar.current.isDateInToday($0.createdAt) }) { appointment in
-                        HomeAppointmentCardView(appointment: appointment)
-                    }
-                }
-            }
-        }
-    }
-    
-    private var recentPatientsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionHeader(title: "Recent Patients", icon: "person.2.fill")
-            
-            if dataStore.patients.isEmpty {
-                EmptyStateView(message: "No recent patients", icon: "person.fill.questionmark")
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        ForEach(dataStore.patients.prefix(5)) { patient in
-                            PatientCardView(patient: patient)
-                        }
-                    }
-                    .padding(.bottom, 8) // Add some padding for the shadow
-                }
-            }
-        }
-    }
-    
-    private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-    }
-}
-
-// MARK: - Appointments View
-struct AppointmentsView: View {
-    @EnvironmentObject var dataStore: HospitalDataStore
-    @State private var selectedDate = Date()
-    @State private var showFilters = false
-    
-    var filteredAppointments: [Appointment] {
-        dataStore.appointments.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: selectedDate) }
-    }
+    let doctorId: String
     
     var body: some View {
         NavigationView {
             VStack {
-                DatePicker("Select Date", selection: $selectedDate, displayedComponents: .date)
-                    .datePickerStyle(.graphical)
-                    .padding()
-                
-                List {
-                    if filteredAppointments.isEmpty {
-                        EmptyStateView(message: "No appointments for selected date", icon: "calendar.badge.exclamationmark")
-                    } else {
-                        ForEach(filteredAppointments) { appointment in
-                            AppointmentRow(appointment: appointment)
-                        }
+                if viewModel.isLoading {
+                    ProgressView("Loading...")
+                } else if let errorMessage = viewModel.errorMessage {
+                    ErrorView(message: errorMessage) {
+                        viewModel.fetchDoctorShifts(doctorId: doctorId)
+                        viewModel.fetchDoctorAppointments()
                     }
-                }
-                .listStyle(.plain)
-            }
-            .navigationTitle("Appointments")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showFilters.toggle() }) {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                    }
-                }
-            }
-            .sheet(isPresented: $showFilters) {
-                DateRangePickerView()
-            }
-        }
-    }
-}
-
-// MARK: - Schedule View
-struct ScheduleView: View {
-    @EnvironmentObject var dataStore: HospitalDataStore
-    @State private var selectedShift: String = "Morning"
-    
-    let shifts = ["Morning", "Afternoon", "Evening", "Night"]
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                Picker("Shift", selection: $selectedShift) {
-                    ForEach(shifts, id: \.self) { shift in
-                        Text(shift)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
-                
-                List {
-                    Section(header: Text("\(selectedShift) Shift Schedule")) {
-                        if dataStore.staff.isEmpty {
-                            EmptyStateView(message: "No schedule for \(selectedShift) shift", icon: "clock.badge.exclamationmark")
-                        } else {
-                            ForEach(dataStore.staff) { staff in
-                                StaffScheduleRow(staff: staff, shift: selectedShift)
+                } else {
+                    TabView(selection: $selectedTab) {
+                        // Shifts tab
+                        ShiftsListView(shifts: viewModel.doctorShifts)
+                            .tabItem {
+                                Label("Shifts", systemImage: "calendar")
                             }
-                        }
+                            .tag(0)
+                        
+                        // Appointments tab
+                        AppointmentsListView(appointments: viewModel.doctorAppointments)
+                            .tabItem {
+                                Label("Appointments", systemImage: "list.bullet.clipboard")
+                            }
+                            .tag(1)
+                        
+                        // Profile tab
+                        DoctorProfileView()
+                            .tabItem {
+                                Label("Profile", systemImage: "person.circle")
+                            }
+                            .tag(2)
                     }
                 }
             }
-            .navigationTitle("My Schedule")
+            .navigationTitle("Doctor Dashboard")
+            .onAppear {
+                viewModel.fetchDoctorShifts(doctorId: doctorId)
+                viewModel.fetchDoctorAppointments()
+            }
         }
     }
 }
 
-// MARK: - Components
-struct SectionHeader: View {
-    let title: String
-    let icon: String
+struct DocErrorView: View {
+    let message: String
+    let retryAction: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundColor(.orange)
+                .padding()
+            
+            Text("Error Occurred")
+                .font(.title)
+                .fontWeight(.bold)
+            
+            Text(message)
+                .foregroundColor(.red)
+                .multilineTextAlignment(.center)
+                .padding()
+            
+            Button("Retry") {
+                retryAction()
+            }
+            .padding()
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+        }
+        .padding()
+    }
+}
+struct ShiftsListView: View {
+    let shifts: [DoctorResponse.PatientDoctorSlotResponse]
+    
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                if shifts.isEmpty {
+                    EmptyStateView(
+                        icon: "calendar.badge.clock",
+                        title: "No Shifts Available",
+                        message: "You don't have any shifts scheduled at this time."
+                    )
+                } else {
+                    ForEach(shifts, id: \.slot_id) { shift in
+                        ShiftCardView(shift: shift)
+                    }
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("My Shifts")
+    }
+}
+
+struct ShiftCardView: View {
+    let shift: DoctorResponse.PatientDoctorSlotResponse
     
     var body: some View {
         HStack {
-            Image(systemName: icon)
-                .foregroundColor(Color(hex: "4A90E2"))
-            Text(title)
-                .font(.headline)
-        }
-        .padding(.vertical, 8)
-    }
-}
-
-struct EmptyStateView: View {
-    let message: String
-    let icon: String
-    
-    var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.largeTitle)
-                .foregroundColor(Color(hex: "4A90E2").opacity(0.8))
-            Text(message)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(40)
-    }
-}
-
-struct HomeAppointmentCardView: View {
-    let appointment: Appointment
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Circle()
-                .fill(Color(hex: "4A90E2").opacity(0.2))
-                .frame(width: 56, height: 56)
-                .overlay(
-                    Image(systemName: "stethoscope")
-                        .foregroundColor(Color(hex: "4A90E2"))
-                        .font(.system(size: 24))
-                )
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Patient Name") // Replace with actual patient name
-                    .font(.headline)
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                
-                Text(appointment.id)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                HStack(spacing: 6) {
-                    Image(systemName: "clock")
-                        .font(.caption)
-                        .foregroundColor(Color(hex: "4A90E2"))
-                    
-                    Text(appointment.createdAt, style: .time)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
+            // Time indicator
             VStack {
-                Text("Scheduled")
+                Text(formatTime(shift.slot_start_time))
+                    .font(.headline)
+                Text("\(shift.slot_duration) min")
                     .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(Color(hex: "4A90E2"))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color(hex: "4A90E2").opacity(0.2))
-                    )
-                
-                Button(action: {
-                    // Action for view details
-                }) {
-                    Text("Details")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(Color(hex: "4A90E2"))
-                }
-                .padding(.top, 6)
+                    .foregroundColor(.secondary)
             }
-        }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color.black.opacity(0.5) : Color.white)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-        )
-        .padding(.vertical, 4)
-        .padding(.horizontal, 2)
-    }
-}
-
-struct PatientCardView: View {
-    let patient: Patient
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var color: Color {
-        switch patient.patientName.first?.lowercased() ?? "a" {
-        case "a"..."e": return Color(hex: "4A90E2") // Blue
-        case "f"..."j": return Color(hex: "7E57C2") // Purple
-        case "k"..."o": return Color(hex: "43A047") // Green
-        case "p"..."t": return Color(hex: "FB8C00") // Orange
-        default: return Color(hex: "E53935") // Red
-        }
-    }
-    
-    var initials: String {
-        let components = patient.patientName.components(separatedBy: " ")
-        if components.count > 1 {
-            return String(components[0].prefix(1) + components[1].prefix(1))
-        }
-        return String(patient.patientName.prefix(1))
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Profile section
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(color.opacity(0.2))
-                    .frame(width: 60, height: 60)
-                    .overlay(
-                        Text(initials)
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(color)
-                    )
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(patient.patientName)
-                        .font(.headline)
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                    
-                    HStack(spacing: 8) {
-                        Image(systemName: patient.patientGender.lowercased() == "male" ? "figure.wave.circle.fill" : "figure.dress.line.vertical.figure")
-                            .font(.caption)
-                            .foregroundColor(color)
-                        
-                        Text(patient.patientGender)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
+            .frame(width: 70)
             
             // Divider
             Rectangle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(height: 1)
-                .padding(.horizontal, 16)
+                .fill(Color.blue)
+                .frame(width: 4)
+                .cornerRadius(2)
             
-            // Bottom section
-            HStack {
-                // Last visit info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Last Visit")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("3 days ago") // Replace with actual data
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                Button(action: {
-                    // Action for view patient details
-                }) {
-                    Text("Details")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(Color.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "4A90E2"))
-                        )
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
-            .padding(.top, 12)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color.black.opacity(0.5) : Color.white)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-        )
-        .frame(width: 250)
-        .padding(.vertical, 4)
-    }
-}
-
-struct AppointmentRow: View {
-    let appointment: Appointment
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(Color(hex: "4A90E2").opacity(0.2))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Image(systemName: "calendar")
-                        .foregroundColor(Color(hex: "4A90E2"))
-                )
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Patient Name") // Replace with actual patient
+            // Shift details
+            VStack(alignment: .leading, spacing: 8) {
+                Text(shift.is_booked ? "Booked" : "Available")
                     .font(.headline)
+                    .foregroundColor(shift.is_booked ? .blue : .green)
                 
-                Text(appointment.createdAt, style: .time)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.leading, 8)
-            
-            Spacer()
-            
-            Button(action: {
-                // Action for viewing appointment details
-            }) {
-                Text("View")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(Color.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(Color(hex: "4A90E2"))
-                    )
-            }
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
-    }
-}
-
-struct StaffScheduleRow: View {
-    let staff: Staff
-    let shift: String
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(Color(hex: "4A90E2").opacity(0.2))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Image(systemName: "person.crop.circle.fill")
-                        .foregroundColor(Color(hex: "4A90E2"))
-                )
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(staff.staffName)
-                    .font(.headline)
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "clock.fill")
-                        .font(.caption2)
-                        .foregroundColor(Color(hex: "4A90E2"))
-                    
-                    Text("\(shift) Shift")
+                HStack {
+                    Image(systemName: "clock")
+                        .foregroundColor(.secondary)
+                    Text("Slot #\(shift.slot_id)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -504,56 +143,180 @@ struct StaffScheduleRow: View {
             
             Spacer()
             
-            Image(systemName: "chevron.right")
-                .foregroundColor(Color(hex: "4A90E2"))
+            // Status indicator
+            Circle()
+                .fill(shift.is_booked ? Color.blue : Color.green)
+                .frame(width: 12, height: 12)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private func formatTime(_ timeString: String) -> String {
+        // Simple function to format the time string
+        // You can enhance this based on your actual data format
+        return timeString
+    }
+}
+
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let message: String
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 50))
+                .foregroundColor(.blue)
+                .padding()
+            
+            Text(title)
+                .font(.headline)
+            
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct DoctorProfileView: View {
+    @State private var name = "Dr. Swati Swapna"
+    @State private var specialty = "General Medicine"
+    @State private var email = "swati@hospital.com"
+    @State private var phone = "+1234567890"
+    @State private var showingLogoutConfirmation = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Profile header
+                VStack {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 120, height: 120)
+                        .foregroundColor(.blue)
+                        .padding()
+                    
+                    Text(name)
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    Text(specialty)
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                        .padding(.bottom)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+                
+                // Contact information
+                GroupBox(label: Label("Contact Information", systemImage: "envelope.fill").font(.headline)) {
+                    ProfileDetailRow(icon: "envelope", label: "Email", value: email)
+                    
+                    ProfileDetailRow(icon: "phone", label: "Phone", value: phone)
+                }
+                
+                // Settings
+                GroupBox(label: Label("Settings", systemImage: "gearshape.fill").font(.headline)) {
+                    NavigationLink(destination: Text("Working Hours Settings")) {
+                        ProfileSettingRow(icon: "clock", title: "Working Hours")
+                    }
+                    
+                    NavigationLink(destination: Text("Availability Settings")) {
+                        ProfileSettingRow(icon: "calendar", title: "Set Availability")
+                    }
+                    
+                    NavigationLink(destination: Text("Notifications Settings")) {
+                        ProfileSettingRow(icon: "bell", title: "Notifications")
+                    }
+                    
+                    NavigationLink(destination: Text("Security Settings")) {
+                        ProfileSettingRow(icon: "lock.shield", title: "Security & Privacy")
+                    }
+                }
+                
+                // Log out button
+                Button(action: {
+                    showingLogoutConfirmation = true
+                }) {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .padding(.trailing, 10)
+                        Text("Log Out")
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color.red)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+                .padding(.top)
+                .alert("Confirm Logout", isPresented: $showingLogoutConfirmation) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Log Out", role: .destructive) {
+                        // Handle logout
+                    }
+                } message: {
+                    Text("Are you sure you want to log out?")
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("My Profile")
+    }
+}
+
+struct ProfileDetailRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+                .frame(width: 30)
+            
+            Text(label)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .fontWeight(.medium)
         }
         .padding(.vertical, 8)
     }
 }
 
-struct DateRangePickerView: View {
-    @State private var startDate = Date()
-    @State private var endDate = Date()
-    @Environment(\.presentationMode) var presentationMode
+struct ProfileSettingRow: View {
+    let icon: String
+    let title: String
     
     var body: some View {
-        NavigationView {
-            Form {
-                DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
-                DatePicker("End Date", selection: $endDate, displayedComponents: .date)
-                
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("Apply Filters")
-                        .frame(maxWidth: .infinity)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(hex: "4A90E2"))
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.vertical)
-            }
-            .navigationTitle("Filters")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-            }
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+                .frame(width: 30)
+            
+            Text(title)
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-    }
-}
-
-
-// MARK: - Preview
-struct DoctorDashboard_Previews: PreviewProvider {
-    static var previews: some View {
-        DoctorDashboard()
-            .environmentObject(MockHospitalDataStore())
+        .padding(.vertical, 8)
     }
 }

@@ -70,6 +70,7 @@ enum NetworkError: Error {
     case decodingError
     case serverError(String)
     case unknownError
+    case unauthorized
 }
 
 // MARK: - Authentication Service
