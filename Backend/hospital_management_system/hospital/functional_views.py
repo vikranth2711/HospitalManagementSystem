@@ -7,7 +7,8 @@ from accounts.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .models import (Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType, 
                      Schedule, Appointment, Slot, PatientDetails, Patient, PatientVitals,
-                     PrescribedMedicine, Prescription, Shift, Diagnosis)
+                     PrescribedMedicine, Prescription, Shift, Diagnosis, Medicine,
+                     TargetOrgan)
 from .permissions import IsAdminStaff
 import uuid
 import datetime
@@ -201,6 +202,22 @@ class DiagnosisCreateView(APIView):
             "diagnosis_id": diagnosis.diagnosis_id
         }, status=201)
 
+class ShiftListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        shifts = Shift.objects.all()
+        data = []
+        for shift in shifts:
+            data.append({
+                "shift_id": shift.shift_id,
+                "shift_name": shift.shift_name,
+                "start_time": shift.start_time.strftime('%H:%M:%S'),
+                "end_time": shift.end_time.strftime('%H:%M:%S')
+            })
+        return Response(data, status=status.HTTP_200_OK)
+    
 class DiagnosisDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -530,6 +547,21 @@ class EnterPatientVitalsView(APIView):
         )
         return Response({"message": "Vitals saved"}, status=201)
 
+class MedicineListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        medicines = Medicine.objects.all()
+        data = []
+        for medicine in medicines:
+            data.append({
+                "medicine_id": medicine.medicine_id,
+                "medicine_name": medicine.medicine_name,
+                "medicine_remark": medicine.medicine_remark
+            })
+        return Response(data, status=status.HTTP_200_OK)
+    
 class SubmitPrescriptionView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -542,7 +574,20 @@ class SubmitPrescriptionView(APIView):
             appointment=appointment,
             prescription_remarks=remarks
         )
+        prescription.save()
+
+
         for med in medicines:
+            # Add this check before creating PrescribedMedicine
+            if not isinstance(med["dosage"], dict):
+                return Response({"error": "Dosage must be a JSON object"}, 
+                    status=status.HTTP_400_BAD_REQUEST)
+            try:
+                medicine = Medicine.objects.get(medicine_id=med["medicine_id"])
+            except Medicine.DoesNotExist:
+                return Response({"error": f"Medicine with ID {med['medicine_id']} does not exist"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
             PrescribedMedicine.objects.create(
                 prescription=prescription,
                 medicine_id=med["medicine_id"],
@@ -589,3 +634,19 @@ class DoctorAllSlotsView(APIView):
                     "date": schedule.schedule_date
                 })
         return Response(slots, status=200)
+
+class TargetOrganListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        organs = TargetOrgan.objects.all()
+        data = [
+            {
+                "target_organ_id": organ.target_organ_id,
+                "target_organ_name": organ.target_organ_name,
+                "target_organ_remark": organ.target_organ_remark
+            }
+            for organ in organs
+        ]
+        return Response(data, status=status.HTTP_200_OK)

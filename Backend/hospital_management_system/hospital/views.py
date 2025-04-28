@@ -11,7 +11,7 @@ from .models import Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Ro
 from .permissions import IsAdminStaff
 import uuid
 import datetime
-
+from django.contrib.auth.hashers import make_password
 class StaffProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -258,7 +258,8 @@ class CreateLabTechnicianView(APIView):
         lab_experience_years = request.data.get('lab_experience_years')
         assigned_lab = request.data.get('assigned_lab')
         staff_joining_date = request.data.get('staff_joining_date')
-        
+        staff_password = "abc123"
+
         # Validate required fields
         if not all([staff_name, staff_email, staff_mobile, certification, 
                    lab_experience_years, assigned_lab, staff_joining_date]):
@@ -293,7 +294,8 @@ class CreateLabTechnicianView(APIView):
                 role=role,
                 created_at=joining_date,
                 staff_email=staff_email,
-                staff_mobile=staff_mobile
+                staff_mobile=staff_mobile,
+                password=make_password(staff_password)
             )
             
             # Create lab technician details
@@ -444,9 +446,10 @@ class DoctorDetailView(APIView):
 class CreateDoctorView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminStaff]
-
+    #parser_classes = [MultiPartParser, FormParser]
     def post(self, request, *args, **kwargs):
         # Extract and validate required fields
+        print(request.data)
         staff_name = request.data.get('staff_name')
         staff_email = request.data.get('staff_email')
         staff_mobile = request.data.get('staff_mobile')
@@ -458,7 +461,7 @@ class CreateDoctorView(APIView):
         staff_qualification = request.data.get('staff_qualification')
         staff_dob = request.data.get('staff_dob')
         staff_address = request.data.get('staff_address')
-
+        staff_password = "abc123"
         # Validate required fields
         if not all([
             staff_name, staff_email, staff_mobile, specialization,
@@ -504,7 +507,8 @@ class CreateDoctorView(APIView):
                 role=role,
                 created_at=joining_date,
                 staff_email=staff_email,
-                staff_mobile=staff_mobile
+                staff_mobile=staff_mobile,
+                password=make_password(staff_password)
             )
 
             # Create doctor details

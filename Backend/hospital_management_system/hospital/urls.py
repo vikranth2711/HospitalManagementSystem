@@ -36,7 +36,10 @@ urlpatterns = [
     
     # In your urls.py
     path('general/patients/<int:patient_id>/latest-vitals/', functional_views.GetLatestPatientVitalsView.as_view(), name='latest-patient-vitals'),
-
+    path('general/shifts/', functional_views.ShiftListView.as_view(), name='shift-list'),
+    
+    path('general/medicines/', functional_views.MedicineListView.as_view(), name='medicine-list'),
+    path('general/target-organs/', functional_views.TargetOrganListView.as_view(), name='target-organ-list'),
     # # Staff Management URLs (existing)
     # path('api/staff/profile/', views.StaffProfileView.as_view(), name='staff-profile'),
     # path('api/admin/profile/', views.AdminProfileView.as_view(), name='admin-profile'),

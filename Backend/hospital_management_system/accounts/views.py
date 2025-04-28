@@ -197,7 +197,7 @@ class UserLogin(APIView):
         
         # Generate and send OTP for second factor
         otp = generate_otp()
-        
+        print(otp)
         # Update or create OTP record for the email and user type
         otp_record, created = EmailOTP.objects.update_or_create(
             email=email,
@@ -218,7 +218,7 @@ class UserLogin(APIView):
         
         return Response({
             "message": "Password verified. OTP sent for two-factor authentication.",
-            "user_id": user_id,
+            "user_id": str(user_id),
             "user_type": user_type,
             "requires_otp": True,
             "success": True
@@ -273,7 +273,7 @@ class VerifyLoginOTP(APIView):
         
         return Response({
             "message": "Login successful.",
-            "user_id": user_id,
+            "user_id": str(user_id),
             "user_type": user_type,
             "access_token": str(refresh.access_token),
             "refresh_token": str(refresh),
@@ -297,7 +297,7 @@ class RequestOTP(APIView):
                                 status=status.HTTP_404_NOT_FOUND)
         
         otp = generate_otp()
-        
+        print(otp)
         # Update or create OTP record for the email and user type
         otp_record, created = EmailOTP.objects.update_or_create(
             email=email,
@@ -420,7 +420,7 @@ class PatientSignup(APIView):
         
         return Response({
             "message": "Patient registered successfully.",
-            "patient_id": patient.patient_id,
+            "patient_id": str(patient.patient_id),
             "access_token": str(refresh.access_token),
             "refresh_token": str(refresh)
         }, status=status.HTTP_201_CREATED)
