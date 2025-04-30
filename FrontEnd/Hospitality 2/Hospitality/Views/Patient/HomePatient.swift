@@ -612,12 +612,12 @@ struct BillsContent: View {
     }
 }
 
-struct HomePatient_Previews: PreviewProvider {
-    static var previews: some View {
-        HomePatient()
-            .previewDevice("iPhone 14")
-    }
-}
+//struct HomePatient_Previews: PreviewProvider {
+//    static var previews: some View {
+//        HomePatient()
+//            .previewDevice("iPhone 14")
+//    }
+//}
 
 extension PatientAppointHistoryListResponse {
     var formattedDate: String {

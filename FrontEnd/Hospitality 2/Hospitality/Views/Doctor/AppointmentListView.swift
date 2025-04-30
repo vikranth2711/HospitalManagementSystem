@@ -3,7 +3,7 @@ import SwiftUI
 struct AppointmentsListView: View {
     let appointments: [DoctorResponse.DocAppointment]
     @State private var currentDateTime = Date()
-    @State private var doctorName = "Dr. Swati Swapna"
+    @State private var doctorName = "User"
     @State private var filterOption = "All"
     
     // Filter options

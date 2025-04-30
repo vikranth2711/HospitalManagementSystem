@@ -4,46 +4,60 @@ struct DoctorDashboardView: View {
     @StateObject private var viewModel = DoctorViewModel()
     @State private var selectedTab = 0
     let doctorId: String
-    
+
     var body: some View {
-        NavigationView {
-            VStack {
-                if viewModel.isLoading {
-                    ProgressView("Loading...")
-                } else if let errorMessage = viewModel.errorMessage {
-                    ErrorView(message: errorMessage) {
-                        viewModel.fetchDoctorShifts(doctorId: doctorId)
-                        viewModel.fetchDoctorAppointments()
-                    }
-                } else {
-                    TabView(selection: $selectedTab) {
-                        // Shifts tab
-                        ShiftsListView(shifts: viewModel.doctorShifts)
-                            .tabItem {
-                                Label("Shifts", systemImage: "calendar")
-                            }
-                            .tag(0)
-                        
-                        // Appointments tab
-                        AppointmentsListView(appointments: viewModel.doctorAppointments)
-                            .tabItem {
-                                Label("Appointments", systemImage: "list.bullet.clipboard")
-                            }
-                            .tag(1)
-                        
-                        // Profile tab
-                        DoctorProfileView()
-                            .tabItem {
-                                Label("Profile", systemImage: "person.circle")
-                            }
-                            .tag(2)
-                    }
-                }
+        TabView(selection: $selectedTab) {
+            NavigationView {
+                contentView(for: 0)
+                    .navigationTitle("My Shifts")
             }
-            .navigationTitle("Doctor Dashboard")
-            .onAppear {
+            .tabItem {
+                Label("Shifts", systemImage: "calendar")
+            }
+            .tag(0)
+            
+            NavigationView {
+                contentView(for: 1)
+                    .navigationTitle("Appointments")
+            }
+            .tabItem {
+                Label("Appointments", systemImage: "list.bullet.clipboard")
+            }
+            .tag(1)
+            
+            NavigationView {
+                DocProfile()
+            }
+            .tabItem {
+                Label("Profile", systemImage: "person.circle")
+            }
+            .tag(2)
+        }
+        .onAppear {
+            viewModel.fetchDoctorShifts(doctorId: doctorId)
+            viewModel.fetchDoctorAppointments()
+        }
+    }
+
+    @ViewBuilder
+    private func contentView(for tab: Int) -> some View {
+        if viewModel.isLoading {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle())
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let errorMessage = viewModel.errorMessage {
+            DocErrorView(message: errorMessage) {
                 viewModel.fetchDoctorShifts(doctorId: doctorId)
                 viewModel.fetchDoctorAppointments()
+            }
+        } else {
+            switch tab {
+            case 0:
+                ShiftsListView(shifts: viewModel.doctorShifts)
+            case 1:
+                AppointmentsListView(appointments: viewModel.doctorAppointments)
+            default:
+                EmptyView()
             }
         }
     }
@@ -52,34 +66,33 @@ struct DoctorDashboardView: View {
 struct DocErrorView: View {
     let message: String
     let retryAction: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
+            Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 50))
                 .foregroundColor(.orange)
-                .padding()
             
-            Text("Error Occurred")
-                .font(.title)
-                .fontWeight(.bold)
-            
+            Text("Something went wrong")
+                .font(.title2)
+                .fontWeight(.semibold)
+
             Text(message)
-                .foregroundColor(.red)
                 .multilineTextAlignment(.center)
-                .padding()
-            
-            Button("Retry") {
-                retryAction()
+                .foregroundColor(.secondary)
+                .padding(.horizontal)
+
+            Button(action: retryAction) {
+                Label("Retry", systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity)
             }
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(10)
+            .buttonStyle(.borderedProminent)
+            .padding(.horizontal)
         }
         .padding()
     }
 }
+
 struct ShiftsListView: View {
     let shifts: [DoctorResponse.PatientDoctorSlotResponse]
     
@@ -106,81 +119,61 @@ struct ShiftsListView: View {
 
 struct ShiftCardView: View {
     let shift: DoctorResponse.PatientDoctorSlotResponse
-    
+
     var body: some View {
-        HStack {
-            // Time indicator
-            VStack {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
                 Text(formatTime(shift.slot_start_time))
                     .font(.headline)
-                Text("\(shift.slot_duration) min")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .frame(width: 70)
-            
-            // Divider
-            Rectangle()
-                .fill(Color.blue)
-                .frame(width: 4)
-                .cornerRadius(2)
-            
-            // Shift details
-            VStack(alignment: .leading, spacing: 8) {
+                Spacer()
                 Text(shift.is_booked ? "Booked" : "Available")
-                    .font(.headline)
+                    .font(.subheadline)
                     .foregroundColor(shift.is_booked ? .blue : .green)
-                
-                HStack {
-                    Image(systemName: "clock")
-                        .foregroundColor(.secondary)
-                    Text("Slot #\(shift.slot_id)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
             }
-            .padding(.leading, 8)
-            
-            Spacer()
-            
-            // Status indicator
-            Circle()
-                .fill(shift.is_booked ? Color.blue : Color.green)
-                .frame(width: 12, height: 12)
+
+            HStack(spacing: 12) {
+                Label("Slot #\(shift.slot_id)", systemImage: "clock")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Circle()
+                    .fill(shift.is_booked ? Color.blue : Color.green)
+                    .frame(width: 10, height: 10)
+            }
         }
         .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
-    
+
     private func formatTime(_ timeString: String) -> String {
-        // Simple function to format the time string
-        // You can enhance this based on your actual data format
-        return timeString
+        return timeString // You can format properly using `DateFormatter`
     }
 }
+
 
 struct EmptyStateView: View {
     let icon: String
     let title: String
     let message: String
-    
+
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 50))
                 .foregroundColor(.blue)
-                .padding()
             
             Text(title)
-                .font(.headline)
+                .font(.title3)
+                .fontWeight(.semibold)
             
             Text(message)
-                .font(.subheadline)
+                .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal)
         }
-        .padding()
+        .padding(.top, 60)
         .frame(maxWidth: .infinity)
     }
 }
@@ -318,5 +311,10 @@ struct ProfileSettingRow: View {
                 .foregroundColor(.secondary)
         }
         .padding(.vertical, 8)
+    }
+}
+struct DoctorDashboardView_pREVIEW: PreviewProvider {
+    static var previews: some View {
+        DoctorDashboardView(doctorId: "DOC735A4911")
     }
 }
