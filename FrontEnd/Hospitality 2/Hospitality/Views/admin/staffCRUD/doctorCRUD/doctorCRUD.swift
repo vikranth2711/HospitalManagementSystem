@@ -366,7 +366,7 @@ struct AddEditDoctorView: View {
         }
         
         // Format dates
-        let joiningDateString = CreateDoctorRequest.formattedDate(from: joiningDate)
+//        let joiningDateString = CreateDoctorRequest.formattedDate(from: joiningDate)
         let dobString = CreateDoctorRequest.formattedDate(from: dob)
         
         // Call the service

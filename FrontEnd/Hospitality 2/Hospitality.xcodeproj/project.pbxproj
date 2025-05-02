@@ -33,6 +33,16 @@
 		336E5D3E2DAF5C4D00983DA5 /* HospitalityUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HospitalityUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2986D4412DC4D433005BE3B4 /* Exceptions for "Hospitality" folder in "Hospitality" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 336E5D232DAF5C4C00983DA5 /* Hospitality */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3321AEBC2DB105E400838E93 /* New Folder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -41,6 +51,9 @@
 		};
 		336E5D262DAF5C4C00983DA5 /* Hospitality */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2986D4412DC4D433005BE3B4 /* Exceptions for "Hospitality" folder in "Hospitality" target */,
+			);
 			path = Hospitality;
 			sourceTree = "<group>";
 		};
@@ -415,6 +428,7 @@
 				DEVELOPMENT_TEAM = 79CXZ54DW8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Hospitality/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -444,6 +458,7 @@
 				DEVELOPMENT_TEAM = 79CXZ54DW8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Hospitality/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

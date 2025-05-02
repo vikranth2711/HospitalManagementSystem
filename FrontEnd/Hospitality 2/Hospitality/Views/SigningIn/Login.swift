@@ -797,10 +797,10 @@ struct FormCard: View {
     
     private var passwordFieldSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Password")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Color(hex: "4A5568"))
-                .padding(.leading, 4)
+//            Text("Password")
+//                .font(.system(size: 14, weight: .medium))
+//                .foregroundColor(Color(hex: "4A5568"))
+//                .padding(.leading, 4)
             
             InfoFieldPassword(
                 title: "Enter your password",
@@ -1060,8 +1060,8 @@ struct SignInButton: View {
                             .fill(
                                 LinearGradient(
                                     gradient: Gradient(colors: [
-                                        Color(hex: "4A90E2"),
-                                        Color(hex: "5E5CE6")
+                                        Color(hex: "B2BEB5"),
+                                        Color(hex: "808080")
                                     ]),
                                     startPoint: .leading,
                                     endPoint: .trailing
