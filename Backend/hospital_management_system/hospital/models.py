@@ -1,5 +1,5 @@
 from django.db import models
-from transactions.models import Transaction
+from transactions.models import Transaction, Unit
 from django.contrib.auth.hashers import make_password, check_password
 
 class Role(models.Model):
@@ -137,6 +137,19 @@ class Slot(models.Model):
 #     def __str__(self):
 #         return f"Appointment for {self.patient.patient_name} with {self.staff.staff_name} at {self.created_at}"
 
+class AppointmentCharge(models.Model):
+    appointment_charge_id = models.AutoField(primary_key=True)
+    doctor = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='appointment_charges')
+    charge_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    charge_unit = models.ForeignKey(Unit, on_delete=models.PROTECT, related_name='appointment_charges')
+    charge_remark = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Charge for Dr. {self.doctor.staff_name}: {self.charge_amount} {self.charge_unit.unit_symbol}"
+
 class Appointment(models.Model):
     STATUS_CHOICES = (
         ('upcoming', 'Upcoming'),
@@ -150,6 +163,7 @@ class Appointment(models.Model):
     slot = models.ForeignKey(Slot, on_delete=models.CASCADE, null=False, blank=True, related_name='appointments')
     tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='appointments')
     created_at = models.DateTimeField(auto_now_add=True)
+    charge = models.ForeignKey(AppointmentCharge, on_delete=models.SET_NULL, null=True, blank=True, related_name='appointments')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
     reason = models.TextField(blank=True, null=True)  # Added to store appointment reason
 
@@ -213,8 +227,10 @@ class TargetOrgan(models.Model):
 class LabTestType(models.Model):
     test_type_id = models.AutoField(primary_key=True)
     test_name = models.CharField(max_length=100)
+    test_schema = models.JSONField(blank=True, null=True)  # JSON schema for test result structure
     test_category = models.ForeignKey(LabTestCategory, on_delete=models.CASCADE, related_name='test_types')
     test_target_organ = models.ForeignKey(TargetOrgan, on_delete=models.CASCADE, related_name='test_types')
+    image_required = models.BooleanField(default=False)  # Whether image is required for this test
     test_remark = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -230,17 +246,42 @@ class Diagnosis(models.Model):
     def __str__(self):
         return f"Diagnosis for Appointment {self.appointment_id}"
 
+# class LabTest(models.Model):
+#     lab_test_id = models.AutoField(primary_key=True)
+#     lab = models.ForeignKey(Lab, on_delete=models.CASCADE, related_name='lab_tests')
+#     test_datetime = models.DateTimeField()
+#     test_result = models.JSONField()
+#     test_type = models.ForeignKey(LabTestType, on_delete=models.CASCADE, related_name='lab_tests')
+#     charge = models.ForeignKey(LabTestCharge, on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_tests')
+#     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='lab_tests')
+#     tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_tests')
+
+#     def __str__(self):
+#         return f"Lab Test {self.lab_test_id} ({self.test_type.test_name})"
+
 class LabTest(models.Model):
+    class Priority(models.TextChoices):
+        HIGH = 'high', 'High'
+        MEDIUM = 'medium', 'Medium'
+        LOW = 'low', 'Low'
+
     lab_test_id = models.AutoField(primary_key=True)
-    lab = models.ForeignKey(Lab, on_delete=models.CASCADE, related_name='lab_tests')
+    lab = models.ForeignKey('Lab', on_delete=models.CASCADE, related_name='lab_tests')
     test_datetime = models.DateTimeField()
-    test_result = models.JSONField()
-    test_type = models.ForeignKey(LabTestType, on_delete=models.CASCADE, related_name='lab_tests')
-    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='lab_tests')
-    tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_tests')
+    test_result = models.JSONField(blank=True, null=True)
+    test_type = models.ForeignKey('LabTestType', on_delete=models.CASCADE, related_name='lab_tests')
+    appointment = models.ForeignKey('Appointment', on_delete=models.CASCADE, related_name='lab_tests')
+    tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_tests') #####Changed
+    test_image = models.ImageField(upload_to='lab_test_images/', null=True, blank=True)  # Optional image
+    priority = models.CharField(
+        max_length=10,
+        choices=Priority.choices,
+        default=Priority.MEDIUM
+    )
 
     def __str__(self):
         return f"Lab Test {self.lab_test_id} ({self.test_type.test_name})"
+
 
 class FollowUp(models.Model):
     follow_up_id = models.AutoField(primary_key=True)
@@ -298,3 +339,17 @@ class PrescribedMedicine(models.Model):
 
     def __str__(self):
         return f"{self.medicine.medicine_name} for Prescription {self.prescription_id}"
+
+
+class LabTestCharge(models.Model):
+    test_charge_id = models.AutoField(primary_key=True)
+    test = models.ForeignKey('LabTestType', on_delete=models.CASCADE, related_name='charges')
+    charge_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    charge_unit = models.ForeignKey(Unit, on_delete=models.PROTECT, related_name='lab_test_charges')
+    charge_remark = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Charge for {self.test.test_name}: {self.charge_amount} {self.charge_unit.unit_symbol}"
