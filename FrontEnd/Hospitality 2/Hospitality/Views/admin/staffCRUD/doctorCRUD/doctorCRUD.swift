@@ -105,6 +105,7 @@ struct DoctorsListView: View {
                 }
                 .onDelete(perform: deleteDoctor)
             }
+            .listStyle(InsetListStyle())
         }
         .navigationTitle("Doctors")
         .onAppear {
@@ -141,10 +142,10 @@ struct DoctorsListView: View {
         }
         .actionSheet(isPresented: $showingDeleteConfirmation) {
             ActionSheet(
-                title: Text("Delete Doctors"),
-                message: Text("Are you sure you want to delete \(selectedDoctors.count) doctor(s)?"),
+                title: Text("Confirm Deletion"),
+                message: Text("Are you sure you want to delete this doctor?"),
                 buttons: [
-                    .destructive(Text("Delete"), action: { deleteSelectedDoctors() }),
+                    .destructive(Text("Delete"), action: deleteSelectedDoctor),
                     .cancel()
                 ]
             )
@@ -202,14 +203,33 @@ struct DoctorsListView: View {
     }
     
     private func deleteDoctor(at offsets: IndexSet) {
-        let idsToDelete = offsets.map { filteredDoctors[$0].id }
-        dataStore.deleteStaff(ids: idsToDelete)
+        let idToDelete = offsets.map { filteredDoctors[$0].id }.first!
+        showingDeleteConfirmation = true
+        selectedDoctors = [idToDelete]
     }
-    
-    private func deleteSelectedDoctors() {
-        dataStore.deleteStaff(ids: Array(selectedDoctors))
-        selectedDoctors.removeAll()
-        editMode = .inactive
+
+    private func deleteSelectedDoctor() {
+        guard let doctorId = selectedDoctors.first else { return }
+        
+        isLoading = true
+        
+        DoctorService.shared.deleteDoctor(doctorId: doctorId) { result in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                
+                switch result {
+                case .success:
+                    // Remove from local data store
+                    self.dataStore.deleteStaff(ids: [doctorId])
+                    // Refresh the list
+                    self.fetchDoctors()
+                case .failure(let error):
+                    self.errorMessage = "Failed to delete doctor: \(error.localizedDescription)"
+                }
+                
+                self.selectedDoctors.removeAll()
+            }
+        }
     }
 }
 
@@ -244,7 +264,7 @@ struct DoctorRow: View {
                 }
                 
                 if let type = doctorType {
-                    Text(type.doctorTypeName)
+                    Text(type.name)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -278,7 +298,7 @@ struct AddEditDoctorView: View {
     @State private var specialization: String = ""
     @State private var license: String = ""
     @State private var experience: String = ""
-    @State private var doctorTypeId: String = ""
+    @State private var doctorTypeId: Int = 0
     
     // StaffDetails fields
     @State private var dob: Date = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
@@ -310,8 +330,8 @@ struct AddEditDoctorView: View {
                         .keyboardType(.numberPad)
                     
                     Picker("Doctor Type", selection: $doctorTypeId) {
-                        ForEach(dataStore.doctorTypes) { type in
-                            Text(type.doctorTypeName).tag(String(type.id))
+                        ForEach(dataStore.doctorTypes, id: \.id) { type in
+                            Text(type.name).tag(type.id)
                         }
                     }
                     
@@ -353,9 +373,7 @@ struct AddEditDoctorView: View {
             return
         }
         
-        // Convert experience to Int
         guard let experienceYears = Int(experience) else {
-            // Show error to user
             return
         }
         
@@ -443,24 +461,96 @@ struct DoctorDetailView: View {
     let staff: Staff
     @ObservedObject var dataStore: MockHospitalDataStore
     
-    var doctorDetails: DoctorDetails? {
-        dataStore.doctors.first { $0.staffId == staff.id }
-    }
-    
-    var doctorType: DoctorType? {
-        guard let doctor = doctorDetails else { return nil }
-        return dataStore.doctorTypes.first { $0.id == doctor.doctorTypeId }
-    }
+    @State private var doctorDetails: SpecificDoctorResponse?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showingEditDoctor = false
     
     var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let doctor = doctorDetails {
+                doctorDetailContent(doctor: doctor)
+            } else {
+                Text("No doctor details available")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .navigationTitle(staff.staffName)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showingEditDoctor = true
+                }) {
+                    Text("Edit")
+                }
+            }
+        }
+        .sheet(isPresented: $showingEditDoctor) {
+            EditDoctorView(
+                staff: staff,
+                dataStore: dataStore,
+                doctorDetails: doctorDetails,
+                onSave: { updatedStaff, updatedDoctorDetails in
+                    // Handle the updated doctor information
+                    self.doctorDetails = updatedDoctorDetails
+                    // You might want to refresh the details here
+                    self.fetchDoctorDetails()
+                }
+            )
+        }
+        .onAppear {
+            fetchDoctorDetails()
+        }
+    }
+    
+    private func fetchDoctorDetails() {
+        isLoading = true
+        errorMessage = nil
+        
+        DoctorService.shared.fetchSpecificDoctor(doctorId: staff.id) { result in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                switch result {
+                case .success(let response):
+                    self.doctorDetails = response
+                case .failure(let error):
+                    errorMessage = "Failed to load doctor details: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    private func doctorDetailContent(doctor: SpecificDoctorResponse) -> some View {
         List {
             Section {
                 HStack {
                     Spacer()
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(.main)
+                    if let photoUrl = doctor.profile_photo, let url = URL(string: photoUrl) {
+                        AsyncImage(url: url) { image in
+                            image.resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 100, height: 100)
+                                .clipShape(Circle())
+                        } placeholder: {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .frame(width: 100, height: 100)
+                                .foregroundColor(.main)
+                        }
+                    } else {
+                        Image(systemName: "person.crop.circle.fill")
+                            .resizable()
+                            .frame(width: 100, height: 100)
+                            .foregroundColor(.main)
+                    }
                     Spacer()
                 }
                 
@@ -468,43 +558,42 @@ struct DoctorDetailView: View {
                     Text("Name")
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(staff.staffName)
+                    Text(doctor.staff_name)
                 }
                 
-                if let specialization = doctorDetails?.doctorSpecialization {
-                    HStack {
-                        Text("Specialization")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(specialization)
-                    }
+                HStack {
+                    Text("Specialization")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(doctor.specialization)
                 }
                 
-                if let experience = doctorDetails?.doctorExperienceYears {
-                    HStack {
-                        Text("Experience")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text("\(experience) years")
-                    }
+                HStack {
+                    Text("Experience")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(doctor.experience_years) years")
                 }
                 
-                if let type = doctorType {
-                    HStack {
-                        Text("Type")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(type.doctorTypeName)
-                    }
+                HStack {
+                    Text("Type")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(doctor.doctor_type.name)
                 }
                 
-                if let license = doctorDetails?.doctorLicense {
-                    HStack {
-                        Text("License")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(license)
-                    }
+                HStack {
+                    Text("License")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(doctor.license)
+                }
+                
+                HStack {
+                    Text("Qualification")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(doctor.staff_qualification)
                 }
             }
             
@@ -513,18 +602,44 @@ struct DoctorDetailView: View {
                     Text("Email")
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(staff.staffEmail)
+                    Text(doctor.staff_email)
                 }
                 
                 HStack {
                     Text("Mobile")
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(staff.staffMobile)
+                    Text(doctor.staff_mobile)
+                }
+                
+                if let address = doctor.staff_address {
+                    HStack {
+                        Text("Address")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(address)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
             }
             
-            if staff.onLeave {
+            Section(header: Text("Personal Information")) {
+                HStack {
+                    Text("Date of Birth")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(doctor.staff_dob)
+                }
+                
+                HStack {
+                    Text("Joining Date")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(doctor.created_at)
+                }
+            }
+            
+            if doctor.on_leave {
                 Section {
                     Text("Currently on leave")
                         .foregroundColor(.orange)
@@ -532,7 +647,188 @@ struct DoctorDetailView: View {
             }
         }
         .listStyle(InsetGroupedListStyle())
-        .navigationTitle(staff.staffName)
+    }
+}
+
+struct EditDoctorView: View {
+    @Environment(\.presentationMode) var presentationMode
+    let staff: Staff
+    @ObservedObject var dataStore: MockHospitalDataStore
+    let doctorDetails: SpecificDoctorResponse?
+    let onSave: (Staff, SpecificDoctorResponse) -> Void
+    
+    // Editable fields
+    @State private var name: String
+    @State private var email: String
+    @State private var mobile: String
+    @State private var specialization: String
+    @State private var license: String
+    @State private var experience: String
+    @State private var doctorTypeId: Int = 0
+    @State private var onLeave: Bool
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    
+    @State private var dob: String
+    @State private var address: String
+    @State private var qualifications: String
+    
+    init(staff: Staff, dataStore: MockHospitalDataStore, doctorDetails: SpecificDoctorResponse?, onSave: @escaping (Staff, SpecificDoctorResponse) -> Void) {
+        self.staff = staff
+        self.dataStore = dataStore
+        self.doctorDetails = doctorDetails
+        self.onSave = onSave
+        
+        _name = State(initialValue: staff.staffName)
+        _email = State(initialValue: staff.staffEmail)
+        _mobile = State(initialValue: staff.staffMobile)
+        _onLeave = State(initialValue: staff.onLeave)
+        
+        if let details = doctorDetails {
+            _specialization = State(initialValue: details.specialization)
+            _license = State(initialValue: details.license)
+            _experience = State(initialValue: String(details.experience_years))
+            _doctorTypeId = State(initialValue: details.doctor_type.id)
+            _dob = State(initialValue: details.staff_dob)
+            _address = State(initialValue: details.staff_address ?? "")
+            _qualifications = State(initialValue: details.staff_qualification)
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Basic Information")) {
+                    TextField("Name", text: $name)
+                    TextField("Email", text: $email)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                    TextField("Mobile", text: $mobile)
+                        .keyboardType(.phonePad)
+                    Toggle("On Leave", isOn: $onLeave)
+                }
+                
+                Section(header: Text("Professional Information")) {
+                    TextField("Specialization", text: $specialization)
+                    TextField("License Number", text: $license)
+                    TextField("Experience (Years)", text: $experience)
+                        .keyboardType(.numberPad)
+                    
+                    Section(header: Text("Personal Information")) {
+                        Text("Date of Birth: \(dob)")
+                            .foregroundColor(.secondary)
+                        TextField("Address", text: $address)
+                        TextField("Qualifications", text: $qualifications)
+                    }
+                    
+                    Picker("Doctor Type", selection: $doctorTypeId) {
+                        ForEach(dataStore.doctorTypes, id: \.id) { type in
+                            Text(type.name).tag(type.id)
+                        }
+                    }
+                }
+                
+                if let error = errorMessage {
+                    Section {
+                        Text(error)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .navigationTitle("Edit Doctor")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        saveChanges()
+                    }
+                    .disabled(name.isEmpty || email.isEmpty || mobile.isEmpty || specialization.isEmpty || license.isEmpty || experience.isEmpty || doctorTypeId.isEmpty)
+                }
+            }
+        }
+    }
+    
+    private func saveChanges() {
+        guard let experienceYears = Int(experience),
+              let doctorTypeID = Int(doctorTypeId),
+              let doctorDetails = doctorDetails else {
+            errorMessage = "Please enter valid experience and doctor type"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        let request = EditDoctorRequest(
+            staff_name: name,
+            staff_email: email,
+            staff_mobile: mobile,
+            on_leave: onLeave,
+            specialization: specialization,
+            license: license,
+            experience_years: experienceYears,
+            doctor_type_id: doctorTypeId,  // Using Int directly
+            staff_dob: dob,
+            staff_address: address,
+            staff_qualification: qualifications
+        )
+        
+        DoctorService.shared.updateDoctor(staffId: staff.id, request: request) { result in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                switch result {
+                case .success(let response):
+                    print("Doctor updated successfully: \(response.message)")
+                    
+                    // Create updated objects
+                    let updatedStaff = Staff(
+                        id: staff.id,
+                        staffName: name,
+                        roleId: staff.roleId,
+                        createdAt: staff.createdAt,
+                        staffEmail: email,
+                        staffMobile: mobile,
+                        onLeave: onLeave
+                    )
+                    
+                    // Find the selected doctor type
+                    let selectedType = dataStore.doctorTypes.first { $0.id == doctorTypeID }
+                    
+                    var updatedDetails = doctorDetails
+                    updatedDetails.staff_name = name
+                    updatedDetails.staff_email = email
+                    updatedDetails.staff_mobile = mobile
+                    updatedDetails.on_leave = onLeave
+                    updatedDetails.specialization = specialization
+                    updatedDetails.license = license
+                    updatedDetails.experience_years = experienceYears
+                    updatedDetails.doctor_type = DoctorType(
+                        id: doctorTypeID,
+                        name: selectedType?.name ?? "Unknown"
+                    )
+                    updatedDetails.staff_dob = dob
+                    updatedDetails.staff_address = address
+                    updatedDetails.staff_qualification = qualifications
+                    
+                    // Update local data store
+                    dataStore.updateStaff(staff: updatedStaff)
+                    
+                    // Call completion handler
+                    onSave(updatedStaff, updatedDetails)
+                    
+                    // Dismiss the view
+                    presentationMode.wrappedValue.dismiss()
+                    
+                case .failure(let error):
+                    errorMessage = "Failed to update doctor: \(error.localizedDescription)"
+                }
+            }
+        }
     }
 }
 

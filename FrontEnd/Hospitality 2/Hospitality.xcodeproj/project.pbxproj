@@ -34,7 +34,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		2986D4412DC4D433005BE3B4 /* Exceptions for "Hospitality" folder in "Hospitality" target */ = {
+		214505A72DC4D127003BB944 /* Exceptions for "Hospitality" folder in "Hospitality" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -52,7 +52,7 @@
 		336E5D262DAF5C4C00983DA5 /* Hospitality */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				2986D4412DC4D433005BE3B4 /* Exceptions for "Hospitality" folder in "Hospitality" target */,
+				214505A72DC4D127003BB944 /* Exceptions for "Hospitality" folder in "Hospitality" target */,
 			);
 			path = Hospitality;
 			sourceTree = "<group>";

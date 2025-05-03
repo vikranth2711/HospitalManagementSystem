@@ -164,13 +164,12 @@ struct DoctorDetails: Identifiable, Codable {
     let doctorSpecialization: String
     let doctorLicense: String
     let doctorExperienceYears: Int
-    let doctorTypeId: String
+    let doctorTypeId: Int
 }
 
 struct DoctorType: Identifiable, Codable {
-    let id: String
-    let doctorTypeName: String
-    let doctorTypeRemark: String?
+    let id: Int
+    let name: String
 }
 
 struct LabTechnicianDetails: Identifiable, Codable {
@@ -284,17 +283,12 @@ class MockHospitalDataStore: ObservableObject {
         loadMockData()
     }
     
-    func updateFromAPI(staff: [Staff], doctorDetails: [DoctorDetails]) {
-        self.staff = staff
-        self.doctors = doctorDetails
-    }
-    
     private func loadMockData() {
         // Mock Doctor Types
         doctorTypes = [
-            DoctorType(id: "1", doctorTypeName: "General Practitioner", doctorTypeRemark: "Primary care physician"),
-            DoctorType(id: "2", doctorTypeName: "Specialist", doctorTypeRemark: "Specialized in specific field"),
-            DoctorType(id: "3", doctorTypeName: "Surgeon", doctorTypeRemark: "Performs surgical procedures")
+            DoctorType(id: 1, name: "General Practitioner"),
+            DoctorType(id: 2, name: "Specialist"),
+            DoctorType(id: 3, name: "Surgeon")
         ]
         
         // Mock Staff and Doctors
@@ -305,9 +299,9 @@ class MockHospitalDataStore: ObservableObject {
         ]
         
         doctors = [
-            DoctorDetails(id: "dd1", staffId: "d1", doctorSpecialization: "Cardiology", doctorLicense: "MD12345", doctorExperienceYears: 12, doctorTypeId: "2"),
-            DoctorDetails(id: "dd2", staffId: "d2", doctorSpecialization: "Neurology", doctorLicense: "MD54321", doctorExperienceYears: 8, doctorTypeId: "2"),
-            DoctorDetails(id: "dd3", staffId: "d3", doctorSpecialization: "Pediatrics", doctorLicense: "MD67890", doctorExperienceYears: 5, doctorTypeId: "1")
+            DoctorDetails(id: "dd1", staffId: "d1", doctorSpecialization: "Cardiology", doctorLicense: "MD12345", doctorExperienceYears: 12, doctorTypeId: 2),
+            DoctorDetails(id: "dd2", staffId: "d2", doctorSpecialization: "Neurology", doctorLicense: "MD54321", doctorExperienceYears: 8, doctorTypeId: 2),
+            DoctorDetails(id: "dd3", staffId: "d3", doctorSpecialization: "Pediatrics", doctorLicense: "MD67890", doctorExperienceYears: 5, doctorTypeId: 1)
         ]
         
         // Mock Labs
@@ -387,6 +381,14 @@ class MockHospitalDataStore: ObservableObject {
         self.staff.append(staff)
         self.doctors.append(doctorDetails)
         print("Would create doctor via API: \(staff) with details: \(doctorDetails)")
+    }
+    
+    func updateStaff(staff: Staff) {
+        if let index = self.staff.firstIndex(where: { $0.id == staff.id }) {
+            self.staff[index] = staff
+        }
+        
+        // You might also want to update doctor details if needed
     }
     
     // Lab Technician CRUD

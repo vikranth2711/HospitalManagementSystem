@@ -104,19 +104,20 @@ struct DoctorListResponse: Codable {
 }
 
 struct SpecificDoctorResponse: Codable {
-    let staff_id: String
-    let staff_name: String
-    let staff_email: String
-    let staff_mobile: String
-    let created_at: String
-    let specialization: String
-    let license: String
-    let experience_years: Int
-    let doctor_type: String
-    let on_leave: Bool
-    let staff_dob: String
-    let staff_address: String
-    let staff_qualification: String
+    var staff_id: String
+    var staff_name: String
+    var staff_email: String
+    var staff_mobile: String
+    var created_at: String
+    var specialization: String
+    var license: String
+    var experience_years: Int
+    var doctor_type: DoctorType
+    var on_leave: Bool
+    var staff_dob: String
+    var staff_address: String?
+    var staff_qualification: String
+    var profile_photo: String?
 }
 
 struct PatientDoctorListResponse: Codable {
@@ -172,6 +173,49 @@ struct DoctorShiftRequest: Codable {
 }
 
 struct DoctorShiftResponse: Codable {
+    let message: String
+}
+
+struct EditDoctorRequest: Codable {
+    let staff_name: String
+    let staff_email: String
+    let staff_mobile: String
+    let on_leave: Bool
+    let specialization: String
+    let license: String
+    let experience_years: Int
+    let doctor_type_id: Int
+    let staff_dob: String
+    let staff_address: String?
+    let staff_qualification: String
+    
+    // Helper initializer if needed
+    init(staff_name: String,
+         staff_email: String,
+         staff_mobile: String,
+         on_leave: Bool,
+         specialization: String,
+         license: String,
+         experience_years: Int,
+         doctor_type_id: Int,
+         staff_dob: String,
+         staff_address: String?,
+         staff_qualification: String) {
+        self.staff_name = staff_name
+        self.staff_email = staff_email
+        self.staff_mobile = staff_mobile
+        self.on_leave = on_leave
+        self.specialization = specialization
+        self.license = license
+        self.experience_years = experience_years
+        self.doctor_type_id = doctor_type_id
+        self.staff_dob = staff_dob
+        self.staff_address = staff_address
+        self.staff_qualification = staff_qualification
+    }
+}
+
+struct EditDoctorResponse: Codable {
     let message: String
 }
 
@@ -412,6 +456,138 @@ class DoctorService {
             
             do {
                 let response = try JSONDecoder().decode([DoctorListResponse].self, from: data)
+                completion(.success(response))
+            } catch {
+                print("Decoding error: \(error)")
+                completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+    
+    func updateDoctor(
+        staffId: String,
+        request: EditDoctorRequest,
+        completion: @escaping (Result<EditDoctorResponse, DoctorCreationError>) -> Void
+    ) {
+        guard let url = URL(string: "\(baseURL)/hospital/admin/doctors/\(staffId)/") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PUT"  // Changed from PATCH to PUT
+        urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            urlRequest.httpBody = try JSONEncoder().encode(request)
+        } catch {
+            completion(.failure(.decodingError))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+            if let error = error {
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            if httpResponse.statusCode == 401 {
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(EditDoctorResponse.self, from: data)
+                completion(.success(response))
+            } catch {
+                print("Decoding error: \(error)")
+                completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+    
+    func deleteDoctor(doctorId: String, completion: @escaping (Result<Void, DoctorCreationError>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/hospital/admin/doctors/\(doctorId)/") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error = error {
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            if httpResponse.statusCode == 401 {
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            if httpResponse.statusCode == 204 {
+                completion(.success(()))
+            } else {
+                completion(.failure(.serverError("Failed to delete doctor")))
+            }
+        }.resume()
+    }
+    
+    func fetchSpecificDoctor(doctorId: String, completion: @escaping (Result<SpecificDoctorResponse, DoctorCreationError>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/hospital/admin/doctors/\(doctorId)/") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            if httpResponse.statusCode == 401 {
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(SpecificDoctorResponse.self, from: data)
                 completion(.success(response))
             } catch {
                 print("Decoding error: \(error)")
