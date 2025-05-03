@@ -18,3 +18,5 @@ setuptools
 sqlparse
 sympy
 typing_extensions
+boto3
+django-storages
