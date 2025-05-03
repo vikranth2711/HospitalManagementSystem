@@ -86,7 +86,7 @@ struct DoctorListResponse: Codable {
     let specialization: String
     let license: String
     let experience_years: Int
-    let doctor_type: String
+    let doctor_type_id: Int?
     let on_leave: Bool
     
     // Add CodingKeys if needed to match your API response
@@ -98,7 +98,7 @@ struct DoctorListResponse: Codable {
         case specialization
         case license
         case experience_years
-        case doctor_type
+        case doctor_type_id
         case on_leave
     }
 }
@@ -216,6 +216,36 @@ struct EditDoctorRequest: Codable {
 }
 
 struct EditDoctorResponse: Codable {
+    let message: String
+}
+
+struct createLabTechRequest: Codable {
+    let staff_name: String
+    let staff_email: String
+    let staff_mobile: String
+    let certification: String
+    let lab_experience_years: Int
+    let assigned_lab: String
+    let staff_joining_date: String
+}
+
+struct createLabTechResponse: Codable {
+    let message: String
+    let staff_id: String
+}
+
+struct LabTechListResponse: Codable {
+    let staff_id: String // Add this
+    let staff_name: String
+    let staff_email: String
+    let staff_mobile: String
+    let certification: String
+    let lab_experience_years: Int
+    let assigned_lab: String
+    let on_leave: Bool
+}
+
+struct DeleteLabTechResponse: Codable {
     let message: String
 }
 
@@ -635,6 +665,221 @@ class DoctorService {
             } catch {
                 print("Decoding error: \(error)")
                 completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+}
+
+@MainActor
+class LabTechnicianService: ObservableObject {
+    static let shared = LabTechnicianService()
+    private let baseURL = Constants.baseURL
+    
+    func createLabTechnician(
+        name: String,
+        email: String,
+        mobile: String,
+        certification: String,
+        experienceYears: Int,
+        assignedLab: String,
+        joiningDate: Date,
+        completion: @escaping (Result<createLabTechResponse, DoctorCreationError>) -> Void
+    ) {
+        print("Input parameters: name=\(name), email=\(email), mobile=\(mobile), certification=\(certification), experienceYears=\(experienceYears), assignedLab=\(assignedLab), joiningDate=\(joiningDate)")
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let joiningDateString = formatter.string(from: joiningDate)
+        
+        let requestBody = createLabTechRequest(
+            staff_name: name,
+            staff_email: email,
+            staff_mobile: mobile,
+            certification: certification,
+            lab_experience_years: experienceYears,
+            assigned_lab: assignedLab,
+            staff_joining_date: joiningDateString
+        )
+        
+        print("Request Body: \(requestBody)")
+        
+        guard let url = URL(string: "\(baseURL)/hospital/admin/lab-technicians/create/") else {
+            print("Invalid URL: \(baseURL)/admin/lab-technicians/create/")
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        print("Request URL: \(url.absoluteString)")
+        print("Access Token: \(UserDefaults.accessToken)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            request.httpBody = try JSONEncoder().encode(requestBody)
+        } catch {
+            print("Encoding error: \(error)")
+            completion(.failure(.decodingError))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Network error: \(error.localizedDescription)")
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("No HTTP response")
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            print("HTTP Status Code: \(httpResponse.statusCode)")
+            if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                print("Response Data: \(responseString)")
+            }
+            
+            if httpResponse.statusCode == 401 {
+                print("Unauthorized access")
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                print("Server error: \(errorMessage)")
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(createLabTechResponse.self, from: data)
+                print("Decoded Response: \(response)")
+                completion(.success(response))
+            } catch {
+                print("Decoding error: \(error)")
+                completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+    
+    func fetchLabTechnicians(completion: @escaping (Result<[LabTechListResponse], DoctorCreationError>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/hospital/admin/lab-technicians/") else {
+            print("Invalid URL: \(baseURL)/hospital/admin/lab-technicians/")
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Network error: \(error.localizedDescription)")
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("No HTTP response")
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            print("HTTP Status Code: \(httpResponse.statusCode)")
+            if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                print("Response Data: \(responseString)")
+            }
+            
+            if httpResponse.statusCode == 401 {
+                print("Unauthorized access")
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                print("Server error: \(errorMessage)")
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode([LabTechListResponse].self, from: data)
+                print("Decoded Response: \(response)")
+                completion(.success(response))
+            } catch {
+                print("Decoding error: \(error)")
+                completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+    
+    func deleteLabTechnician(staffId: String, completion: @escaping (Result<DeleteLabTechResponse, DoctorCreationError>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/hospital/admin/lab-technicians/\(staffId)/") else {
+            print("Invalid URL: \(baseURL)/hospital/admin/lab-technicians/\(staffId)/")
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        print("Deleting lab technician with ID: \(staffId)")
+        print("Request URL: \(url.absoluteString)")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Network error: \(error.localizedDescription)")
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("No HTTP response")
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            print("HTTP Status Code: \(httpResponse.statusCode)")
+            if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                print("Response Data: \(responseString)")
+            }
+            
+            if httpResponse.statusCode == 401 {
+                print("Unauthorized access")
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                print("Server error: \(errorMessage)")
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            // For DELETE, we might not always get a response body
+            if let data = data, !data.isEmpty {
+                do {
+                    let response = try JSONDecoder().decode(DeleteLabTechResponse.self, from: data)
+                    print("Successfully deleted lab technician")
+                    completion(.success(response))
+                } catch {
+                    print("Decoding error: \(error)")
+                    completion(.failure(.decodingError))
+                }
+            } else {
+                // If no response body, return a success with empty message
+                completion(.success(DeleteLabTechResponse(message: "Successfully deleted")))
             }
         }.resume()
     }

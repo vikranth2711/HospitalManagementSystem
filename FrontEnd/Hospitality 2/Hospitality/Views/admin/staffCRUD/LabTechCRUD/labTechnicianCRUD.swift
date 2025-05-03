@@ -18,15 +18,13 @@ struct LabTechniciansListView: View {
     
     private var specialties: [String] {
         var specs = ["All"]
-        let allSpecs = Set(dataStore.labs.map { $0.labName })
+        let allSpecs = Set(dataStore.labTypes.map { $0.assigned_lab })
         specs.append(contentsOf: allSpecs.sorted())
         return specs
     }
     
-    private var filteredTechnicians: [Staff] {
-        var result = dataStore.staff.filter { staff in
-            dataStore.labTechnicians.contains { $0.staffId == staff.id }
-        }
+    private var filteredTechnicians: [LabStaff] {
+        var result = dataStore.labStaff
         
         if !searchText.isEmpty {
             result = result.filter {
@@ -38,9 +36,8 @@ struct LabTechniciansListView: View {
         if selectedSpecialty != "All" {
             result = result.filter { staff in
                 if let tech = dataStore.labTechnicians.first(where: { $0.staffId == staff.id }) {
-                    if let lab = dataStore.labs.first(where: { $0.id == tech.assignedLabId }) {
-                        return lab.labName == selectedSpecialty
-                    }
+                    // Find the lab by matching the assigned_lab name
+                    return dataStore.labTypes.contains { $0.assigned_lab == selectedSpecialty }
                 }
                 return false
             }
@@ -80,16 +77,15 @@ struct LabTechniciansListView: View {
             .padding(.vertical, 8)
             .background(Color(.systemGroupedBackground))
             
-            // Technicians List
             List(selection: $selectedTechnicians) {
-                ForEach(filteredTechnicians) { staff in
-                    NavigationLink(destination: LabTechnicianDetailView(staff: staff)) {
-                        LabTechnicianRow(staff: staff)
-                    }
-                    .tag(staff.id)
-                }
-                .onDelete(perform: deleteTechnician)
-            }
+                            ForEach(filteredTechnicians) { staff in
+                                NavigationLink(destination: LabTechnicianDetailView(staff: staff)) {
+                                    LabTechnicianRow(staff: staff)
+                                }
+                                .tag(staff.id)
+                            }
+                            .onDelete(perform: deleteTechnician)
+                        }
         }
         .navigationTitle("Lab Technicians")
         .toolbar {
@@ -116,10 +112,11 @@ struct LabTechniciansListView: View {
         }
         .environment(\.editMode, $editMode)
         .sheet(isPresented: $showingAddTechnician) {
-            AddEditLabTechnicianView(onSave: { staff, techDetails in
+            AddEditLabTechnicianView { staff, techDetails in
                 dataStore.createLabTechnician(staff: staff, techDetails: techDetails)
                 showingAddTechnician = false
-            })
+            }
+            .environmentObject(dataStore)
         }
         .actionSheet(isPresented: $showingDeleteConfirmation) {
             ActionSheet(
@@ -132,35 +129,38 @@ struct LabTechniciansListView: View {
             )
         }
         .onAppear {
-            dataStore.fetchStaff()
-            dataStore.fetchLabTechnicians()
-            dataStore.fetchLabs()
+            dataStore.fetchStaff() // Fetches lab technicians from API
+            dataStore.fetchLabs()  // Ensure labs are fetched for filtering
         }
     }
     
     private func deleteTechnician(at offsets: IndexSet) {
         let idsToDelete = offsets.map { filteredTechnicians[$0].id }
-        dataStore.deleteStaff(ids: idsToDelete)
+        deleteTechnicians(ids: idsToDelete)
     }
     
     private func deleteSelectedTechnicians() {
-        dataStore.deleteStaff(ids: Array(selectedTechnicians))
+        deleteTechnicians(ids: Array(selectedTechnicians))
         selectedTechnicians.removeAll()
         editMode = .inactive
+    }
+    
+    private func deleteTechnicians(ids: [String]) {
+        dataStore.deleteStaff(ids: ids)
     }
 }
 
 struct LabTechnicianRow: View {
-    let staff: Staff
+    let staff: LabStaff
     @EnvironmentObject var dataStore: MockHospitalDataStore
     
     var labTechnician: LabTechnicianDetails? {
         dataStore.labTechnicians.first { $0.staffId == staff.id }
     }
     
-    var lab: Lab? {
+    var lab: LabType? {
         guard let labId = labTechnician?.assignedLabId else { return nil }
-        return dataStore.labs.first { $0.id == labId }
+        return dataStore.labTypes.first { String($0.id) == labId }
     }
     
     var body: some View {
@@ -174,7 +174,7 @@ struct LabTechnicianRow: View {
                 Text(staff.staffName)
                     .font(.headline)
                 
-                if let labName = lab?.labName {
+                if let labName = lab?.assigned_lab {
                     Text(labName)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -188,29 +188,25 @@ struct LabTechnicianRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
-            if staff.onLeave {
-                Text("On Leave")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-            }
         }
     }
 }
 
 struct AddEditLabTechnicianView: View {
     @Environment(\.presentationMode) var presentationMode
+    @StateObject private var labTechService = LabTechnicianService.shared
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
     @EnvironmentObject var dataStore: MockHospitalDataStore
     
-    var onSave: (Staff, LabTechnicianDetails) -> Void
+    var onSave: (LabStaff, LabTechnicianDetails) -> Void
     
     @State private var name: String = ""
     @State private var email: String = ""
     @State private var mobile: String = ""
     @State private var certification: String = ""
     @State private var experience: String = ""
-    @State private var assignedLabId: String = ""
-    @State private var onLeave: Bool = false
+    @State private var assignedLabName: String = ""
     
     var body: some View {
         NavigationView {
@@ -225,20 +221,21 @@ struct AddEditLabTechnicianView: View {
                 }
                 
                 Section(header: Text("Professional Information")) {
-                    TextField("Certification ID", text: $certification)
+                    TextField("Certification", text: $certification)
                     TextField("Experience (Years)", text: $experience)
                         .keyboardType(.numberPad)
                     
-                    Picker("Assigned Lab", selection: $assignedLabId) {
-                        ForEach(dataStore.labs) { lab in
-                            Text(lab.labName).tag(lab.id)
+                    Picker("Assigned Lab", selection: $assignedLabName) {
+                        ForEach(dataStore.labTypes, id: \.assigned_lab) { lab in
+                            Text(lab.assigned_lab).tag(lab.assigned_lab)
                         }
                     }
-                    
-                    Toggle("On Leave", isOn: $onLeave)
                 }
             }
             .navigationTitle("Add Lab Technician")
+            .alert(isPresented: $showingAlert) {
+                Alert(title: Text("Result"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
@@ -247,36 +244,70 @@ struct AddEditLabTechnicianView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        let staff = Staff(
-                            id: UUID().uuidString,
-                            staffName: name,
-                            roleId: "lab_tech_role_id",
-                            createdAt: Date(),
-                            staffEmail: email,
-                            staffMobile: mobile,
-                            onLeave: onLeave
-                        )
-                        
-                        let techDetails = LabTechnicianDetails(
-                            id: UUID().uuidString,
-                            staffId: staff.id,
-                            certificationId: certification,
-                            labExperienceYears: Int(experience) ?? 0,
-                            assignedLabId: assignedLabId
-                        )
-                        
-                        onSave(staff, techDetails)
-                        presentationMode.wrappedValue.dismiss()
+                        createLabTechnician()
                     }
-                    .disabled(name.isEmpty || email.isEmpty || certification.isEmpty || assignedLabId.isEmpty)
+                    .disabled(name.isEmpty || email.isEmpty || certification.isEmpty || assignedLabName.isEmpty)
                 }
             }
         }
     }
+    
+    private func createLabTechnician() {
+        guard let experienceYears = Int(experience) else {
+            alertMessage = "Please enter valid experience years"
+            showingAlert = true
+            return
+        }
+        
+        print("Input values: name=\(name), email=\(email), mobile=\(mobile), certification=\(certification), experience=\(experience), assignedLabId=\(assignedLabName)")
+        print("Lab Types: \(dataStore.labTypes)")
+        
+        labTechService.createLabTechnician(
+            name: name,
+            email: email,
+            mobile: mobile,
+            certification: certification,
+            experienceYears: experienceYears,
+            assignedLab: assignedLabName,
+            joiningDate: Date(),
+            completion: { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let response):
+                        print("Success: Created lab technician with staff_id=\(response.staff_id)")
+                        let staff = LabStaff(
+                            id: response.staff_id,
+                            staffName: name,
+                            roleId: "lab_tech_role_id",
+                            createdAt: Date(),
+                            staffEmail: email,
+                            staffMobile: mobile
+                        )
+                        
+                        let techDetails = LabTechnicianDetails(
+                            id: UUID().uuidString,
+                            staffId: response.staff_id,
+                            certificationId: certification,
+                            labExperienceYears: experienceYears,
+                            assignedLabId: assignedLabName
+                        )
+                        
+                        self.onSave(staff, techDetails)
+                        self.presentationMode.wrappedValue.dismiss()
+                        
+                    case .failure(let error):
+                        print("Failure: \(error.localizedDescription)")
+                        self.alertMessage = "Failed to create lab technician: \(error.localizedDescription)"
+                        self.showingAlert = true
+                    }
+                }
+            }
+        )
+    }
 }
 
 struct LabTechnicianDetailView: View {
-    let staff: Staff
+    let staff: LabStaff
     @EnvironmentObject var dataStore: MockHospitalDataStore
     
     var labTechnician: LabTechnicianDetails? {
@@ -348,13 +379,6 @@ struct LabTechnicianDetailView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                     Text(staff.staffMobile)
-                }
-            }
-            
-            if staff.onLeave {
-                Section {
-                    Text("Currently on leave")
-                        .foregroundColor(.orange)
                 }
             }
         }

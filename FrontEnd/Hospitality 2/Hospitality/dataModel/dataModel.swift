@@ -149,6 +149,15 @@ struct Staff: Identifiable, Codable {
     let onLeave: Bool
 }
 
+struct LabStaff: Identifiable, Codable {
+    let id: String
+    let staffName: String
+    let roleId: String
+    let createdAt: Date
+    let staffEmail: String
+    let staffMobile: String
+}
+
 struct StaffDetails: Identifiable, Codable {
     let id: String
     let staffId: String
@@ -164,12 +173,21 @@ struct DoctorDetails: Identifiable, Codable {
     let doctorSpecialization: String
     let doctorLicense: String
     let doctorExperienceYears: Int
-    let doctorTypeId: Int
+    let doctorTypeId: Int?
 }
 
 struct DoctorType: Identifiable, Codable {
     let id: Int
     let name: String
+}
+
+struct LabType: Identifiable, Codable {
+    let id: Int
+    let assigned_lab: String
+    let commonTests: String
+    
+    // For Identifiable
+    var labId: Int { id }
 }
 
 struct LabTechnicianDetails: Identifiable, Codable {
@@ -193,12 +211,6 @@ struct Lab: Identifiable, Codable {
     let labName: String
     let labTypeId: String
     let functional: Bool
-}
-
-struct LabType: Identifiable, Codable {
-    let id: String
-    let labTypeName: String
-    let supportedTests: [String]
 }
 
 struct LabTestType: Identifiable, Codable {
@@ -245,6 +257,7 @@ class HospitalDataStore: ObservableObject {
     @Published var patients: [Patient] = []
     @Published var appointments: [Appointment] = []
     @Published var staff: [Staff] = []
+    @Published var labStaff: [LabStaff] = []
     @Published var doctors: [DoctorDetails] = []
     @Published var labTests: [LabTest] = []
     @Published var prescriptions: [Prescription1] = []
@@ -269,6 +282,7 @@ class HospitalDataStore: ObservableObject {
 class MockHospitalDataStore: ObservableObject {
     // MARK: - Mock Data
     @Published var staff: [Staff] = []
+    @Published var labStaff: [LabStaff] = []
     @Published var staffDetails: [StaffDetails] = []
     @Published var doctors: [DoctorDetails] = []
     @Published var labTechnicians: [LabTechnicianDetails] = []
@@ -277,6 +291,10 @@ class MockHospitalDataStore: ObservableObject {
     @Published var labTestCategories: [LabTestCategory] = []
     @Published var targetOrgans: [TargetOrgan] = []
     @Published var doctorTypes: [DoctorType] = []
+    @Published var labTypes: [LabType] = []
+    
+    // Add dependency on LabTechnicianService
+    private let labTechnicianService = LabTechnicianService.shared
     
     // MARK: - Initializer with Mock Data
     init() {
@@ -291,8 +309,16 @@ class MockHospitalDataStore: ObservableObject {
             DoctorType(id: 3, name: "Surgeon")
         ]
         
+        labTypes = [
+            LabType(id: 1, assigned_lab: "Pathology Lab", commonTests: "Complete Blood Count (CBC); Blood Sugar (Fasting/PP); ESR; Urinalysis; Stool Examination; Blood Grouping & Rh Typing"),
+            LabType(id: 2, assigned_lab: "Biochemistry Lab", commonTests: "Liver Function Test (LFT); Kidney Function Test (KFT); Lipid Profile; Blood Glucose (Fasting, PP); HbA1c; Serum Electrolytes"),
+            LabType(id: 3, assigned_lab: "Microbiology Lab", commonTests: "Culture & Sensitivity (Urine, Blood, Sputum, Wound); Throat Swab Culture; Stool for Ova & Parasites; Sputum AFB; COVID-19 RT-PCR"),
+            LabType(id: 4, assigned_lab: "Histopathology Lab", commonTests: "Biopsy Analysis; Fine Needle Aspiration Cytology (FNAC); PAP Smear; Immunohistochemistry"),
+            LabType(id: 5, assigned_lab: "Radiology Lab", commonTests: "X-Ray; Ultrasound (USG); CT Scan; MRI; Mammography")
+        ]
+        
         // Mock Staff and Doctors
-        let doctorStaff = [
+        staff = [
             Staff(id: "d1", staffName: "Dr. Sarah Johnson", roleId: "doctor", createdAt: Date(), staffEmail: "s.johnson@hospital.com", staffMobile: "+15551234567", onLeave: false),
             Staff(id: "d2", staffName: "Dr. Michael Chen", roleId: "doctor", createdAt: Date(), staffEmail: "m.chen@hospital.com", staffMobile: "+15559876543", onLeave: true),
             Staff(id: "d3", staffName: "Dr. Emily Rodriguez", roleId: "doctor", createdAt: Date(), staffEmail: "e.rodriguez@hospital.com", staffMobile: "+15554567890", onLeave: false)
@@ -306,20 +332,9 @@ class MockHospitalDataStore: ObservableObject {
         
         // Mock Labs
         labs = [
-            Lab(id: "l1", labName: "Hematology", labTypeId: "lt1", functional: true),
-            Lab(id: "l2", labName: "Microbiology", labTypeId: "lt2", functional: true),
-            Lab(id: "l3", labName: "Pathology", labTypeId: "lt3", functional: false)
-        ]
-        
-        // Mock Lab Technicians
-        let techStaff = [
-            Staff(id: "t1", staffName: "Emily Rodriguez", roleId: "lab_tech", createdAt: Date(), staffEmail: "e.rodriguez@hospital.com", staffMobile: "+15552345678", onLeave: false),
-            Staff(id: "t2", staffName: "David Kim", roleId: "lab_tech", createdAt: Date(), staffEmail: "d.kim@hospital.com", staffMobile: "+15553456789", onLeave: false)
-        ]
-        
-        labTechnicians = [
-            LabTechnicianDetails(id: "lt1", staffId: "t1", certificationId: "ASCP123", labExperienceYears: 5, assignedLabId: "l1"),
-            LabTechnicianDetails(id: "lt2", staffId: "t2", certificationId: "MLT456", labExperienceYears: 3, assignedLabId: "l2")
+            Lab(id: "l1", labName: "Hematology", labTypeId: "1", functional: true),
+            Lab(id: "l2", labName: "Microbiology", labTypeId: "2", functional: true),
+            Lab(id: "l3", labName: "Pathology", labTypeId: "3", functional: false)
         ]
         
         // Mock Lab Test Categories
@@ -342,32 +357,56 @@ class MockHospitalDataStore: ObservableObject {
             LabTestType(id: "test2", testName: "Basic Metabolic Panel", testCategoryId: "cat1", testTargetOrganId: "o3", testRemark: "Measures glucose and electrolytes"),
             LabTestType(id: "test3", testName: "Culture and Sensitivity", testCategoryId: "cat2", testTargetOrganId: "o2", testRemark: "Identifies bacteria and effective antibiotics")
         ]
-        
-        // Combine all staff
-        staff = doctorStaff + techStaff
     }
     
-    // MARK: - CRUD Functions (Mock versions - replace with API calls later)
-    
-    // Staff CRUD
-    func fetchStaff() {
-        // In real implementation, this would call your API
-        print("Fetching staff from API would happen here")
+    @MainActor func fetchStaff() {
+        labTechnicianService.fetchLabTechnicians { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let labTechs):
+                    self?.labStaff = labTechs.map { tech in
+                        LabStaff(
+                            id: tech.staff_id, // Use staff_id from API
+                            staffName: tech.staff_name,
+                            roleId: "lab_tech",
+                            createdAt: Date(), // Still use current date
+                            staffEmail: tech.staff_email,
+                            staffMobile: tech.staff_mobile
+                        )
+                    }
+                    
+                    self?.labTechnicians = labTechs.map { tech in
+                        LabTechnicianDetails(
+                            id: UUID().uuidString,
+                            staffId: tech.staff_id, // Use staff_id from API
+                            certificationId: tech.certification,
+                            labExperienceYears: tech.lab_experience_years,
+                            assignedLabId: tech.assigned_lab
+                        )
+                    }
+                    print("Fetched \(labTechs.count) lab technicians from API")
+                    
+                case .failure(let error):
+                    print("Failed to fetch lab technicians: \(error)")
+                    self?.labStaff = [
+                        LabStaff(id: "t1", staffName: "Emily Rodriguez", roleId: "lab_tech", createdAt: Date(), staffEmail: "e.rodriguez@hospital.com", staffMobile: "+15552345678"),
+                        LabStaff(id: "t2", staffName: "David Kim", roleId: "lab_tech", createdAt: Date(), staffEmail: "d.kim@hospital.com", staffMobile: "+15553456789")
+                    ]
+                    self?.labTechnicians = [
+                        LabTechnicianDetails(id: "lt1", staffId: "t1", certificationId: "ASCP123", labExperienceYears: 5, assignedLabId: "l1"),
+                        LabTechnicianDetails(id: "lt2", staffId: "t2", certificationId: "MLT456", labExperienceYears: 3, assignedLabId: "l2")
+                    ]
+                }
+            }
+        }
     }
     
     func createDoctor(staff: Staff, doctorDetails: DoctorDetails, staffDetails: StaffDetails) {
         // In real implementation, this would POST to your API
         self.staff.append(staff)
         self.doctors.append(doctorDetails)
-        // You'll need to add a staffDetails array to your data store
         self.staffDetails.append(staffDetails)
         print("Would create doctor via API: \(staff) with details: \(doctorDetails) and \(staffDetails)")
-    }
-    
-    func deleteStaff(ids: [String]) {
-        // In real implementation, this would DELETE via your API
-        staff.removeAll { ids.contains($0.id) }
-        print("Would delete staff via API with IDs: \(ids)")
     }
     
     // Doctor CRUD
@@ -387,21 +426,39 @@ class MockHospitalDataStore: ObservableObject {
         if let index = self.staff.firstIndex(where: { $0.id == staff.id }) {
             self.staff[index] = staff
         }
-        
         // You might also want to update doctor details if needed
     }
     
-    // Lab Technician CRUD
-    func fetchLabTechnicians() {
-        // In real implementation, this would call your API
-        print("Fetching lab technicians from API would happen here")
+    @MainActor func deleteStaff(ids: [String]) {
+        let service = LabTechnicianService.shared
+        for id in ids {
+            service.deleteLabTechnician(staffId: id) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success:
+                        // Remove from local storage on success
+                        self.staff.removeAll { $0.id == id }
+                        self.labTechnicians.removeAll { $0.staffId == id }
+                        print("Successfully deleted lab technician with ID: \(id)")
+                    case .failure(let error):
+                        print("Failed to delete lab technician: \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
     }
     
-    func createLabTechnician(staff: Staff, techDetails: LabTechnicianDetails) {
-        // In real implementation, this would POST to your API
-        self.staff.append(staff)
+    // Lab Technician CRUD
+    @MainActor func fetchLabTechnicians() {
+        // Call fetchStaff to fetch lab technicians from API
+        fetchStaff()
+        print("Fetching lab technicians from API via fetchStaff")
+    }
+    
+    func createLabTechnician(staff: LabStaff, techDetails: LabTechnicianDetails) {
+        self.labStaff.append(staff)
         self.labTechnicians.append(techDetails)
-        print("Would create lab tech via API: \(staff) with details: \(techDetails)")
+        print("Created lab technician: \(staff) with details: \(techDetails)")
     }
     
     // Lab Test CRUD
@@ -424,6 +481,13 @@ class MockHospitalDataStore: ObservableObject {
     
     // Other fetches
     func fetchLabs() {
+        // In real implementation, this would call your API
+        // For now, use mock data
+        self.labs = [
+            Lab(id: "l1", labName: "Hematology", labTypeId: "1", functional: true),
+            Lab(id: "l2", labName: "Microbiology", labTypeId: "2", functional: true),
+            Lab(id: "l3", labName: "Pathology", labTypeId: "3", functional: false)
+        ]
         print("Fetching labs from API would happen here")
     }
     

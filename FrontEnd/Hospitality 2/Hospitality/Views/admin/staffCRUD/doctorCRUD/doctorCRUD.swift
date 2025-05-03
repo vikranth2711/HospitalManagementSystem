@@ -187,7 +187,7 @@ struct DoctorsListView: View {
                             doctorSpecialization: doctor.specialization,
                             doctorLicense: doctor.license,
                             doctorExperienceYears: doctor.experience_years,
-                            doctorTypeId: "" // You might need to get this from the API
+                            doctorTypeId: nil // You might need to get this from the API
                         )
                     }
                     
@@ -352,7 +352,7 @@ struct AddEditDoctorView: View {
                     .disabled(name.isEmpty || email.isEmpty || mobile.isEmpty ||
                              specialization.isEmpty || qualifications.isEmpty ||
                              license.isEmpty || experience.isEmpty ||
-                             doctorTypeId.isEmpty || address.isEmpty)
+                              doctorTypeId == 0 || address.isEmpty)
                 }
             }
         }
@@ -366,7 +366,7 @@ struct AddEditDoctorView: View {
               !specialization.isEmpty,
               !license.isEmpty,
               !experience.isEmpty,
-              !doctorTypeId.isEmpty,
+              doctorTypeId != 0,
               !qualifications.isEmpty,
               !address.isEmpty else {
             // Show error to user
@@ -374,12 +374,6 @@ struct AddEditDoctorView: View {
         }
         
         guard let experienceYears = Int(experience) else {
-            return
-        }
-        
-        // Convert doctorTypeId to Int
-        guard let doctorTypeID = Int(doctorTypeId) else {
-            // Show error to user
             return
         }
         
@@ -395,7 +389,7 @@ struct AddEditDoctorView: View {
             specialization: specialization,
             license: license,
             experienceYears: experienceYears,
-            doctorTypeId: doctorTypeID,
+            doctorTypeId: doctorTypeId,
             joiningDate: joiningDate,
             dob: dobString,
             address: address,
@@ -692,6 +686,14 @@ struct EditDoctorView: View {
             _dob = State(initialValue: details.staff_dob)
             _address = State(initialValue: details.staff_address ?? "")
             _qualifications = State(initialValue: details.staff_qualification)
+        } else {
+            _specialization = State(initialValue: "")
+            _license = State(initialValue: "")
+            _experience = State(initialValue: "")
+            _doctorTypeId = State(initialValue: 0)
+            _dob = State(initialValue: "")
+            _address = State(initialValue: "")
+            _qualifications = State(initialValue: "")
         }
     }
     
@@ -746,7 +748,7 @@ struct EditDoctorView: View {
                     Button("Save") {
                         saveChanges()
                     }
-                    .disabled(name.isEmpty || email.isEmpty || mobile.isEmpty || specialization.isEmpty || license.isEmpty || experience.isEmpty || doctorTypeId.isEmpty)
+                    .disabled(name.isEmpty || email.isEmpty || mobile.isEmpty || specialization.isEmpty || license.isEmpty || experience.isEmpty || doctorTypeId == 0)
                 }
             }
         }
@@ -754,7 +756,6 @@ struct EditDoctorView: View {
     
     private func saveChanges() {
         guard let experienceYears = Int(experience),
-              let doctorTypeID = Int(doctorTypeId),
               let doctorDetails = doctorDetails else {
             errorMessage = "Please enter valid experience and doctor type"
             return
@@ -797,7 +798,7 @@ struct EditDoctorView: View {
                     )
                     
                     // Find the selected doctor type
-                    let selectedType = dataStore.doctorTypes.first { $0.id == doctorTypeID }
+                    let selectedType = dataStore.doctorTypes.first { $0.id == doctorTypeId }
                     
                     var updatedDetails = doctorDetails
                     updatedDetails.staff_name = name
@@ -808,7 +809,7 @@ struct EditDoctorView: View {
                     updatedDetails.license = license
                     updatedDetails.experience_years = experienceYears
                     updatedDetails.doctor_type = DoctorType(
-                        id: doctorTypeID,
+                        id: doctorTypeId,
                         name: selectedType?.name ?? "Unknown"
                     )
                     updatedDetails.staff_dob = dob
