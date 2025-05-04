@@ -12,8 +12,8 @@ from .permissions import IsAdminStaff
 import uuid
 import datetime
 from django.contrib.auth.hashers import make_password
-from .serializers import LabSerializer
-from .models import Lab, LabType
+from .serializers import LabSerializer, LabTestTypeSerializer
+from .models import Lab, LabType, LabTestType
 class StaffProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -760,3 +760,25 @@ class LabDetailView(APIView):
         lab = get_object_or_404(Lab, lab_id=lab_id)
         lab.delete()
         return Response({"message": "Lab deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    
+class LabTestTypeListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """List all lab test types with optional filtering"""
+        # Get query parameters for filtering
+        category_id = request.query_params.get('category_id')
+        target_organ_id = request.query_params.get('target_organ_id')
+        
+        # Start with all test types
+        queryset = LabTestType.objects.all()
+        
+        # Apply filters if provided
+        if category_id:
+            queryset = queryset.filter(test_category_id=category_id)
+        if target_organ_id:
+            queryset = queryset.filter(test_target_organ_id=target_organ_id)
+            
+        serializer = LabTestTypeSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

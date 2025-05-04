@@ -1,0 +1,276 @@
+{
+    "Complete Blood Count (CBC)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Hemoglobin": { "type": "number", "unit": "g/dL", "range": "13-17" },
+        "WBC": { "type": "number", "unit": "cells/mcL", "range": "4000-11000" },
+        "Platelets": { "type": "number", "unit": "/mcL", "range": "150000-450000" },
+        "RBC": { "type": "number", "unit": "million/mcL", "range": "4.5-6.0" }
+      }
+    },
+    "Blood Sugar (Fasting/PP)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Fasting": { "type": "number", "unit": "mg/dL", "range": "70-99" },
+        "Postprandial": { "type": "number", "unit": "mg/dL", "range": "<140" }
+      }
+    },
+    "ESR": {
+      "sample_collected": "blood",
+      "parameters": {
+        "ESR (Male)": { "type": "number", "unit": "mm/hr", "range": "0-22" },
+        "ESR (Female)": { "type": "number", "unit": "mm/hr", "range": "0-29" }
+      }
+    },
+    "Urinalysis": {
+      "sample_collected": "urine",
+      "parameters": {
+        "Color": { "type": "text", "options": ["Yellow", "Pale", "Dark"] },
+        "pH": { "type": "number", "range": "4.6-8.0" },
+        "Protein": { "type": "text", "options": ["Negative", "Trace", "Positive"] },
+        "Glucose": { "type": "text", "options": ["Negative", "Positive"] }
+      }
+    },
+    "Stool Examination": {
+      "sample_collected": "stool",
+      "parameters": {
+        "Consistency": { "type": "text", "options": ["Formed", "Loose", "Watery"] },
+        "Occult Blood": { "type": "text", "options": ["Positive", "Negative"] },
+        "Parasites": { "type": "text", "options": ["Absent", "Present"] }
+      }
+    },
+    "Blood Grouping & Rh Typing": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Blood Group": { "type": "text", "options": ["A", "B", "AB", "O"] },
+        "Rh Factor": { "type": "text", "options": ["Positive", "Negative"] }
+      }
+    },
+    "Liver Function Test (LFT)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "ALT": { "type": "number", "unit": "U/L", "range": "7-56" },
+        "AST": { "type": "number", "unit": "U/L", "range": "10-40" },
+        "Bilirubin Total": { "type": "number", "unit": "mg/dL", "range": "0.1-1.2" }
+      }
+    },
+    "Kidney Function Test (KFT)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Creatinine": { "type": "number", "unit": "mg/dL", "range": "0.7-1.3" },
+        "Urea": { "type": "number", "unit": "mg/dL", "range": "7-20" }
+      }
+    },
+    "Lipid Profile": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Total Cholesterol": { "type": "number", "unit": "mg/dL", "range": "<200" },
+        "HDL": { "type": "number", "unit": "mg/dL", "range": ">40" },
+        "LDL": { "type": "number", "unit": "mg/dL", "range": "<100" },
+        "Triglycerides": { "type": "number", "unit": "mg/dL", "range": "<150" }
+      }
+    },
+    "Blood Glucose (Fasting, PP)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Fasting": { "type": "number", "unit": "mg/dL", "range": "70-99" },
+        "Postprandial": { "type": "number", "unit": "mg/dL", "range": "<140" }
+      }
+    },
+    "Culture & Sensitivity (Urine)": {
+      "sample_collected": "urine",
+      "parameters": {
+        "Organism": { "type": "text", "options": ["E. coli", "Klebsiella", "Pseudomonas"] },
+        "Sensitivity": { "type": "table", "format": "Antibiotic: Sensitive/Resistant" }
+      }
+    },
+    "Culture & Sensitivity (Sputum)": {
+      "sample_collected": "sputum",
+      "parameters": {
+        "Organism": { "type": "text", "options": ["Mycobacterium tuberculosis", "Streptococcus", "Klebsiella"] },
+        "Sensitivity": { "type": "table", "format": "Antibiotic: Sensitive/Resistant" }
+      }
+    },
+    "Biopsy Analysis": {
+      "sample_collected": "tissue",
+      "parameters": {
+        "Histopathology": { "type": "text", "options": ["Benign", "Malignant", "Suspicious"] },
+        "Tissue Type": { "type": "text", "options": ["Epithelial", "Connective", "Muscle", "Nerve"] }
+      }
+    },
+    "FNAC": {
+      "sample_collected": "tissue",
+      "parameters": {
+        "Cytology": { "type": "text", "options": ["Benign", "Malignant", "Suspicious"] },
+        "Cell Type": { "type": "text", "options": ["Lymphocytes", "Epithelial", "Macrophages", "Neutrophils"] }
+      }
+    },
+    "X-Ray": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "Ultrasound (USG)": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "CT Scan": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "MRI": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "Mammography": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    }
+  }
+  {
+    "Complete Blood Count (CBC)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Hemoglobin": { "type": "number", "unit": "g/dL", "range": "13-17" },
+        "WBC": { "type": "number", "unit": "cells/mcL", "range": "4000-11000" },
+        "Platelets": { "type": "number", "unit": "/mcL", "range": "150000-450000" },
+        "RBC": { "type": "number", "unit": "million/mcL", "range": "4.5-6.0" }
+      }
+    },
+    "Blood Sugar (Fasting/PP)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Fasting": { "type": "number", "unit": "mg/dL", "range": "70-99" },
+        "Postprandial": { "type": "number", "unit": "mg/dL", "range": "<140" }
+      }
+    },
+    "ESR": {
+      "sample_collected": "blood",
+      "parameters": {
+        "ESR (Male)": { "type": "number", "unit": "mm/hr", "range": "0-22" },
+        "ESR (Female)": { "type": "number", "unit": "mm/hr", "range": "0-29" }
+      }
+    },
+    "Urinalysis": {
+      "sample_collected": "urine",
+      "parameters": {
+        "Color": { "type": "text", "options": ["Yellow", "Pale", "Dark"] },
+        "pH": { "type": "number", "range": "4.6-8.0" },
+        "Protein": { "type": "text", "options": ["Negative", "Trace", "Positive"] },
+        "Glucose": { "type": "text", "options": ["Negative", "Positive"] }
+      }
+    },
+    "Stool Examination": {
+      "sample_collected": "stool",
+      "parameters": {
+        "Consistency": { "type": "text", "options": ["Formed", "Loose", "Watery"] },
+        "Occult Blood": { "type": "text", "options": ["Positive", "Negative"] },
+        "Parasites": { "type": "text", "options": ["Absent", "Present"] }
+      }
+    },
+    "Blood Grouping & Rh Typing": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Blood Group": { "type": "text", "options": ["A", "B", "AB", "O"] },
+        "Rh Factor": { "type": "text", "options": ["Positive", "Negative"] }
+      }
+    },
+    "Liver Function Test (LFT)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "ALT": { "type": "number", "unit": "U/L", "range": "7-56" },
+        "AST": { "type": "number", "unit": "U/L", "range": "10-40" },
+        "Bilirubin Total": { "type": "number", "unit": "mg/dL", "range": "0.1-1.2" }
+      }
+    },
+    "Kidney Function Test (KFT)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Creatinine": { "type": "number", "unit": "mg/dL", "range": "0.7-1.3" },
+        "Urea": { "type": "number", "unit": "mg/dL", "range": "7-20" }
+      }
+    },
+    "Lipid Profile": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Total Cholesterol": { "type": "number", "unit": "mg/dL", "range": "<200" },
+        "HDL": { "type": "number", "unit": "mg/dL", "range": ">40" },
+        "LDL": { "type": "number", "unit": "mg/dL", "range": "<100" },
+        "Triglycerides": { "type": "number", "unit": "mg/dL", "range": "<150" }
+      }
+    },
+    "Blood Glucose (Fasting, PP)": {
+      "sample_collected": "blood",
+      "parameters": {
+        "Fasting": { "type": "number", "unit": "mg/dL", "range": "70-99" },
+        "Postprandial": { "type": "number", "unit": "mg/dL", "range": "<140" }
+      }
+    },
+    "Culture & Sensitivity (Urine)": {
+      "sample_collected": "urine",
+      "parameters": {
+        "Organism": { "type": "text", "options": ["E. coli", "Klebsiella", "Pseudomonas"] },
+        "Sensitivity": { "type": "table", "format": "Antibiotic: Sensitive/Resistant" }
+      }
+    },
+    "Culture & Sensitivity (Sputum)": {
+      "sample_collected": "sputum",
+      "parameters": {
+        "Organism": { "type": "text", "options": ["Mycobacterium tuberculosis", "Streptococcus", "Klebsiella"] },
+        "Sensitivity": { "type": "table", "format": "Antibiotic: Sensitive/Resistant" }
+      }
+    },
+    "Biopsy Analysis": {
+      "sample_collected": "tissue",
+      "parameters": {
+        "Histopathology": { "type": "text", "options": ["Benign", "Malignant", "Suspicious"] },
+        "Tissue Type": { "type": "text", "options": ["Epithelial", "Connective", "Muscle", "Nerve"] }
+      }
+    },
+    "FNAC": {
+      "sample_collected": "tissue",
+      "parameters": {
+        "Cytology": { "type": "text", "options": ["Benign", "Malignant", "Suspicious"] },
+        "Cell Type": { "type": "text", "options": ["Lymphocytes", "Epithelial", "Macrophages", "Neutrophils"] }
+      }
+    },
+    "X-Ray": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "Ultrasound (USG)": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "CT Scan": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "MRI": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    },
+    "Mammography": {
+      "sample_collected": "imaging",
+      "parameters": {
+        "Findings": { "type": "text", "format": "Free text" }
+      }
+    }
+  }

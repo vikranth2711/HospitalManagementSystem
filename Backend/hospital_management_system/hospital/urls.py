@@ -54,6 +54,9 @@ urlpatterns = [
     path('general/lab-tests/<int:lab_test_id>/pay/', functional_views.PayForLabTestsView.as_view(), name='pay-for-lab-test'),
     path('general/lab-tests/<int:lab_test_id>/results/', functional_views.AddLabTestResultsView.as_view(), name='add-lab-test-results'),
 
+    # Lab Test Type API
+    path('general/lab-test-types/', views.LabTestTypeListView.as_view(), name='lab-test-type-list'),
+    
     # Lab Management
     path('admin/labs/', views.LabListCreateView.as_view(), name='lab-list-create'),
     path('admin/labs/<int:lab_id>/', views.LabDetailView.as_view(), name='lab-detail'),

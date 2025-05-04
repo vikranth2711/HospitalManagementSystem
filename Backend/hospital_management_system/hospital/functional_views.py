@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from accounts.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -297,10 +297,57 @@ class RescheduleAppointmentView(APIView):
             "new_slot_id": new_slot.slot_id
         }, status=200)
 
+# class DiagnosisCreateView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+#     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+#     def post(self, request, appointment_id):
+#         # Check if user is a doctor or staff
+#         if not hasattr(request.user, 'staff_id'):
+#             return Response({"error": "Only staff can create diagnoses"}, status=403)
+            
+#         # Get the appointment
+#         appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+#         # Check if this staff is assigned to this appointment
+#         if appointment.staff.staff_id != request.user.staff_id:
+#             return Response({"error": "You are not authorized to diagnose this appointment"}, status=403)
+            
+#         # Get diagnosis data
+#         diagnosis_data = request.data.get("diagnosis_data", {})
+#         if isinstance(diagnosis_data, str):
+#             try:
+#                 diagnosis_data = json.loads(diagnosis_data)
+#             except json.JSONDecodeError:
+#                 return Response({"error": "Invalid JSON in diagnosis_data"}, status=400)
+                
+#         lab_test_required = request.data.get("lab_test_required", "false").lower() == "true"
+#         follow_up_required = request.data.get("follow_up_required", "false").lower() == "true"
+        
+#         if not diagnosis_data:
+#             return Response({"error": "Diagnosis data is required"}, status=400)
+            
+#         # Create the diagnosis
+#         diagnosis = Diagnosis.objects.create(
+#             appointment=appointment,
+#             diagnosis_data=diagnosis_data,
+#             lab_test_required=lab_test_required,
+#             follow_up_required=follow_up_required
+#         )
+        
+#         # Mark the appointment as completed
+#         appointment.status = 'completed'
+#         appointment.save()
+        
+#         return Response({
+#             "message": "Diagnosis created and appointment marked as completed",
+#             "diagnosis_id": diagnosis.diagnosis_id
+#         }, status=201)
 class DiagnosisCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request, appointment_id):
         # Check if user is a doctor or staff
@@ -321,9 +368,20 @@ class DiagnosisCreateView(APIView):
                 diagnosis_data = json.loads(diagnosis_data)
             except json.JSONDecodeError:
                 return Response({"error": "Invalid JSON in diagnosis_data"}, status=400)
-                
-        lab_test_required = request.data.get("lab_test_required", "false").lower() == "true"
-        follow_up_required = request.data.get("follow_up_required", "false").lower() == "true"
+        
+        # Handle both boolean and string inputs for lab_test_required
+        lab_test_required_value = request.data.get("lab_test_required", False)
+        if isinstance(lab_test_required_value, str):
+            lab_test_required = lab_test_required_value.lower() == "true"
+        else:
+            lab_test_required = bool(lab_test_required_value)
+            
+        # Handle both boolean and string inputs for follow_up_required
+        follow_up_required_value = request.data.get("follow_up_required", False)
+        if isinstance(follow_up_required_value, str):
+            follow_up_required = follow_up_required_value.lower() == "true"
+        else:
+            follow_up_required = bool(follow_up_required_value)
         
         if not diagnosis_data:
             return Response({"error": "Diagnosis data is required"}, status=400)
