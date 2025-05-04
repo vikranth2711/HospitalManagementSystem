@@ -158,7 +158,7 @@ class LabTechnicianListView(APIView):
 class LabTechnicianDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminStaff]
-    
+    parser_classes = [MultiPartParser, FormParser]
     def get(self, request, staff_id, *args, **kwargs):
         try:
             staff = Staff.objects.get(staff_id=staff_id, lab_tech_details__isnull=False)
@@ -192,6 +192,46 @@ class LabTechnicianDetailView(APIView):
             
         return Response(lab_tech_data, status=status.HTTP_200_OK)
         
+    # def put(self, request, staff_id, *args, **kwargs):
+    #     try:
+    #         staff = Staff.objects.get(staff_id=staff_id, lab_tech_details__isnull=False)
+    #     except Staff.DoesNotExist:
+    #         return Response({"error": "Lab technician not found"}, 
+    #                       status=status.HTTP_404_NOT_FOUND)
+        
+    #     # Update staff fields
+    #     staff_name = request.data.get('staff_name')
+    #     staff_email = request.data.get('staff_email')
+    #     staff_mobile = request.data.get('staff_mobile')
+    #     on_leave = request.data.get('on_leave')
+        
+    #     if staff_name:
+    #         staff.staff_name = staff_name
+    #     if staff_email:
+    #         staff.staff_email = staff_email
+    #     if staff_mobile:
+    #         staff.staff_mobile = staff_mobile
+    #     if on_leave is not None:
+    #         staff.on_leave = on_leave == True or on_leave == 'true' or on_leave == '1'
+            
+    #     staff.save()
+        
+    #     # Update lab technician details
+    #     certification = request.data.get('certification')
+    #     lab_experience_years = request.data.get('lab_experience_years')
+    #     assigned_lab = request.data.get('assigned_lab')
+        
+    #     if certification:
+    #         staff.lab_tech_details.certification = certification
+    #     if lab_experience_years:
+    #         staff.lab_tech_details.lab_experience_years = int(lab_experience_years)
+    #     if assigned_lab:
+    #         staff.lab_tech_details.assigned_lab = assigned_lab
+            
+    #     staff.lab_tech_details.save()
+        
+    #     return Response({"message": "Lab technician updated successfully"}, 
+    #                   status=status.HTTP_200_OK)
     def put(self, request, staff_id, *args, **kwargs):
         try:
             staff = Staff.objects.get(staff_id=staff_id, lab_tech_details__isnull=False)
@@ -229,6 +269,45 @@ class LabTechnicianDetailView(APIView):
             staff.lab_tech_details.assigned_lab = assigned_lab
             
         staff.lab_tech_details.save()
+        
+        # Update staff details if they exist
+        try:
+            details = staff.staff_details
+            
+            # Update basic details
+            staff_dob = request.data.get('staff_dob')
+            staff_address = request.data.get('staff_address')
+            staff_qualification = request.data.get('staff_qualification')
+            
+            if staff_dob:
+                details.staff_dob = datetime.datetime.strptime(staff_dob, '%Y-%m-%d').date()
+            if staff_address:
+                details.staff_address = staff_address
+            if staff_qualification:
+                details.staff_qualification = staff_qualification
+                
+            # Handle profile photo upload
+            profile_photo = request.FILES.get('profile_photo')
+            if profile_photo:
+                details.profile_photo = profile_photo
+                
+            details.save()
+            
+        except StaffDetails.DoesNotExist:
+            # Create staff details if they don't exist
+            if any([request.data.get('staff_dob'), request.data.get('staff_address'), 
+                   request.data.get('staff_qualification'), request.FILES.get('profile_photo')]):
+                
+                staff_dob = request.data.get('staff_dob')
+                dob_date = datetime.datetime.strptime(staff_dob, '%Y-%m-%d').date() if staff_dob else None
+                
+                StaffDetails.objects.create(
+                    staff=staff,
+                    staff_dob=dob_date,
+                    staff_address=request.data.get('staff_address', ''),
+                    staff_qualification=request.data.get('staff_qualification', ''),
+                    profile_photo=request.FILES.get('profile_photo')
+                )
         
         return Response({"message": "Lab technician updated successfully"}, 
                       status=status.HTTP_200_OK)
@@ -344,7 +423,7 @@ class DoctorListView(APIView):
 class DoctorDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminStaff]
-    
+    parser_classes = [MultiPartParser, FormParser]
     def get(self, request, staff_id, *args, **kwargs):
         try:
             staff = Staff.objects.get(staff_id=staff_id, doctor_details__isnull=False)
@@ -382,6 +461,54 @@ class DoctorDetailView(APIView):
             
         return Response(doctor_data, status=status.HTTP_200_OK)
         
+    # def put(self, request, staff_id, *args, **kwargs):
+    #     try:
+    #         staff = Staff.objects.get(staff_id=staff_id, doctor_details__isnull=False)
+    #     except Staff.DoesNotExist:
+    #         return Response({"error": "Doctor not found"}, 
+    #                       status=status.HTTP_404_NOT_FOUND)
+        
+    #     # Update staff fields
+    #     staff_name = request.data.get('staff_name')
+    #     staff_email = request.data.get('staff_email')
+    #     staff_mobile = request.data.get('staff_mobile')
+    #     on_leave = request.data.get('on_leave')
+        
+    #     if staff_name:
+    #         staff.staff_name = staff_name
+    #     if staff_email:
+    #         staff.staff_email = staff_email
+    #     if staff_mobile:
+    #         staff.staff_mobile = staff_mobile
+    #     if on_leave is not None:
+    #         staff.on_leave = on_leave == True or on_leave == 'true' or on_leave == '1'
+            
+    #     staff.save()
+        
+    #     # Update doctor details
+    #     specialization = request.data.get('specialization')
+    #     license = request.data.get('license')
+    #     experience_years = request.data.get('experience_years')
+    #     doctor_type_id = request.data.get('doctor_type_id')
+        
+    #     if specialization:
+    #         staff.doctor_details.doctor_specialization = specialization
+    #     if license:
+    #         staff.doctor_details.doctor_license = license
+    #     if experience_years:
+    #         staff.doctor_details.doctor_experience_years = int(experience_years)
+    #     if doctor_type_id:
+    #         try:
+    #             doctor_type = DoctorType.objects.get(doctor_type_id=doctor_type_id)
+    #             staff.doctor_details.doctor_type = doctor_type
+    #         except DoctorType.DoesNotExist:
+    #             return Response({"error": f"Doctor type with ID {doctor_type_id} not found"}, 
+    #                           status=status.HTTP_400_BAD_REQUEST)
+            
+    #     staff.doctor_details.save()
+        
+    #     return Response({"message": "Doctor updated successfully"}, 
+    #                   status=status.HTTP_200_OK)
     def put(self, request, staff_id, *args, **kwargs):
         try:
             staff = Staff.objects.get(staff_id=staff_id, doctor_details__isnull=False)
@@ -427,6 +554,45 @@ class DoctorDetailView(APIView):
                               status=status.HTTP_400_BAD_REQUEST)
             
         staff.doctor_details.save()
+        
+        # Update staff details if they exist
+        try:
+            details = staff.staff_details
+            
+            # Update basic details
+            staff_dob = request.data.get('staff_dob')
+            staff_address = request.data.get('staff_address')
+            staff_qualification = request.data.get('staff_qualification')
+            
+            if staff_dob:
+                details.staff_dob = datetime.datetime.strptime(staff_dob, '%Y-%m-%d').date()
+            if staff_address:
+                details.staff_address = staff_address
+            if staff_qualification:
+                details.staff_qualification = staff_qualification
+                
+            # Handle profile photo upload
+            profile_photo = request.FILES.get('profile_photo')
+            if profile_photo:
+                details.profile_photo = profile_photo
+                
+            details.save()
+            
+        except StaffDetails.DoesNotExist:
+            # Create staff details if they don't exist
+            if any([request.data.get('staff_dob'), request.data.get('staff_address'), 
+                   request.data.get('staff_qualification'), request.FILES.get('profile_photo')]):
+                
+                staff_dob = request.data.get('staff_dob')
+                dob_date = datetime.datetime.strptime(staff_dob, '%Y-%m-%d').date() if staff_dob else None
+                
+                StaffDetails.objects.create(
+                    staff=staff,
+                    staff_dob=dob_date,
+                    staff_address=request.data.get('staff_address', ''),
+                    staff_qualification=request.data.get('staff_qualification', ''),
+                    profile_photo=request.FILES.get('profile_photo')
+                )
         
         return Response({"message": "Doctor updated successfully"}, 
                       status=status.HTTP_200_OK)

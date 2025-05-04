@@ -40,9 +40,17 @@ urlpatterns = [
     
     path('general/medicines/', functional_views.MedicineListView.as_view(), name='medicine-list'),
     path('general/target-organs/', functional_views.TargetOrganListView.as_view(), name='target-organ-list'),
-    # # Staff Management URLs (existing)
-    # path('api/staff/profile/', views.StaffProfileView.as_view(), name='staff-profile'),
-    # path('api/admin/profile/', views.AdminProfileView.as_view(), name='admin-profile'),
-    # path('api/lab-technicians/', views.LabTechnicianListView.as_view(), name='lab-tech-list'),
-    # path('api/lab-technicians/<str:staff_id>/', views.LabTechnicianDetailView.as_view(), name='lab-tech-detail'),
+    path('general/appointments/book-with-payment/', functional_views.BookAppointmentWithPaymentView.as_view(), name='book-appointment-with-payment'),
+    path('general/appointments/<int:appointment_id>/reschedule/', functional_views.RescheduleAppointmentView.as_view(), name='reschedule-appointment'),
+    
+    # Schedule Management
+    path('general/doctors/<str:staff_id>/schedule/', functional_views.DoctorScheduleView.as_view(), name='doctor-schedule'),
+    path('general/doctors/schedules/', functional_views.AllDoctorSchedulesView.as_view(), name='all-doctor-schedules'),
+    path('general/staff/set-schedule/', functional_views.SetStaffScheduleView.as_view(), name='set-staff-schedule'),
+    path('general/admin/set-slots/', functional_views.SetStaffSlotsView.as_view(), name='set-staff-slots'),
+    
+    # Lab Tests
+    path('general/appointments/<int:appointment_id>/recommend-lab-tests/', functional_views.RecommendLabTestsView.as_view(), name='recommend-lab-tests'),
+    path('general/lab-tests/<int:lab_test_id>/pay/', functional_views.PayForLabTestsView.as_view(), name='pay-for-lab-test'),
+    path('general/lab-tests/<int:lab_test_id>/results/', functional_views.AddLabTestResultsView.as_view(), name='add-lab-test-results'),
 ]

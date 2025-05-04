@@ -1,1155 +1,1299 @@
-# Hospital Management System API Documentation
+# Hospital Management System API Reference
 
-This document outlines all available API endpoints, their request types, required parameters, sample requests, and expected responses.
+This document provides a comprehensive reference for all APIs in the Hospital Management System, organized by functional areas.
 
-## Table of Contents
-- [Authentication](#authentication)
-- [Patient APIs](#patient-apis)
-- [Staff APIs](#staff-apis)
-- [Admin APIs](#admin-apis)
-  - [Lab Technician Management](#lab-technician-management)
-  - [Doctor Management](#doctor-management)
-
-## Authentication
-
-All protected routes require a JWT token in the Authorization header:
-```
-Authorization: Bearer {your_access_token}
-```
+## Authentication and User Management
 
 ### Request OTP
-Used for both login and signup workflows to initiate authentication.
 
-**Endpoint:** `POST /api/request-otp/`
-
-**Request Body:**
-```json
-{
-  "email": "patient@example.com",
-  "user_type": "patient" // Options: "patient" or "staff"
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "OTP sent successfully."
-}
-```
+- **URL**: `/api/accounts/request-otp/`
+- **Method**: POST
+- **Description**: Requests an OTP for authentication
+- **Request Body**:
+  ```json
+  {
+    "email": "patient@example.com"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "OTP sent successfully"
+  }
+  ```
 
 ### Verify OTP
-Used to verify an OTP without completing login/signup.
 
-**Endpoint:** `POST /api/verify-otp/`
-
-**Request Body:**
-```json
-{
-  "email": "patient@example.com",
-  "otp": "123456"
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "OTP verified successfully."
-}
-```
+- **URL**: `/api/accounts/verify-otp/`
+- **Method**: POST
+- **Description**: Verifies the OTP sent to the user
+- **Request Body**:
+  ```json
+  {
+    "email": "patient@example.com",
+    "otp": "123456"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "token": "jwt_token_here",
+    "user_type": "patient"
+  }
+  ```
 
 ### Patient Signup
-Register a new patient using OTP verification.
 
-**Endpoint:** `POST /api/patient-signup/`
-
-**Request Body:**
-```json
-{
-  "email": "newpatient@example.com",
-  "otp": "123456",
-  "patient_name": "John Doe",
-  "patient_mobile": "1234567890"
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "Patient registered successfully.",
-  "patient_id": 123,
-  "access_token": "eyJhbGciOiJ...",
-  "refresh_token": "eyJhbGciOiJ..."
-}
-```
-
-### User Login
-Used for both patient and staff login.
-
-**Endpoint:** `POST /api/login/`
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "otp": "123456",
-  "user_type": "patient" // Options: "patient" or "staff"
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "Login successful.",
-  "user_id": "PATIENT123" or "STAFF123",
-  "user_type": "patient" or "staff",
-  "access_token": "eyJhbGciOiJ...",
-  "refresh_token": "eyJhbGciOiJ..."
-}
-```
-
-## Patient APIs
-
-### Get Patient Profile
-Retrieves authenticated patient's details.
-
-**Endpoint:** `GET /api/patient/profile/`
-
-**Authentication:** Required
-
-**Sample Response:**
-```json
-{
-  "patient_id": 123,
-  "patient_name": "John Doe",
-  "patient_email": "john@example.com",
-  "patient_mobile": "1234567890",
-  "patient_remark": null,
-  "patient_dob": "1990-01-01",
-  "patient_gender": true,
-  "patient_blood_group": "A+",
-  "patient_address": "123 Main St, City",
-  "profile_photo": "https://example.com/media/patient_photos/john.jpg"
-}
-```
-
-### Update Patient Profile
-Updates patient's basic profile information.
-
-**Endpoint:** `PUT /api/patient/update-profile/`
-
-**Authentication:** Required
-
-**Request Body:**
-```json
-{
-  "patient_dob": "1990-01-01",
-  "patient_blood_group": "A+",
-  "patient_gender": true,
-  "patient_address": "123 Main St, City"
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "Profile updated successfully",
-  "created": false
-}
-```
-
-### Update Patient Photo
-Updates patient's profile photo.
-
-**Endpoint:** `PUT /api/patient/update-photo/`
-
-**Authentication:** Required
-
-**Content-Type:** `multipart/form-data`
-
-**Form Data:**
-- `profile_photo`: [File Upload]
-
-**Sample Response:**
-```json
-{
-  "message": "Profile photo updated successfully",
-  "photo_url": "https://example.com/media/patient_photos/john.jpg"
-}
-```
-
-## Staff APIs
-
-### Get Staff Profile
-Retrieves authenticated staff's details.
-
-**Endpoint:** `GET /api/staff/profile/`
-
-**Authentication:** Required
-
-**Sample Response:**
-```json
-{
-  "staff_id": "STAFF123",
-  "staff_name": "Jane Smith",
-  "staff_email": "jane@hospital.com",
-  "staff_mobile": "9876543210",
-  "role": {
-    "role_id": 2,
-    "role_name": "Doctor"
-  },
-  "created_at": "2023-01-15",
-  "on_leave": false,
-  "staff_dob": "1985-05-10",
-  "staff_address": "456 Hospital St, City",
-  "staff_qualification": "MBBS, MD",
-  "profile_photo": "https://example.com/media/staff_photos/jane.jpg",
-  "doctor_specialization": "Cardiologist",
-  "doctor_license": "MED12345",
-  "doctor_experience_years": 8,
-  "doctor_type": {
-    "doctor_type_id": 3,
-    "doctor_type": "Specialist"
+- **URL**: `/api/accounts/patient-signup/`
+- **Method**: POST
+- **Description**: Registers a new patient
+- **Request Body**:
+  ```json
+  {
+    "patient_name": "John Doe",
+    "patient_email": "john@example.com",
+    "patient_mobile": "9876543210",
+    "password": "securepassword"
   }
-}
-```
-
-## Admin APIs
-
-### Get Admin Profile
-Retrieves authenticated admin's details.
-
-**Endpoint:** `GET /api/admin/profile/`
-
-**Authentication:** Required (with admin role)
-
-**Sample Response:**
-```json
-{
-  "staff_id": "STAFF001",
-  "staff_name": "Admin User",
-  "staff_email": "admin@hospital.com",
-  "staff_mobile": "7777777777",
-  "role": {
-    "role_id": 1,
-    "role_name": "Administrator",
-    "permissions": {
-      "is_admin": true,
-      "manage_staff": true,
-      "manage_patients": true
-    }
-  },
-  "created_at": "2022-12-01",
-  "staff_dob": "1980-03-15",
-  "staff_address": "789 Admin St, City",
-  "staff_qualification": "MSc Health Administration",
-  "profile_photo": "https://example.com/media/staff_photos/admin.jpg"
-}
-```
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Patient registered successfully",
+    "patient_id": 123
+  }
+  ```
 
 ### Create Admin Staff
 
-**Endpoint:** `POST /api/create-admin-staff/`
-
-**Authentication:** Required (with admin role)
-
-**Request Body:**
-```json
-{
-  "staff_name": "New Admin",
-  "staff_email": "newadmin@hospital.com",
-  "staff_mobile": "5555555555",
-  "role_id": 1,
-  "staff_joining_date": "2023-04-01"
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "Admin staff created successfully",
-  "staff_id": "STAFF789",
-  "access_token": "eyJhbGciOiJ...",
-  "refresh_token": "eyJhbGciOiJ..."
-}
-```
-
-### Lab Technician Management
-
-#### Get All Lab Technicians
-
-**Endpoint:** `GET /api/admin/lab-technicians/`
-
-**Authentication:** Required (with admin role)
-
-**Sample Response:**
-```json
-[
+- **URL**: `/api/accounts/create-admin-staff/`
+- **Method**: POST
+- **Description**: Creates an admin staff member
+- **Request Body**:
+  ```json
   {
-    "staff_id": "LABTECH123",
-    "staff_name": "Lab Tech 1",
-    "staff_email": "labtech1@hospital.com",
-    "staff_mobile": "1122334455",
-    "certification": "MLT Certificate",
-    "lab_experience_years": 5,
-    "assigned_lab": "Pathology Lab",
-    "on_leave": false
-  },
-  {
-    "staff_id": "LABTECH456",
-    "staff_name": "Lab Tech 2",
-    "staff_email": "labtech2@hospital.com",
-    "staff_mobile": "5566778899",
-    "certification": "Clinical Lab Technician",
-    "lab_experience_years": 3,
-    "assigned_lab": "Biochemistry Lab",
-    "on_leave": true
+    "staff_name": "Admin User",
+    "staff_email": "admin@hospital.com",
+    "staff_mobile": "9876543210",
+    "password": "securepassword"
   }
-]
-```
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Admin staff created successfully",
+    "staff_id": "ADMIN123"
+  }
+  ```
 
-#### Get Specific Lab Technician
+### Change Password
 
-**Endpoint:** `GET /api/admin/lab-technicians/{staff_id}/`
+- **URL**: `/api/accounts/change-password/`
+- **Method**: POST
+- **Authentication**: Required
+- **Description**: Changes the user's password
+- **Request Body**:
+  ```json
+  {
+    "current_password": "oldpassword",
+    "new_password": "newpassword"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Password changed successfully"
+  }
+  ```
 
-**Authentication:** Required (with admin role)
+### Initiate Email Verification
 
-**Sample Response:**
-```json
-{
-  "staff_id": "LABTECH123",
-  "staff_name": "Lab Tech 1",
-  "staff_email": "labtech1@hospital.com",
-  "staff_mobile": "1122334455",
-  "created_at": "2022-06-15",
-  "certification": "MLT Certificate",
-  "lab_experience_years": 5,
-  "assigned_lab": "Pathology Lab",
-  "on_leave": false,
-  "staff_dob": "1992-08-20",
-  "staff_address": "234 Lab St, City",
-  "staff_qualification": "BSc Medical Laboratory Technology",
-  "profile_photo": "https://example.com/media/staff_photos/labtech1.jpg"
-}
-```
+- **URL**: `/api/accounts/initiate-email-verification/`
+- **Method**: POST
+- **Description**: Initiates the email verification process for registration
+- **Request Body**:
+  ```json
+  {
+    "email": "newuser@example.com"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Verification email sent"
+  }
+  ```
 
-#### Update Lab Technician
+### Verify Email and Create Patient
 
-**Endpoint:** `PUT /api/admin/lab-technicians/{staff_id}/`
+- **URL**: `/api/accounts/verify-email-create-patient/`
+- **Method**: POST
+- **Description**: Verifies email and creates a patient account
+- **Request Body**:
+  ```json
+  {
+    "email": "newuser@example.com",
+    "verification_code": "123456",
+    "name": "New User",
+    "mobile": "9876543210",
+    "password": "securepassword"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Patient account created",
+    "patient_id": 124
+  }
+  ```
 
-**Authentication:** Required (with admin role)
+### Complete Patient Profile
 
-**Request Body:**
-```json
-{
-  "staff_name": "Updated Lab Tech Name",
-  "staff_email": "updated@hospital.com",
-  "staff_mobile": "9988776655",
-  "on_leave": true,
-  "certification": "Updated Certification",
-  "lab_experience_years": 6,
-  "assigned_lab": "Hematology Lab"
-}
-```
+- **URL**: `/api/accounts/complete-patient-profile/`
+- **Method**: POST
+- **Authentication**: Required
+- **Description**: Completes the patient profile with additional details
+- **Request Body**:
+  ```json
+  {
+    "dob": "1990-01-01",
+    "gender": true,
+    "blood_group": "O+",
+    "address": "123 Main St, City"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Profile completed successfully"
+  }
+  ```
 
-**Sample Response:**
-```json
-{
-  "message": "Lab technician updated successfully"
-}
-```
+### User Login
 
-#### Delete Lab Technician
+- **URL**: `/api/accounts/login/`
+- **Method**: POST
+- **Description**: Authenticates a user and initiates 2FA
+- **Request Body**:
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "OTP sent for verification",
+    "email": "user@example.com"
+  }
+  ```
 
-**Endpoint:** `DELETE /api/admin/lab-technicians/{staff_id}/`
+### Verify Login OTP
 
-**Authentication:** Required (with admin role)
+- **URL**: `/api/accounts/verify-login-otp/`
+- **Method**: POST
+- **Description**: Verifies the OTP for login
+- **Request Body**:
+  ```json
+  {
+    "email": "user@example.com",
+    "otp": "123456"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "token": "jwt_token_here",
+    "user_type": "patient"
+  }
+  ```
 
-**Sample Response:**
-```json
-{
-  "message": "Lab technician deleted successfully"
-}
-```
+### Patient Profile
 
-#### Create Lab Technician
+- **URL**: `/api/accounts/patient/profile/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets the patient's profile information
+- **Response**: 
+  ```json
+  {
+    "patient_id": 123,
+    "patient_name": "John Doe",
+    "patient_email": "john@example.com",
+    "patient_mobile": "9876543210",
+    "dob": "1990-01-01",
+    "gender": true,
+    "blood_group": "O+",
+    "address": "123 Main St, City",
+    "profile_photo": "http://example.com/media/patient_photos/john.jpg"
+  }
+  ```
 
-**Endpoint:** `POST /api/admin/lab-technicians/create/`
+### Update Patient Profile
 
-**Authentication:** Required (with admin role)
+- **URL**: `/api/accounts/patient/update-profile/`
+- **Method**: PUT
+- **Authentication**: Required
+- **Description**: Updates the patient's profile information
+- **Request Body**:
+  ```json
+  {
+    "patient_name": "John Smith",
+    "patient_mobile": "9876543211",
+    "address": "456 New St, City"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Profile updated successfully"
+  }
+  ```
 
-**Request Body:**
-```json
-{
-  "staff_name": "New Lab Tech",
-  "staff_email": "newlabtech@hospital.com",
-  "staff_mobile": "1231231234",
-  "certification": "Medical Laboratory Science",
-  "lab_experience_years": 2,
-  "assigned_lab": "Microbiology Lab",
-  "staff_joining_date": "2023-03-15"
-}
-```
+### Update Patient Photo
 
-**Sample Response:**
-```json
-{
-  "message": "Lab technician created successfully",
-  "staff_id": "LABTECH789"
-}
-```
+- **URL**: `/api/accounts/patient/update-photo/`
+- **Method**: POST
+- **Authentication**: Required
+- **Description**: Updates the patient's profile photo
+- **Request Body**: Form data with 'profile_photo' file
+- **Response**: 
+  ```json
+  {
+    "message": "Photo updated successfully",
+    "photo_url": "http://example.com/media/patient_photos/john_new.jpg"
+  }
+  ```
 
-### Doctor Management
+## Staff Management
 
-#### Get All Doctors
+### Staff Profile
 
-**Endpoint:** `GET /api/admin/doctors/`
-
-**Authentication:** Required (with admin role)
-
-**Sample Response:**
-```json
-[
+- **URL**: `/api/hospital/staff/profile/`
+- **Method**: GET
+- **Authentication**: Required (Staff)
+- **Description**: Gets the staff member's profile
+- **Response**: 
+  ```json
   {
     "staff_id": "DOC123",
     "staff_name": "Dr. Smith",
-    "staff_email": "drsmith@hospital.com",
+    "staff_email": "smith@hospital.com",
     "staff_mobile": "9876543210",
-    "specialization": "Cardiology",
-    "license": "MED98765",
-    "experience_years": 10,
-    "doctor_type": "Specialist",
-    "on_leave": false
-  },
+    "role": {
+      "role_id": 2,
+      "role_name": "Doctor"
+    },
+    "created_at": "2023-01-01",
+    "on_leave": false,
+    "staff_dob": "1980-05-15",
+    "staff_address": "789 Hospital St, City",
+    "staff_qualification": "MD",
+    "profile_photo": "http://example.com/media/staff_photos/smith.jpg",
+    "doctor_specialization": "Cardiology",
+    "doctor_license": "MED12345",
+    "doctor_experience_years": 10,
+    "doctor_type": {
+      "doctor_type_id": 1,
+      "doctor_type": "Specialist"
+    }
+  }
+  ```
+
+### Admin Profile
+
+- **URL**: `/api/hospital/admin/profile/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Gets the admin's profile
+- **Response**: 
+  ```json
+  {
+    "staff_id": "ADMIN123",
+    "staff_name": "Admin User",
+    "staff_email": "admin@hospital.com",
+    "staff_mobile": "9876543210",
+    "role": {
+      "role_id": 1,
+      "role_name": "Admin",
+      "permissions": {
+        "is_admin": true,
+        "can_manage_staff": true,
+        "can_manage_patients": true
+      }
+    },
+    "created_at": "2023-01-01",
+    "staff_dob": "1985-10-20",
+    "staff_address": "456 Admin St, City",
+    "staff_qualification": "MBA",
+    "profile_photo": "http://example.com/media/staff_photos/admin.jpg"
+  }
+  ```
+
+## Lab Technician Management
+
+### Create Lab Technician
+
+- **URL**: `/api/hospital/admin/lab-technicians/create/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Creates a new lab technician
+- **Request Body**:
+  ```json
+  {
+    "staff_name": "Tech User",
+    "staff_email": "tech@hospital.com",
+    "staff_mobile": "9876543210",
+    "certification": "Medical Lab Technician",
+    "lab_experience_years": 5,
+    "assigned_lab": "Pathology",
+    "staff_joining_date": "2023-01-15"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Lab technician created successfully",
+    "staff_id": "LABTECH123"
+  }
+  ```
+
+### Lab Technician List
+
+- **URL**: `/api/hospital/admin/lab-technicians/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Lists all lab technicians
+- **Response**: 
+  ```json
+  [
+    {
+      "staff_id": "LABTECH123",
+      "staff_name": "Tech User",
+      "staff_email": "tech@hospital.com",
+      "staff_mobile": "9876543210",
+      "certification": "Medical Lab Technician",
+      "lab_experience_years": 5,
+      "assigned_lab": "Pathology",
+      "on_leave": false
+    }
+  ]
+  ```
+
+### Lab Technician Detail
+
+- **URL**: `/api/hospital/admin/lab-technicians//`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Gets details of a specific lab technician
+- **Response**: 
+  ```json
+  {
+    "staff_id": "LABTECH123",
+    "staff_name": "Tech User",
+    "staff_email": "tech@hospital.com",
+    "staff_mobile": "9876543210",
+    "created_at": "2023-01-15",
+    "certification": "Medical Lab Technician",
+    "lab_experience_years": 5,
+    "assigned_lab": "Pathology",
+    "on_leave": false,
+    "staff_dob": "1988-03-25",
+    "staff_address": "123 Tech St, City",
+    "staff_qualification": "BSc Medical Technology",
+    "profile_photo": "http://example.com/media/staff_photos/tech.jpg"
+  }
+  ```
+
+### Update Lab Technician
+
+- **URL**: `/api/hospital/admin/lab-technicians//`
+- **Method**: PUT
+- **Authentication**: Required (Admin)
+- **Description**: Updates a lab technician's details
+- **Request Body**:
+  ```json
+  {
+    "staff_name": "Tech User Updated",
+    "staff_email": "tech_new@hospital.com",
+    "staff_mobile": "9876543211",
+    "certification": "Senior Medical Lab Technician",
+    "lab_experience_years": 6,
+    "assigned_lab": "Biochemistry",
+    "on_leave": true,
+    "staff_dob": "1988-03-25",
+    "staff_address": "456 Tech St, City",
+    "staff_qualification": "MSc Medical Technology",
+    "profile_photo": "file_upload"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Lab technician updated successfully"
+  }
+  ```
+
+### Delete Lab Technician
+
+- **URL**: `/api/hospital/admin/lab-technicians//`
+- **Method**: DELETE
+- **Authentication**: Required (Admin)
+- **Description**: Deletes a lab technician
+- **Response**: 
+  ```json
+  {
+    "message": "Lab technician deleted successfully"
+  }
+  ```
+
+## Doctor Management
+
+### Create Doctor
+
+- **URL**: `/api/hospital/admin/doctors/create/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Creates a new doctor
+- **Request Body**:
+  ```json
+  {
+    "staff_name": "Dr. Johnson",
+    "staff_email": "johnson@hospital.com",
+    "staff_mobile": "9876543210",
+    "specialization": "Neurology",
+    "license": "MED67890",
+    "experience_years": 8,
+    "doctor_type_id": 1,
+    "staff_joining_date": "2023-02-01",
+    "staff_qualification": "MD, PhD",
+    "staff_dob": "1982-07-10",
+    "staff_address": "789 Doctor St, City"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Doctor created successfully",
+    "staff_id": "DOC456"
+  }
+  ```
+
+### Doctor List (Admin)
+
+- **URL**: `/api/hospital/admin/doctors/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Lists all doctors (admin view)
+- **Response**: 
+  ```json
+  [
+    {
+      "staff_id": "DOC456",
+      "staff_name": "Dr. Johnson",
+      "staff_email": "johnson@hospital.com",
+      "staff_mobile": "9876543210",
+      "specialization": "Neurology",
+      "license": "MED67890",
+      "experience_years": 8,
+      "doctor_type": "Specialist",
+      "on_leave": false
+    }
+  ]
+  ```
+
+### Doctor Detail (Admin)
+
+- **URL**: `/api/hospital/admin/doctors//`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Gets details of a specific doctor (admin view)
+- **Response**: 
+  ```json
   {
     "staff_id": "DOC456",
     "staff_name": "Dr. Johnson",
-    "staff_email": "drjohnson@hospital.com",
-    "staff_mobile": "8765432109",
-    "specialization": "Pediatrics",
-    "license": "MED45678",
-    "experience_years": 7,
-    "doctor_type": "General",
-    "on_leave": true
+    "staff_email": "johnson@hospital.com",
+    "staff_mobile": "9876543210",
+    "created_at": "2023-02-01",
+    "specialization": "Neurology",
+    "license": "MED67890",
+    "experience_years": 8,
+    "doctor_type": {
+      "id": 1,
+      "name": "Specialist"
+    },
+    "on_leave": false,
+    "staff_dob": "1982-07-10",
+    "staff_address": "789 Doctor St, City",
+    "staff_qualification": "MD, PhD",
+    "profile_photo": "http://example.com/media/staff_photos/johnson.jpg"
   }
-]
-```
+  ```
 
-#### Get Specific Doctor
+### Update Doctor
 
-**Endpoint:** `GET /api/admin/doctors/{staff_id}/`
-
-**Authentication:** Required (with admin role)
-
-**Sample Response:**
-```json
-{
-  "staff_id": "DOC123",
-  "staff_name": "Dr. Smith",
-  "staff_email": "drsmith@hospital.com",
-  "staff_mobile": "9876543210",
-  "created_at": "2020-03-15",
-  "specialization": "Cardiology",
-  "license": "MED98765",
-  "experience_years": 10,
-  "doctor_type": {
-    "id": 3,
-    "name": "Specialist"
-  },
-  "on_leave": false,
-  "staff_dob": "1975-11-20",
-  "staff_address": "789 Doctor St, City",
-  "staff_qualification": "MBBS, MD, DM Cardiology",
-  "profile_photo": "https://example.com/media/staff_photos/drsmith.jpg"
-}
-```
-
-#### Update Doctor
-
-**Endpoint:** `PUT /api/admin/doctors/{staff_id}/`
-
-**Authentication:** Required (with admin role)
-
-**Request Body:**
-```json
-{
-  "staff_name": "Dr. Smith Updated",
-  "staff_email": "drsmithupdated@hospital.com",
-  "staff_mobile": "9876543210",
-  "on_leave": true,
-  "specialization": "Interventional Cardiology",
-  "license": "MED98765",
-  "experience_years": 11,
-  "doctor_type_id": 4
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "Doctor updated successfully"
-}
-```
-
-#### Delete Doctor
-
-**Endpoint:** `DELETE /api/admin/doctors/{staff_id}/`
-
-**Authentication:** Required (with admin role)
-
-**Sample Response:**
-```json
-{
-  "message": "Doctor deleted successfully"
-}
-```
-
-#### Create Doctor
-
-**Endpoint:** `POST /api/admin/doctors/create/`
-
-**Authentication:** Required (with admin role)
-
-**Request Body:**
-```json
-{
-  "staff_name": "Dr. New Doctor",
-  "staff_email": "newdoctor@hospital.com",
-  "staff_mobile": "1212121212",
-  "specialization": "Neurology",
-  "license": "MED54321",
-  "experience_years": 5,
-  "doctor_type_id": 3,
-  "staff_joining_date": "2023-02-01"
-}
-```
-
-**Sample Response:**
-```json
-{
-  "message": "Doctor created successfully",
-  "staff_id": "DOC789"
-}
-```
-
-## Error Responses
-
-All API endpoints will return appropriate error responses with HTTP status codes:
-
-### Bad Request (400)
-```json
-{
-  "error": "Missing required fields"
-}
-```
-
-### Unauthorized (401)
-```json
-{
-  "detail": "Authentication credentials were not provided."
-}
-```
-
-### Forbidden (403)
-```json
-{
-  "error": "Not authorized as admin"
-}
-```
-
-### Not Found (404)
-```json
-{
-  "error": "Doctor not found"
-}
-```
-
-### Internal Server Error (500)
-```json
-{
-  "error": "An unexpected error occurred",
-  "details": "Error details here"
-}
-```
-
-# Unrestricted APIs
-
-## 📘 API Documentation: Hospital Management System
-
-**Base URL:** `/api/hospital/unrestricted/`
-
----
-
-### 1. 🩺 Get All Doctors
-
-**Endpoint:** `/api/hospital/general/doctors/`  
-**Method:** `GET`  
-**Auth:** JWT Token (Authenticated)
-
-**Response:**
-```json
-[
+- **URL**: `/api/hospital/admin/doctors//`
+- **Method**: PUT
+- **Authentication**: Required (Admin)
+- **Description**: Updates a doctor's details
+- **Request Body**:
+  ```json
   {
-    "staff_id": "DOC123",
-    "staff_name": "Dr. Jane Doe",
-    "specialization": "Cardiology",
-    "doctor_type": "Consultant",
-    "on_leave": false
+    "staff_name": "Dr. Johnson Updated",
+    "staff_email": "johnson_new@hospital.com",
+    "staff_mobile": "9876543211",
+    "specialization": "Neurosurgery",
+    "license": "MED67891",
+    "experience_years": 9,
+    "doctor_type_id": 2,
+    "on_leave": true,
+    "staff_dob": "1982-07-10",
+    "staff_address": "123 New St, City",
+    "staff_qualification": "MD, PhD, FRCS",
+    "profile_photo": "file_upload"
   }
-]
-```
-
----
-
-### 2. 🧑‍⚕️ Doctor Detail
-
-**Endpoint:** `/api/hospital/general/doctors/<staff_id>/`  
-**Method:** `GET`  
-**Auth:** JWT Token (Authenticated)
-
-**Response:**
-```json
-{
-  "staff_id": "DOC123",
-  "staff_name": "Dr. Jane Doe",
-  "specialization": "Cardiology",
-  "doctor_type": "Consultant",
-  "on_leave": false
-}
-```
-
----
-
-### 3. 📅 Available Slots for a Doctor on a Date
-
-**Endpoint:** `/api/hospital/general/doctors/<staff_id>/slots/?date=YYYY-MM-DD`  
-**Method:** `GET`  
-**Auth:** JWT Token (Authenticated)
-
-**Query Param:** `date` (required, format `YYYY-MM-DD`)
-
-**Response:**
-```json
-[
+  ```
+- **Response**: 
+  ```json
   {
-    "slot_id": 1,
-    "slot_start_time": "10:00:00",
-    "slot_duration": "00:30:00",
-    "is_booked": false
+    "message": "Doctor updated successfully"
   }
-]
-```
+  ```
 
----
+### Delete Doctor
 
-### 4. 🗓️ Book Appointment
-
-**Endpoint:** `/api/hospital/general/appointments/`  
-**Method:** `POST`  
-**Auth:** JWT Token (Authenticated)
-
-**Request Body:**
-```json
-{
-  "date": "2025-05-01",
-  "staff_id": "DOC123",
-  "slot_id": 1,
-  "reason": "Routine Checkup"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Appointment booked",
-  "appointment_id": 101
-}
-```
-
----
-
-### 5. 📜 Appointment History (Patient/Doctor)
-
-**Endpoint:** `/api/hospital/general/appointments/history/`  
-**Method:** `GET`  
-**Auth:** JWT Token (Authenticated)
-
-**Response:**
-```json
-[
+- **URL**: `/api/hospital/admin/doctors//`
+- **Method**: DELETE
+- **Authentication**: Required (Admin)
+- **Description**: Deletes a doctor
+- **Response**: 
+  ```json
   {
-    "appointment_id": 101,
-    "date": "2025-05-01",
-    "slot_id": 1,
-    "staff_id": "DOC123",
-    "patient_id": "PAT456",
-    "status": "upcoming"
+    "message": "Doctor deleted successfully"
   }
-]
-```
+  ```
 
----
+## Doctor Information (Patient View)
 
-### 6. 📋 Appointment Detail
+### Doctor List (General)
 
-**Endpoint:** `/api/hospital/general/appointments/<appointment_id>/`  
-**Method:** `GET`  
-**Auth:** JWT Token (Authenticated)
-
-**Response:**
-```json
-{
-  "appointment_id": 101,
-  "date": "2025-05-01",
-  "slot_id": 1,
-  "staff_id": "DOC123",
-  "patient_id": "PAT456",
-  "prescription": {
-    "prescription_id": 10,
-    "remarks": "Take rest",
-    "medicines": [
-      {
-        "medicine_name": "Paracetamol",
-        "dosage": "500mg",
-        "fasting_required": false
-      }
-    ]
-  }
-}
-```
-
----
-
-### 7. 🩺 Admin View - All Appointments
-
-**Endpoint:** `/api/hospital/general/appointments/admin/`  
-**Method:** `GET`  
-**Auth:** JWT Token (Admin)
-
-**Response:**
-```json
-[
-  {
-    "appointment_id": 101,
-    "date": "2025-05-01",
-    "slot_id": 1,
-    "staff_id": "DOC123",
-    "patient_id": "PAT456"
-  }
-]
-```
-
----
-
-### 8. 🧑 Patient Detail
-
-**Endpoint:** `/api/hospital/general/patients/<patient_id>/`  
-**Method:** `GET`  
-**Auth:** JWT Token (Authenticated)
-
-**Response:**
-```json
-{
-  "patient_id": "PAT456",
-  "patient_name": "John Smith",
-  "patient_email": "john@example.com",
-  "patient_mobile": "1234567890",
-  "dob": "1990-01-01",
-  "gender": "Male",
-  "blood_group": "O+",
-  "address": "123 Main St",
-  "profile_photo": "http://localhost:8000/media/profile_photos/john.jpg"
-}
-```
-
----
-
-### 9. 💓 Enter Patient Vitals
-
-**Endpoint:** `/api/hospital/general/appointments/<appointment_id>/vitals/`  
-**Method:** `POST`  
-**Auth:** JWT Token (Authenticated)
-
-**Request Body:**
-```json
-{
-  "height": 170,
-  "weight": 70,
-  "heartrate": 80,
-  "spo2": 98,
-  "temperature": 98.6
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Vitals saved"
-}
-```
-
----
-
-### 10. 💊 Submit Prescription
-
-**Endpoint:** `/api/hospital/general/appointments/<appointment_id>/prescription/`  
-**Method:** `POST`  
-**Auth:** JWT Token (Authenticated)
-
-**Request Body:**
-```json
-{
-  "remarks": "Take after meals",
-  "medicines": [
+- **URL**: `/api/hospital/general/doctors/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Lists all doctors (patient view)
+- **Response**: 
+  ```json
+  [
     {
-      "medicine_id": 1,
-      "dosage": "1 tablet",
-      "fasting_required": false
+      "staff_id": "DOC456",
+      "staff_name": "Dr. Johnson",
+      "specialization": "Neurology",
+      "doctor_type": "Specialist",
+      "on_leave": false
     }
   ]
-}
-```
+  ```
 
-**Response:**
-```json
-{
-  "message": "Prescription submitted"
-}
-```
+### Doctor Detail (General)
 
----
-
-### 11. 🕘 Assign Doctor Shift
-
-**Endpoint:** `/api/hospital/general/doctors/<staff_id>/shifts/`  
-**Method:** `POST`  
-**Auth:** JWT Token (Admin)
-
-**Request Body:**
-```json
-{
-  "shift_id": 3,
-  "date": "2025-05-01"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Shift assigned"
-}
-```
-
----
-
-### 12. ⏱️ All Slots Assigned to a Doctor
-
-**Endpoint:** `/api/hospital/general/doctors/<staff_id>/all-slots/`  
-**Method:** `GET`  
-**Auth:** JWT Token (Authenticated)
-
-**Response:**
-```json
-[
+- **URL**: `/api/hospital/general/doctors//`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets details of a specific doctor (patient view)
+- **Response**: 
+  ```json
   {
-    "slot_id": 1,
-    "slot_start_time": "10:00:00",
-    "slot_duration": "00:30:00",
-    "shift": "Morning Shift",
-    "date": "2025-05-01"
+    "staff_id": "DOC456",
+    "staff_name": "Dr. Johnson",
+    "specialization": "Neurology",
+    "doctor_type": "Specialist",
+    "on_leave": false
   }
-]
-```
+  ```
 
-# New APIs
+## Appointment Management
 
-# API Documentation for Hospital Management System
+### Doctor Slots
 
-Below is a comprehensive guide to the new APIs for appointments, vitals, and diagnosis in your hospital management system.
+- **URL**: `/api/hospital/general/doctors//slots/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets available slots for a doctor on a specific date
+- **Query Parameters**: `date=YYYY-MM-DD`
+- **Response**: 
+  ```json
+  [
+    {
+      "slot_id": 1,
+      "slot_start_time": "09:00:00",
+      "slot_duration": 30,
+      "is_booked": false
+    },
+    {
+      "slot_id": 2,
+      "slot_start_time": "09:30:00",
+      "slot_duration": 30,
+      "is_booked": true
+    }
+  ]
+  ```
 
-## Appointment APIs
+### Book Appointment
 
-### 1. Book Appointment
-
-**Request:**
-- **Method:** POST
-- **Endpoint:** `/api/hospital/general/appointments/`
-- **Authentication:** JWT Bearer Token
-- **Content-Type:** application/json
-
-**Request Body:**
-```json
-{
-  "date": "2025-05-15",
-  "staff_id": "DOC12345AB",
-  "slot_id": 3,
-  "reason": "Recurring headache and fever"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "message": "Appointment booked",
-  "appointment_id": 42
-}
-```
-
-**Error Response (409 Conflict):**
-```json
-{
-  "error": "Slot already booked"
-}
-```
-
-### 2. Get Appointment History
-
-**Request:**
-- **Method:** GET
-- **Endpoint:** `/api/hospital/general/appointments/history/`
-- **Authentication:** JWT Bearer Token
-
-**Response (200 OK):**
-```json
-[
+- **URL**: `/api/hospital/general/appointments/`
+- **Method**: POST
+- **Authentication**: Required
+- **Description**: Books an appointment with a doctor
+- **Request Body**:
+  ```json
   {
-    "appointment_id": 42,
-    "date": "2025-05-15",
-    "slot_id": 3,
-    "staff_id": "DOC12345AB",
+    "date": "2023-05-15",
+    "staff_id": "DOC456",
+    "slot_id": 1,
+    "reason": "Regular checkup"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Appointment booked",
+    "appointment_id": 123
+  }
+  ```
+
+### Book Appointment with Payment
+
+- **URL**: `/api/hospital/general/appointments/book-with-payment/`
+- **Method**: POST
+- **Authentication**: Required
+- **Description**: Books an appointment with payment
+- **Request Body**:
+  ```json
+  {
+    "date": "2023-05-15",
+    "staff_id": "DOC456",
+    "slot_id": 1,
+    "reason": "Regular checkup",
+    "payment_method_id": 2
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Appointment booked and payment processed",
+    "appointment_id": 124,
+    "transaction_id": 456
+  }
+  ```
+
+### Reschedule Appointment
+
+- **URL**: `/api/hospital/general/appointments//reschedule/`
+- **Method**: PUT
+- **Authentication**: Required
+- **Description**: Reschedules an existing appointment
+- **Request Body**:
+  ```json
+  {
+    "date": "2023-05-20",
+    "slot_id": 3
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Appointment rescheduled successfully",
+    "appointment_id": 124,
+    "new_date": "2023-05-20",
+    "new_slot_id": 3
+  }
+  ```
+
+### Appointment History
+
+- **URL**: `/api/hospital/general/appointments/history/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets appointment history for the authenticated user
+- **Response**: 
+  ```json
+  [
+    {
+      "appointment_id": 123,
+      "date": "2023-05-15",
+      "slot_id": 1,
+      "staff_id": "DOC456",
+      "patient_id": 101,
+      "status": "upcoming",
+      "reason": "Regular checkup"
+    },
+    {
+      "appointment_id": 122,
+      "date": "2023-05-01",
+      "slot_id": 2,
+      "staff_id": "DOC123",
+      "patient_id": 101,
+      "status": "completed",
+      "reason": "Fever"
+    }
+  ]
+  ```
+
+### Appointment Detail
+
+- **URL**: `/api/hospital/general/appointments//`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets details of a specific appointment
+- **Response**: 
+  ```json
+  {
+    "appointment_id": 123,
+    "date": "2023-05-15",
+    "slot_id": 1,
+    "staff_id": "DOC456",
     "patient_id": 101,
     "status": "upcoming",
-    "reason": "Recurring headache and fever"
-  },
-  {
-    "appointment_id": 38,
-    "date": "2025-04-20",
-    "slot_id": 5,
-    "staff_id": "DOC98765CD",
-    "patient_id": 101,
-    "status": "completed",
-    "reason": "Annual checkup"
+    "reason": "Regular checkup",
+    "prescription": null,
+    "diagnosis": null
   }
-]
-```
+  ```
 
-### 3. Get Appointment Details
+### All Appointments (Admin)
 
-**Request:**
-- **Method:** GET
-- **Endpoint:** `/api/hospital/general/appointments/{appointment_id}/`
-- **Authentication:** JWT Bearer Token
+- **URL**: `/api/hospital/general/appointments/admin/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Lists all appointments (admin view)
+- **Response**: 
+  ```json
+  [
+    {
+      "appointment_id": 123,
+      "date": "2023-05-15",
+      "slot_id": 1,
+      "staff_id": "DOC456",
+      "patient_id": 101,
+      "status": "upcoming",
+      "reason": "Regular checkup"
+    },
+    {
+      "appointment_id": 122,
+      "date": "2023-05-01",
+      "slot_id": 2,
+      "staff_id": "DOC123",
+      "patient_id": 102,
+      "status": "completed",
+      "reason": "Fever"
+    }
+  ]
+  ```
 
-**Response (200 OK):**
-```json
-{
-  "appointment_id": 42,
-  "date": "2025-05-15",
-  "slot_id": 3,
-  "staff_id": "DOC12345AB",
-  "patient_id": 101,
-  "status": "upcoming",
-  "reason": "Recurring headache and fever",
-  "prescription": null,
-  "diagnosis": null
-}
-```
+## Patient Management
 
-**Response with Prescription and Diagnosis (200 OK):**
-```json
-{
-  "appointment_id": 38,
-  "date": "2025-04-20",
-  "slot_id": 5,
-  "staff_id": "DOC98765CD",
-  "patient_id": 101,
-  "status": "completed",
-  "reason": "Annual checkup",
-  "prescription": {
-    "prescription_id": 24,
+### Patient Detail
+
+- **URL**: `/api/hospital/general/patients//`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets details of a specific patient
+- **Response**: 
+  ```json
+  {
+    "patient_id": 101,
+    "patient_name": "John Doe",
+    "patient_email": "john@example.com",
+    "patient_mobile": "9876543210",
+    "dob": "1990-01-01",
+    "gender": true,
+    "blood_group": "O+",
+    "address": "123 Main St, City",
+    "profile_photo": "http://example.com/media/patient_photos/john.jpg"
+  }
+  ```
+
+### Latest Patient Vitals
+
+- **URL**: `/api/hospital/general/patients//latest-vitals/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets the latest vitals for a patient
+- **Response**: 
+  ```json
+  {
+    "patient_height": 175.5,
+    "patient_weight": 70.2,
+    "patient_heartrate": 72,
+    "patient_spo2": 98.5,
+    "patient_temperature": 36.8,
+    "created_at": "2023-05-01T10:30:00Z",
+    "appointment_id": 122
+  }
+  ```
+
+### Enter Patient Vitals
+
+- **URL**: `/api/hospital/general/appointments//vitals/`
+- **Method**: POST
+- **Authentication**: Required (Staff)
+- **Description**: Records vitals for a patient during an appointment
+- **Request Body**:
+  ```json
+  {
+    "height": 175.5,
+    "weight": 70.2,
+    "heartrate": 72,
+    "spo2": 98.5,
+    "temperature": 36.8
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Vitals saved"
+  }
+  ```
+
+## Medical Records
+
+### Create Diagnosis
+
+- **URL**: `/api/hospital/general/appointments//diagnosis/`
+- **Method**: POST
+- **Authentication**: Required (Doctor)
+- **Description**: Creates a diagnosis for an appointment
+- **Request Body**:
+  ```json
+  {
+    "diagnosis_data": {
+      "symptoms": ["fever", "cough"],
+      "findings": "Mild respiratory infection",
+      "notes": "Rest advised"
+    },
+    "lab_test_required": true,
+    "follow_up_required": false
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Diagnosis created and appointment marked as completed",
+    "diagnosis_id": 45
+  }
+  ```
+
+### Diagnosis Detail
+
+- **URL**: `/api/hospital/general/diagnosis//`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets details of a specific diagnosis
+- **Response**: 
+  ```json
+  {
+    "diagnosis_id": 45,
+    "diagnosis_data": {
+      "symptoms": ["fever", "cough"],
+      "findings": "Mild respiratory infection",
+      "notes": "Rest advised"
+    },
+    "lab_test_required": true,
+    "follow_up_required": false,
+    "appointment": {
+      "appointment_id": 122,
+      "date": "2023-05-01",
+      "patient_id": 101,
+      "patient_name": "John Doe",
+      "staff_id": "DOC123",
+      "staff_name": "Dr. Smith"
+    }
+  }
+  ```
+
+### Submit Prescription
+
+- **URL**: `/api/hospital/general/appointments//prescription/`
+- **Method**: POST
+- **Authentication**: Required (Doctor)
+- **Description**: Submits a prescription for an appointment
+- **Request Body**:
+  ```json
+  {
     "remarks": "Take with food",
     "medicines": [
       {
-        "medicine_name": "Paracetamol",
+        "medicine_id": 1,
         "dosage": {"morning": 1, "afternoon": 0, "evening": 1},
         "fasting_required": false
+      },
+      {
+        "medicine_id": 2,
+        "dosage": {"morning": 1, "afternoon": 1, "evening": 1},
+        "fasting_required": true
       }
     ]
-  },
-  "diagnosis": {
-    "diagnosis_id": 15,
-    "diagnosis_data": {
-      "condition": "Seasonal flu",
-      "notes": "Patient showing typical symptoms"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Prescription submitted"
+  }
+  ```
+
+### Recommend Lab Tests
+
+- **URL**: `/api/hospital/general/appointments//recommend-lab-tests/`
+- **Method**: POST
+- **Authentication**: Required (Doctor)
+- **Description**: Recommends lab tests for a patient
+- **Request Body**:
+  ```json
+  {
+    "lab_id": 1,
+    "test_type_ids": [2, 3],
+    "priority": "high",
+    "test_datetime": "2023-05-10 10:00:00"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Recommended 2 lab tests",
+    "lab_tests": [
+      {
+        "lab_test_id": 56,
+        "test_type": "Blood Test"
+      },
+      {
+        "lab_test_id": 57,
+        "test_type": "Urine Analysis"
+      }
+    ]
+  }
+  ```
+
+### Pay for Lab Test
+
+- **URL**: `/api/hospital/general/lab-tests//pay/`
+- **Method**: POST
+- **Authentication**: Required (Patient)
+- **Description**: Processes payment for a lab test
+- **Request Body**:
+  ```json
+  {
+    "payment_method_id": 2
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Payment for lab test processed successfully",
+    "transaction_id": 457,
+    "amount": "500.00 $"
+  }
+  ```
+
+### Add Lab Test Results
+
+- **URL**: `/api/hospital/general/lab-tests//results/`
+- **Method**: PUT
+- **Authentication**: Required (Lab Technician)
+- **Description**: Adds results for a lab test
+- **Request Body**:
+  ```json
+  {
+    "test_result": {
+      "hemoglobin": 14.5,
+      "wbc_count": 7500,
+      "rbc_count": 5.2,
+      "platelets": 250000,
+      "notes": "All values within normal range"
     },
-    "lab_test_required": false,
-    "follow_up_required": true
+    "test_image": "file_upload"
   }
-}
-```
-
-### 4. Get All Appointments (Admin/Doctor)
-
-**Request:**
-- **Method:** GET
-- **Endpoint:** `/api/hospital/general/appointments/admin/`
-- **Authentication:** JWT Bearer Token (Admin/Doctor only)
-
-**Response (200 OK):**
-```json
-[
+  ```
+- **Response**: 
+  ```json
   {
-    "appointment_id": 42,
-    "date": "2025-05-15",
-    "slot_id": 3,
-    "staff_id": "DOC12345AB",
-    "patient_id": 101,
-    "status": "upcoming",
-    "reason": "Recurring headache and fever"
-  },
+    "message": "Lab test results added successfully",
+    "lab_test_id": 56
+  }
+  ```
+
+## Schedule Management
+
+### Doctor Schedule
+
+- **URL**: `/api/hospital/general/doctors//schedule/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets the schedule for a doctor
+- **Query Parameters**: `start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
+- **Response**: 
+  ```json
+  [
+    {
+      "date": "2023-05-15",
+      "shift": {
+        "shift_id": 1,
+        "shift_name": "Morning",
+        "start_time": "09:00:00",
+        "end_time": "13:00:00"
+      },
+      "slots": [
+        {
+          "slot_id": 1,
+          "start_time": "09:00:00",
+          "duration": 30,
+          "is_booked": false
+        },
+        {
+          "slot_id": 2,
+          "start_time": "09:30:00",
+          "duration": 30,
+          "is_booked": true,
+          "appointment": {
+            "appointment_id": 123,
+            "patient_id": 101,
+            "patient_name": "John Doe",
+            "status": "upcoming"
+          }
+        }
+      ]
+    }
+  ]
+  ```
+
+### All Doctor Schedules
+
+- **URL**: `/api/hospital/general/doctors/schedules/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Gets schedules for all doctors on a specific date
+- **Query Parameters**: `date=YYYY-MM-DD`
+- **Response**: 
+  ```json
+  [
+    {
+      "doctor": {
+        "staff_id": "DOC123",
+        "staff_name": "Dr. Smith"
+      },
+      "shift": {
+        "shift_id": 1,
+        "shift_name": "Morning",
+        "start_time": "09:00:00",
+        "end_time": "13:00:00"
+      },
+      "slots": [
+        {
+          "slot_id": 1,
+          "start_time": "09:00:00",
+          "duration": 30,
+          "is_booked": false
+        },
+        {
+          "slot_id": 2,
+          "start_time": "09:30:00",
+          "duration": 30,
+          "is_booked": true,
+          "appointment": {
+            "appointment_id": 122,
+            "patient_id": 101,
+            "patient_name": "John Doe",
+            "status": "upcoming"
+          }
+        }
+      ]
+    }
+  ]
+  ```
+
+### Set Staff Schedule
+
+- **URL**: `/api/hospital/general/staff/set-schedule/`
+- **Method**: POST
+- **Authentication**: Required (Staff)
+- **Description**: Sets a schedule for the authenticated staff member
+- **Request Body**:
+  ```json
   {
-    "appointment_id": 41,
-    "date": "2025-05-14",
-    "slot_id": 2,
-    "staff_id": "DOC12345AB",
-    "patient_id": 102,
-    "status": "upcoming",
-    "reason": "Skin rash"
+    "shift_id": 1,
+    "date": "2023-05-20"
   }
-]
-```
-
-## Patient Vitals APIs
-
-### 1. Enter Patient Vitals
-
-**Request:**
-- **Method:** POST
-- **Endpoint:** `/api/hospital/general/appointments/{appointment_id}/vitals/`
-- **Authentication:** JWT Bearer Token
-- **Content-Type:** application/json
-
-**Request Body:**
-```json
-{
-  "height": 175.5,
-  "weight": 70.2,
-  "heartrate": 72,
-  "spo2": 98.5,
-  "temperature": 36.8
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "message": "Vitals saved"
-}
-```
-
-### 2. Get Latest Patient Vitals
-
-**Request:**
-- **Method:** GET
-- **Endpoint:** `/api/hospital/general/patients/{patient_id}/latest-vitals/`
-- **Authentication:** JWT Bearer Token
-
-**Response (200 OK):**
-```json
-{
-  "patient_height": 175.5,
-  "patient_weight": 70.2,
-  "patient_heartrate": 72,
-  "patient_spo2": 98.5,
-  "patient_temperature": 36.8,
-  "created_at": "2025-04-27T10:45:00Z",
-  "appointment_id": 42
-}
-```
-
-**Error Response (404 Not Found):**
-```json
-{
-  "error": "No vitals found for this patient."
-}
-```
-
-## Diagnosis APIs
-
-### 1. Create Diagnosis
-
-**Request:**
-- **Method:** POST
-- **Endpoint:** `/api/hospital/general/appointments/{appointment_id}/diagnosis/`
-- **Authentication:** JWT Bearer Token (Doctor only)
-- **Content-Type:** application/json
-
-**Request Body:**
-```json
-{
-  "diagnosis_data": {
-    "condition": "Migraine",
-    "severity": "Moderate",
-    "notes": "Patient reports recurring episodes",
-    "symptoms": ["Headache", "Light sensitivity", "Nausea"]
-  },
-  "lab_test_required": true,
-  "follow_up_required": true
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "message": "Diagnosis created and appointment marked as completed",
-  "diagnosis_id": 16
-}
-```
-
-### 2. Get Diagnosis Details
-
-**Request:**
-- **Method:** GET
-- **Endpoint:** `/api/hospital/general/diagnosis/{diagnosis_id}/`
-- **Authentication:** JWT Bearer Token
-
-**Response (200 OK):**
-```json
-{
-  "diagnosis_id": 16,
-  "diagnosis_data": {
-    "condition": "Migraine",
-    "severity": "Moderate",
-    "notes": "Patient reports recurring episodes",
-    "symptoms": ["Headache", "Light sensitivity", "Nausea"]
-  },
-  "lab_test_required": true,
-  "follow_up_required": true,
-  "appointment": {
-    "appointment_id": 42,
-    "date": "2025-04-27",
-    "patient_id": 101,
-    "patient_name": "John Doe",
-    "staff_id": "DOC12345AB",
-    "staff_name": "Dr. Sarah Smith"
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Schedule set successfully",
+    "schedule_id": 78,
+    "date": "2023-05-20",
+    "shift": {
+      "shift_id": 1,
+      "shift_name": "Morning"
+    }
   }
-}
-```
+  ```
 
-## Status Field Implementation
+### Set Staff Slots
 
-The Appointment model now includes a status field with three possible values:
-- **upcoming**: Default status for new appointments
-- **completed**: Set when a doctor submits a diagnosis
-- **missed**: Automatically set when an appointment date has passed without a diagnosis
+- **URL**: `/api/hospital/general/admin/set-slots/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Sets slots for a shift
+- **Request Body**:
+  ```json
+  {
+    "shift_id": 1,
+    "slots": [
+      {
+        "start_time": "09:00:00",
+        "duration": 30,
+        "remark": "Regular slot"
+      },
+      {
+        "start_time": "09:30:00",
+        "duration": 30,
+        "remark": "Regular slot"
+      }
+    ]
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Created 2 slots for shift Morning",
+    "shift_id": 1,
+    "slots": [
+      {
+        "slot_id": 1,
+        "start_time": "09:00:00",
+        "duration": 30
+      },
+      {
+        "slot_id": 2,
+        "start_time": "09:30:00",
+        "duration": 30
+      }
+    ]
+  }
+  ```
 
-The status is used in all appointment-related APIs to help filter and display appointments appropriately. When a doctor creates a diagnosis for an appointment, the status is automatically updated to "completed".
+### Assign Doctor Shift
 
-## Authentication and Permissions
+- **URL**: `/api/hospital/general/doctors//shifts/`
+- **Method**: POST
+- **Authentication**: Required
+- **Description**: Assigns a shift to a doctor
+- **Request Body**:
+  ```json
+  {
+    "shift_id": 1,
+    "date": "2023-05-20"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "message": "Shift assigned"
+  }
+  ```
 
-All APIs require JWT authentication. The token should be included in the Authorization header:
+### Doctor All Slots
 
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+- **URL**: `/api/hospital/general/doctors//all-slots/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets all slots for a doctor across all schedules
+- **Response**: 
+  ```json
+  [
+    {
+      "slot_id": 1,
+      "slot_start_time": "09:00:00",
+      "slot_duration": 30,
+      "shift": "Morning",
+      "date": "2023-05-15"
+    },
+    {
+      "slot_id": 5,
+      "slot_start_time": "09:00:00",
+      "slot_duration": 30,
+      "shift": "Morning",
+      "date": "2023-05-16"
+    }
+  ]
+  ```
 
-Certain APIs (like creating a diagnosis) have additional permission requirements to ensure only authorized personnel can perform those actions.
+## Reference Data
+
+### Shift List
+
+- **URL**: `/api/hospital/general/shifts/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Lists all shifts
+- **Response**: 
+  ```json
+  [
+    {
+      "shift_id": 1,
+      "shift_name": "Morning",
+      "start_time": "09:00:00",
+      "end_time": "13:00:00"
+    },
+    {
+      "shift_id": 2,
+      "shift_name": "Afternoon",
+      "start_time": "14:00:00",
+      "end_time": "18:00:00"
+    }
+  ]
+  ```
+
+### Medicine List
+
+- **URL**: `/api/hospital/general/medicines/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Lists all medicines
+- **Response**: 
+  ```json
+  [
+    {
+      "medicine_id": 1,
+      "medicine_name": "Paracetamol",
+      "medicine_remark": "For fever and pain"
+    },
+    {
+      "medicine_id": 2,
+      "medicine_name": "Amoxicillin",
+      "medicine_remark": "Antibiotic"
+    }
+  ]
+  ```
+
+### Target Organ List
+
+- **URL**: `/api/hospital/general/target-organs/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Lists all target organs
+- **Response**: 
+  ```json
+  [
+    {
+      "target_organ_id": 1,
+      "target_organ_name": "Heart",
+      "target_organ_remark": "Cardiovascular system"
+    },
+    {
+      "target_organ_id": 2,
+      "target_organ_name": "Lungs",
+      "target_organ_remark": "Respiratory system"
+    }
+  ]
