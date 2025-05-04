@@ -853,10 +853,21 @@ class PatientProfileView(APIView):
             "patient_mobile": patient.patient_mobile,
             "patient_remark": patient.patient_remark
         }
-        
+
         # Get additional patient details if they exist
         try:
             details = patient.details
+            # Fix the duplicated https:// issue
+            if details.profile_photo:
+                photo_url = details.profile_photo.url
+                if photo_url.startswith(('http://', 'https://')):
+                    # URL is already absolute, use it as is
+                    patient_data["profile_photo"] = photo_url
+                else:
+                    # URL is relative, build absolute URL
+                    patient_data["profile_photo"] = request.build_absolute_uri(photo_url)
+            else:
+                patient_data["profile_photo"] = None
             patient_data.update({
                 "patient_dob": details.patient_dob,
                 "patient_gender": details.patient_gender,
