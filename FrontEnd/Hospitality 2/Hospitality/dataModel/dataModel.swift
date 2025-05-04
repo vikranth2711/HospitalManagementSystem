@@ -359,7 +359,7 @@ class MockHospitalDataStore: ObservableObject {
         ]
     }
     
-    @MainActor func fetchStaff() {
+    func fetchStaff() {
         LabTechnicianService.shared.fetchLabTechnicians { [weak self] result in
                     DispatchQueue.main.async {
                         switch result {
@@ -418,7 +418,7 @@ class MockHospitalDataStore: ObservableObject {
         // You might also want to update doctor details if needed
     }
     
-    @MainActor func deleteStaff(ids: [String]) {
+    func deleteStaff(ids: [String]) {
         LabTechnicianService.shared.deleteLabTechnician(staffId: ids.first ?? "") { [weak self] result in
                     DispatchQueue.main.async {
                         switch result {
@@ -432,10 +432,18 @@ class MockHospitalDataStore: ObservableObject {
                 }
     }
     
+    func updateDoctorDetails(details: DoctorDetails) {
+            if let index = doctors.firstIndex(where: { $0.staffId == details.staffId }) {
+                doctors[index] = details
+                print("Updated doctor details for staffId: \(details.staffId)")
+            } else {
+                print("No doctor found with staffId: \(details.staffId), adding new details")
+                doctors.append(details)
+            }
+        }
+    
     // Lab Technician CRUD
-    @MainActor func fetchLabTechnicians() {
-        // Call fetchStaff to fetch lab technicians from API
-        fetchStaff()
+    func fetchLabTechnicians() {
         print("Fetching lab technicians from API via fetchStaff")
     }
     

@@ -260,9 +260,6 @@ struct AddEditLabTechnicianView: View {
             return
         }
         
-        print("Input values: name=\(name), email=\(email), mobile=\(mobile), certification=\(certification), experience=\(experience), assignedLabId=\(assignedLabName)")
-        print("Lab Types: \(dataStore.labTypes)")
-        
         labTechService.createLabTechnician(
             name: name,
             email: email,
@@ -270,40 +267,37 @@ struct AddEditLabTechnicianView: View {
             certification: certification,
             experienceYears: experienceYears,
             assignedLab: assignedLabName,
-            joiningDate: Date(),
-            completion: { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let response):
-                        print("Success: Created lab technician with staff_id=\(response.staff_id)")
-                        let staff = LabStaff(
-                            id: response.staff_id,
-                            staffName: name,
-                            roleId: "lab_tech_role_id",
-                            createdAt: Date(),
-                            staffEmail: email,
-                            staffMobile: mobile
-                        )
-                        
-                        let techDetails = LabTechnicianDetails(
-                            id: UUID().uuidString,
-                            staffId: response.staff_id,
-                            certificationId: certification,
-                            labExperienceYears: experienceYears,
-                            assignedLabId: assignedLabName
-                        )
-                        
-                        self.onSave(staff, techDetails)
-                        self.presentationMode.wrappedValue.dismiss()
-                        
-                    case .failure(let error):
-                        print("Failure: \(error.localizedDescription)")
-                        self.alertMessage = "Failed to create lab technician: \(error.localizedDescription)"
-                        self.showingAlert = true
-                    }
+            joiningDate: Date()
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let response):
+                    let staff = LabStaff(
+                        id: response.staff_id,
+                        staffName: name,
+                        roleId: "lab_tech_role_id",
+                        createdAt: Date(),
+                        staffEmail: email,
+                        staffMobile: mobile
+                    )
+                    
+                    let techDetails = LabTechnicianDetails(
+                        id: UUID().uuidString,
+                        staffId: response.staff_id,
+                        certificationId: certification,
+                        labExperienceYears: experienceYears,
+                        assignedLabId: assignedLabName
+                    )
+                    
+                    self.onSave(staff, techDetails)
+                    self.presentationMode.wrappedValue.dismiss()
+                    
+                case .failure(let error):
+                    self.alertMessage = "Failed to create lab technician: \(error.localizedDescription)"
+                    self.showingAlert = true
                 }
             }
-        )
+        }
     }
 }
 

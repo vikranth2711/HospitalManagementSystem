@@ -9,12 +9,9 @@ import SwiftUI
 
 @main
 struct HospitalityApp: App {
-    @StateObject private var dataStore = MockHospitalDataStore()
-    
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(dataStore)
         }
     }
 }

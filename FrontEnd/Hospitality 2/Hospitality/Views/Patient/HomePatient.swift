@@ -9,7 +9,6 @@ struct HomePatient: View {
         NavigationStack {
             ZStack {
                 TabView(selection: $selectedTab) {
-                                
                     HomeContent(showProfile: $showProfile)
                         .tabItem {
                             Image(systemName: "house.fill")
@@ -17,7 +16,6 @@ struct HomePatient: View {
                         }
                         .tag(0)
                     
-                    // Reports Tab
                     ReportsContent()
                         .tabItem {
                             Image(systemName: "chart.bar.doc.horizontal")
@@ -25,7 +23,6 @@ struct HomePatient: View {
                         }
                         .tag(1)
                     
-                    // Appointments Tab - Replacing Bills Tab
                     PatientAppointView(appointments: getSampleAppointments())
                         .tabItem {
                             Image(systemName: "calendar.badge.clock")
@@ -34,15 +31,15 @@ struct HomePatient: View {
                         .tag(2)
                 }
                 .accentColor(colorScheme == .dark ? .blue : Color(hex: "4A90E2"))
-                .animation(.easeInOut(duration: 0.3), value: selectedTab) // Smooth tab transition
+                .animation(.easeInOut(duration: 0.3), value: selectedTab)
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
             }
+            .navigationBarBackButtonHidden(true)
         }
     }
     
-    // Helper function to get sample appointments
     private func getSampleAppointments() -> [AppointmentData] {
         return [
             AppointmentData(
@@ -90,13 +87,10 @@ struct HomeContent: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var lastRefreshTime = Date()
-    
-    // For pull-to-refresh
     @State private var isRefreshing = false
     
     var body: some View {
         ZStack {
-            // Background
             LinearGradient(
                 gradient: Gradient(colors: [
                     colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
@@ -107,7 +101,6 @@ struct HomeContent: View {
             )
             .ignoresSafeArea()
             
-            // Background circles
             ForEach(0..<8) { _ in
                 Circle()
                     .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
@@ -125,7 +118,6 @@ struct HomeContent: View {
                 }
             }) {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Header with profile icon and refresh button
                     HStack {
                         VStack(alignment: .leading) {
                             Text("Welcome to Patient Dashboard")
@@ -171,11 +163,9 @@ struct HomeContent: View {
                     .padding(.top, 16)
                     .padding(.horizontal)
                     
-                    // Schedule Appointment Card
                     HStack {
                         Spacer()
                         NavigationLink(destination: PatientDoctorListView(onAppointmentBooked: {
-                            // Refresh when returning from booking
                             refreshAppointments()
                         })) {
                             SquareScheduleCard(
@@ -192,7 +182,6 @@ struct HomeContent: View {
                     }
                     .padding(.vertical, 8)
                     
-                    // Appointment History Section
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text("Recent Appointments")
@@ -211,7 +200,6 @@ struct HomeContent: View {
                             ErrorView(message: error) {
                                 refreshAppointments {}
                             }
-
                         } else if appointmentHistory.isEmpty {
                             EmptyStateView(icon: "Not There", title: "bar", message: "jhfyhfillf")
                         } else {
@@ -382,8 +370,12 @@ struct StatusBadge: View {
     let status: String
     @Environment(\.colorScheme) var colorScheme
     
+    var normalizedStatus: String {
+        status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+    
     var backgroundColor: Color {
-        switch status.lowercased() {
+        switch normalizedStatus {
         case "completed":
             return .green
         case "upcoming":
@@ -414,7 +406,6 @@ struct StatusBadge: View {
     }
 }
 
-// Updated SquareScheduleCard Component
 struct SquareScheduleCard: View {
     let icon: String
     let title: String
@@ -432,7 +423,6 @@ struct SquareScheduleCard: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Icon with gradient background
             ZStack {
                 Circle()
                     .fill(
@@ -450,7 +440,6 @@ struct SquareScheduleCard: View {
                     .foregroundColor(color)
             }
             
-            // Title
             Text(title)
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
@@ -459,7 +448,7 @@ struct SquareScheduleCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity)
-        .frame(height: 200) // Slightly taller for better proportions
+        .frame(height: 200)
         .background(
             RoundedRectangle(cornerRadius: 24)
                 .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
@@ -498,7 +487,6 @@ struct SquareScheduleCard: View {
     }
 }
 
-// Reusable card component for scheduling options
 struct ScheduleCard: View {
     let icon: String
     let title: String
@@ -522,7 +510,6 @@ struct ScheduleCard: View {
             }
         }) {
             VStack(alignment: .leading, spacing: 12) {
-                // Icon with colored background
                 ZStack {
                     Circle()
                         .fill(color.opacity(0.15))
@@ -534,12 +521,10 @@ struct ScheduleCard: View {
                 }
                 .padding(.bottom, 4)
                 
-                // Title
                 Text(title)
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
                 
-                // Description
                 Text(description)
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
@@ -563,14 +548,12 @@ struct ScheduleCard: View {
     }
 }
 
-// BillsContent remains the same but is no longer used in the TabView
 struct BillsContent: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var opacity: Double = 0.0
     
     var body: some View {
         ZStack {
-            // Background
             LinearGradient(
                 gradient: Gradient(colors: [
                     colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
@@ -581,7 +564,6 @@ struct BillsContent: View {
             )
             .ignoresSafeArea()
             
-            // Background circles similar to onboarding
             ForEach(0..<8) { _ in
                 Circle()
                     .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
@@ -611,13 +593,6 @@ struct BillsContent: View {
         }
     }
 }
-
-//struct HomePatient_Previews: PreviewProvider {
-//    static var previews: some View {
-//        HomePatient()
-//            .previewDevice("iPhone 14")
-//    }
-//}
 
 extension PatientAppointHistoryListResponse {
     var formattedDate: String {

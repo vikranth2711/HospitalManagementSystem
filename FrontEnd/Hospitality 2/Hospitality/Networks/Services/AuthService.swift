@@ -69,12 +69,12 @@ struct CreateDoctorResponse: Codable {
     let staff_id: String
 }
 
-// MARK: - Error Handling
 enum DoctorCreationError: Error {
     case invalidURL
-    case unauthorized
-    case serverError(String)
+    case encodingError
     case decodingError
+    case serverError(String)
+    case unauthorized
     case unknownError
 }
 
@@ -188,19 +188,23 @@ struct EditDoctorRequest: Codable {
     let staff_dob: String
     let staff_address: String?
     let staff_qualification: String
+    let profile_photo: String?
     
-    // Helper initializer if needed
-    init(staff_name: String,
-         staff_email: String,
-         staff_mobile: String,
-         on_leave: Bool,
-         specialization: String,
-         license: String,
-         experience_years: Int,
-         doctor_type_id: Int,
-         staff_dob: String,
-         staff_address: String?,
-         staff_qualification: String) {
+    // Helper initializer
+    init(
+        staff_name: String,
+        staff_email: String,
+        staff_mobile: String,
+        on_leave: Bool,
+        specialization: String,
+        license: String,
+        experience_years: Int,
+        doctor_type_id: Int,
+        staff_dob: String,
+        staff_address: String?,
+        staff_qualification: String,
+        profile_photo: String
+    ) {
         self.staff_name = staff_name
         self.staff_email = staff_email
         self.staff_mobile = staff_mobile
@@ -212,6 +216,7 @@ struct EditDoctorRequest: Codable {
         self.staff_dob = staff_dob
         self.staff_address = staff_address
         self.staff_qualification = staff_qualification
+        self.profile_photo = profile_photo
     }
 }
 
@@ -261,7 +266,7 @@ struct SpecificLabTechResponse: Codable {
     let profile_photo: String?
 }
 
-struct UpdateLabTechRequest: Codable {
+struct UpdateLabTechRequest {
     let staff_name: String
     let staff_email: String
     let staff_mobile: String
@@ -272,8 +277,9 @@ struct UpdateLabTechRequest: Codable {
     let staff_dob: String?
     let staff_address: String?
     let staff_qualification: String?
-    let profile_photo: String? // Base64 string or URL
+    let profile_photo: Data?
 }
+
 struct UpdateLabTechResponse: Codable {
     let message: String
 }
@@ -547,50 +553,112 @@ class DoctorService {
         completion: @escaping (Result<EditDoctorResponse, DoctorCreationError>) -> Void
     ) {
         guard let url = URL(string: "\(baseURL)/hospital/admin/doctors/\(staffId)/") else {
+            print("Invalid URL: \(baseURL)/hospital/admin/doctors/\(staffId)/")
             completion(.failure(.invalidURL))
             return
         }
         
+        guard !UserDefaults.accessToken.isEmpty else {
+            print("Missing access token")
+            completion(.failure(.unauthorized))
+            return
+        }
+        
         var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "PUT"  // Changed from PATCH to PUT
-        urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpMethod = "PUT"
+        
+        // Set the Content-Type to multipart/form-data with a unique boundary
+        let boundary = "Boundary-\(UUID().uuidString)"
+        urlRequest.addValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         urlRequest.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
         
-        do {
-            urlRequest.httpBody = try JSONEncoder().encode(request)
-        } catch {
-            completion(.failure(.decodingError))
-            return
+        // Create the form data body
+        var body = Data()
+        
+        // Helper function to append form data fields
+        func appendFormField(name: String, value: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        
+        // Append each field from the request
+        appendFormField(name: "staff_name", value: request.staff_name)
+        appendFormField(name: "staff_email", value: request.staff_email)
+        appendFormField(name: "staff_mobile", value: request.staff_mobile)
+        appendFormField(name: "on_leave", value: request.on_leave.description)
+        appendFormField(name: "specialization", value: request.specialization)
+        appendFormField(name: "license", value: request.license)
+        appendFormField(name: "experience_years", value: "\(request.experience_years)")
+        appendFormField(name: "doctor_type_id", value: "\(request.doctor_type_id)")
+        appendFormField(name: "staff_dob", value: request.staff_dob)
+        appendFormField(name: "staff_qualification", value: request.staff_qualification)
+        
+        if let address = request.staff_address {
+            appendFormField(name: "staff_address", value: address)
+        }
+        
+        if let profilePhoto = request.profile_photo {
+            appendFormField(name: "profile_photo", value: profilePhoto)
+        }
+        
+        // Close the form data
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        urlRequest.httpBody = body
+        
+        print("Request URL: \(url)")
+        if let bodyString = String(data: body, encoding: .utf8) {
+            print("Request Body: \(bodyString)")
         }
         
         URLSession.shared.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
+                print("Network error: \(error.localizedDescription)")
                 completion(.failure(.serverError(error.localizedDescription)))
                 return
             }
             
             guard let httpResponse = response as? HTTPURLResponse else {
+                print("Invalid response: No HTTP response")
                 completion(.failure(.unknownError))
                 return
             }
             
-            if httpResponse.statusCode == 401 {
+            print("Response Status: \(httpResponse.statusCode)")
+            if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                print("Response Data: \(responseString)")
+            }
+            
+            switch httpResponse.statusCode {
+            case 200...299:
+                guard let data = data else {
+                    print("No response data")
+                    completion(.failure(.serverError("No data received")))
+                    return
+                }
+                do {
+                    let response = try JSONDecoder().decode(EditDoctorResponse.self, from: data)
+                    print("Decoded Response: \(response)")
+                    completion(.success(response))
+                } catch {
+                    print("Decoding error: \(error)")
+                    completion(.failure(.decodingError))
+                }
+            case 401:
+                print("Unauthorized request")
                 completion(.failure(.unauthorized))
-                return
-            }
-            
-            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+            case 400:
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Bad request"
+                print("Bad request: \(errorMessage)")
+                completion(.failure(.serverError("Bad request: \(errorMessage)")))
+            case 403:
+                print("Forbidden request")
+                completion(.failure(.serverError("Forbidden")))
+            default:
                 let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
-                completion(.failure(.serverError(errorMessage)))
-                return
-            }
-            
-            do {
-                let response = try JSONDecoder().decode(EditDoctorResponse.self, from: data)
-                completion(.success(response))
-            } catch {
-                print("Decoding error: \(error)")
-                completion(.failure(.decodingError))
+                print("Unexpected status code: \(httpResponse.statusCode), message: \(errorMessage)")
+                completion(.failure(.serverError("Unexpected status code: \(httpResponse.statusCode), message: \(errorMessage)")))
             }
         }.resume()
     }
@@ -717,7 +785,6 @@ class DoctorService {
     }
 }
 
-@MainActor
 class LabTechnicianService: ObservableObject {
     static let shared = LabTechnicianService()
     private let baseURL = Constants.baseURL
@@ -732,8 +799,6 @@ class LabTechnicianService: ObservableObject {
         joiningDate: Date,
         completion: @escaping (Result<createLabTechResponse, DoctorCreationError>) -> Void
     ) {
-        print("Input parameters: name=\(name), email=\(email), mobile=\(mobile), certification=\(certification), experienceYears=\(experienceYears), assignedLab=\(assignedLab), joiningDate=\(joiningDate)")
-        
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let joiningDateString = formatter.string(from: joiningDate)
@@ -748,16 +813,10 @@ class LabTechnicianService: ObservableObject {
             staff_joining_date: joiningDateString
         )
         
-        print("Request Body: \(requestBody)")
-        
         guard let url = URL(string: "\(baseURL)/hospital/admin/lab-technicians/create/") else {
-            print("Invalid URL: \(baseURL)/admin/lab-technicians/create/")
             completion(.failure(.invalidURL))
             return
         }
-        
-        print("Request URL: \(url.absoluteString)")
-        print("Access Token: \(UserDefaults.accessToken)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -767,7 +826,6 @@ class LabTechnicianService: ObservableObject {
         do {
             request.httpBody = try JSONEncoder().encode(requestBody)
         } catch {
-            print("Encoding error: \(error)")
             completion(.failure(.decodingError))
             return
         }
@@ -933,9 +991,9 @@ class LabTechnicianService: ObservableObject {
         experienceYears: Int,
         assignedLab: String,
         onLeave: Bool,
-        dob: String,
-        address: String,
-        qualification: String,
+        dob: String?,
+        address: String?,
+        qualification: String?,
         photo: UIImage?,
         completion: @escaping (Result<UpdateLabTechResponse, Error>) -> Void
     ) {
@@ -956,24 +1014,40 @@ class LabTechnicianService: ObservableObject {
         
         var body = Data()
         
-        // Add text fields
-        let textParams: [String: Any] = [
+        // Add required fields
+        let requiredParams: [String: Any] = [
             "staff_name": name,
             "staff_email": email,
             "staff_mobile": mobile,
             "certification": certification,
             "lab_experience_years": experienceYears,
             "assigned_lab": assignedLab,
-            "on_leave": onLeave,
-            "staff_dob": dob,
-            "staff_address": address,
-            "staff_qualification": qualification
+            "on_leave": onLeave
         ]
         
-        for (key, value) in textParams {
+        for (key, value) in requiredParams {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
             body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        
+        // Add optional fields if they exist
+        if let dob = dob {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"staff_dob\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(dob)\r\n".data(using: .utf8)!)
+        }
+        
+        if let address = address {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"staff_address\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(address)\r\n".data(using: .utf8)!)
+        }
+        
+        if let qualification = qualification {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"staff_qualification\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(qualification)\r\n".data(using: .utf8)!)
         }
         
         // Add image data if available

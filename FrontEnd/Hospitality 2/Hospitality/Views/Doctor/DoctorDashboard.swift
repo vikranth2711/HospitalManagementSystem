@@ -3,39 +3,46 @@ import SwiftUI
 struct DoctorDashboardView: View {
     @StateObject private var viewModel = DoctorViewModel()
     @State private var selectedTab = 0
+    @Environment(\.colorScheme) var colorScheme
     let doctorId: String
-
+    
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NavigationView {
-                contentView(for: 0)
-                    .navigationTitle("My Shifts")
+        NavigationView {
+            ZStack {
+                // Background
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
+                        colorScheme == .dark ? Color(hex: "1A202C") : Color(hex: "F0F8FF")
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Profile Header
+                    ProfileHeaderView()
+                    
+                    // Tab Content
+                    TabView(selection: $selectedTab) {
+                        contentView(for: 0)
+                            .tag(0)
+                        
+                        contentView(for: 1)
+                            .tag(1)
+                    }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    
+                    // Custom Tab Bar
+                    CustomTabBar(selectedTab: $selectedTab)
+                }
             }
-            .tabItem {
-                Label("Shifts", systemImage: "calendar")
+            .navigationBarHidden(true)
+            .onAppear {
+                viewModel.fetchDoctorShifts(doctorId: doctorId)
+                viewModel.fetchDoctorAppointments()
             }
-            .tag(0)
-            
-            NavigationView {
-                contentView(for: 1)
-                    .navigationTitle("Appointments")
-            }
-            .tabItem {
-                Label("Appointments", systemImage: "list.bullet.clipboard")
-            }
-            .tag(1)
-            
-            NavigationView {
-                DocProfile()
-            }
-            .tabItem {
-                Label("Profile", systemImage: "person.circle")
-            }
-            .tag(2)
-        }
-        .onAppear {
-            viewModel.fetchDoctorShifts(doctorId: doctorId)
-            viewModel.fetchDoctorAppointments()
         }
     }
 
@@ -59,6 +66,100 @@ struct DoctorDashboardView: View {
             default:
                 EmptyView()
             }
+        }
+    }
+}
+
+struct ProfileHeaderView: View {
+    @State private var showingProfileDetails = false
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Dr. Swati Swapna")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                
+                Text("General Medicine")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                showingProfileDetails = true
+            }) {
+                Image(systemName: "person.circle.fill")
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .foregroundColor(colorScheme == .dark ? .white : .blue)
+            }
+            .sheet(isPresented: $showingProfileDetails) {
+                NavigationView {
+                    DocProfile()
+                }
+            }
+        }
+        .padding()
+        .background(
+            colorScheme == .dark ?
+                Color(hex: "1E2433").opacity(0.8) :
+                Color.white.opacity(0.9)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .padding(.horizontal)
+        .padding(.top, 10)
+    }
+}
+
+struct CustomTabBar: View {
+    @Binding var selectedTab: Int
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            TabButton(title: "Shifts", icon: "calendar", isSelected: selectedTab == 0) {
+                selectedTab = 0
+            }
+            
+            TabButton(title: "Appointments", icon: "list.bullet.clipboard", isSelected: selectedTab == 1) {
+                selectedTab = 1
+            }
+        }
+        .padding(.vertical, 12)
+        .background(
+            colorScheme == .dark ?
+                Color(hex: "1E2433").opacity(0.9) :
+                Color.white.opacity(0.9)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: -2)
+        .padding(.horizontal)
+        .padding(.bottom, 10)
+    }
+}
+
+struct TabButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundColor(isSelected ? .blue : .gray)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
         }
     }
 }
@@ -90,6 +191,10 @@ struct DocErrorView: View {
             .padding(.horizontal)
         }
         .padding()
+        .background(Color(.systemBackground).opacity(0.9))
+        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .padding()
     }
 }
 
@@ -98,7 +203,12 @@ struct ShiftsListView: View {
     
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("My Shifts")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.horizontal)
+                
                 if shifts.isEmpty {
                     EmptyStateView(
                         icon: "calendar.badge.clock",
@@ -113,12 +223,12 @@ struct ShiftsListView: View {
             }
             .padding()
         }
-        .navigationTitle("My Shifts")
     }
 }
 
 struct ShiftCardView: View {
     let shift: DoctorResponse.PatientDoctorSlotResponse
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -142,8 +252,13 @@ struct ShiftCardView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(
+            colorScheme == .dark ?
+                Color(hex: "1E2433").opacity(0.7) :
+                Color.white.opacity(0.9)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: Color.black.opacity(0.07), radius: 3, x: 0, y: 2)
     }
 
     private func formatTime(_ timeString: String) -> String {
@@ -151,11 +266,11 @@ struct ShiftCardView: View {
     }
 }
 
-
 struct EmptyStateView: View {
     let icon: String
     let title: String
     let message: String
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 12) {
@@ -174,7 +289,14 @@ struct EmptyStateView: View {
                 .padding(.horizontal)
         }
         .padding(.top, 60)
+        .padding(.bottom, 60)
         .frame(maxWidth: .infinity)
+        .background(
+            colorScheme == .dark ?
+                Color(hex: "1E2433").opacity(0.5) :
+                Color.white.opacity(0.7)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
 }
 
@@ -184,6 +306,8 @@ struct DoctorProfileView: View {
     @State private var email = "swati@hospital.com"
     @State private var phone = "+1234567890"
     @State private var showingLogoutConfirmation = false
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
         ScrollView {
@@ -207,8 +331,13 @@ struct DoctorProfileView: View {
                         .padding(.bottom)
                 }
                 .padding()
-                .background(Color(.systemGray6))
+                .background(
+                    colorScheme == .dark ?
+                        Color(hex: "1E2433").opacity(0.8) :
+                        Color(hex: "F0F8FF").opacity(0.9)
+                )
                 .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                 
                 // Contact information
                 GroupBox(label: Label("Contact Information", systemImage: "envelope.fill").font(.headline)) {
@@ -216,6 +345,7 @@ struct DoctorProfileView: View {
                     
                     ProfileDetailRow(icon: "phone", label: "Phone", value: phone)
                 }
+                .groupBoxStyle(ModernGroupBoxStyle())
                 
                 // Settings
                 GroupBox(label: Label("Settings", systemImage: "gearshape.fill").font(.headline)) {
@@ -235,6 +365,7 @@ struct DoctorProfileView: View {
                         ProfileSettingRow(icon: "lock.shield", title: "Security & Privacy")
                     }
                 }
+                .groupBoxStyle(ModernGroupBoxStyle())
                 
                 // Log out button
                 Button(action: {
@@ -265,7 +396,56 @@ struct DoctorProfileView: View {
             }
             .padding()
         }
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
+                    colorScheme == .dark ? Color(hex: "1A202C") : Color(hex: "F0F8FF")
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+        )
         .navigationTitle("My Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.blue)
+                }
+            }
+        }
+    }
+}
+
+struct ModernGroupBoxStyle: GroupBoxStyle {
+    @Environment(\.colorScheme) var colorScheme
+    
+    func makeBody(configuration: Configuration) -> some View {
+        VStack {
+            HStack {
+                configuration.label
+                    .font(.headline)
+                Spacer()
+            }
+            .padding(.bottom, 8)
+            
+            VStack(alignment: .leading) {
+                configuration.content
+            }
+        }
+        .padding()
+        .background(
+            colorScheme == .dark ?
+                Color(hex: "1E2433").opacity(0.8) :
+                Color.white.opacity(0.9)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
     }
 }
 
@@ -313,8 +493,18 @@ struct ProfileSettingRow: View {
         .padding(.vertical, 8)
     }
 }
-struct DoctorDashboardView_pREVIEW: PreviewProvider {
+
+
+struct DoctorDashboardView_Preview: PreviewProvider {
     static var previews: some View {
-        DoctorDashboardView(doctorId: "DOC735A4911")
+        Group {
+            DoctorDashboardView(doctorId: "DOC735A4911")
+                .preferredColorScheme(.light)
+                .previewDisplayName("Light Mode")
+            
+            DoctorDashboardView(doctorId: "DOC735A4911")
+                .preferredColorScheme(.dark)
+                .previewDisplayName("Dark Mode")
+        }
     }
 }

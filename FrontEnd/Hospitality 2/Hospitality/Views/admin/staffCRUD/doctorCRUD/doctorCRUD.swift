@@ -494,7 +494,7 @@ struct DoctorDetailView: View {
                 onSave: { updatedStaff, updatedDoctorDetails in
                     // Handle the updated doctor information
                     self.doctorDetails = updatedDoctorDetails
-                    // You might want to refresh the details here
+                    // Refresh the details
                     self.fetchDoctorDetails()
                 }
             )
@@ -651,21 +651,21 @@ struct EditDoctorView: View {
     let doctorDetails: SpecificDoctorResponse?
     let onSave: (Staff, SpecificDoctorResponse) -> Void
     
-    // Editable fields
     @State private var name: String
     @State private var email: String
     @State private var mobile: String
     @State private var specialization: String
     @State private var license: String
     @State private var experience: String
-    @State private var doctorTypeId: Int = 0
+    @State private var doctorTypeId: Int
     @State private var onLeave: Bool
     @State private var isLoading = false
     @State private var errorMessage: String?
-    
     @State private var dob: String
     @State private var address: String
     @State private var qualifications: String
+    @State private var profilePhoto: String
+    @State private var showingPhotoPicker = false
     
     init(staff: Staff, dataStore: MockHospitalDataStore, doctorDetails: SpecificDoctorResponse?, onSave: @escaping (Staff, SpecificDoctorResponse) -> Void) {
         self.staff = staff
@@ -686,6 +686,7 @@ struct EditDoctorView: View {
             _dob = State(initialValue: details.staff_dob)
             _address = State(initialValue: details.staff_address ?? "")
             _qualifications = State(initialValue: details.staff_qualification)
+            _profilePhoto = State(initialValue: details.profile_photo ?? "file_upload")
         } else {
             _specialization = State(initialValue: "")
             _license = State(initialValue: "")
@@ -694,12 +695,45 @@ struct EditDoctorView: View {
             _dob = State(initialValue: "")
             _address = State(initialValue: "")
             _qualifications = State(initialValue: "")
+            _profilePhoto = State(initialValue: "file_upload")
         }
     }
     
     var body: some View {
         NavigationView {
             Form {
+                Section(header: Text("Profile Photo")) {
+                    HStack {
+                        if profilePhoto != "file_upload", let url = URL(string: profilePhoto) {
+                            AsyncImage(url: url) { image in
+                                image.resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(Circle())
+                            } placeholder: {
+                                Image(systemName: "person.crop.circle.fill")
+                                    .resizable()
+                                    .frame(width: 60, height: 60)
+                                    .foregroundColor(.main)
+                            }
+                        } else {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .frame(width: 60, height: 60)
+                                .foregroundColor(.main)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            showingPhotoPicker = true
+                        }) {
+                            Text("Change Photo")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                }
+                
                 Section(header: Text("Basic Information")) {
                     TextField("Name", text: $name)
                     TextField("Email", text: $email)
@@ -715,19 +749,18 @@ struct EditDoctorView: View {
                     TextField("License Number", text: $license)
                     TextField("Experience (Years)", text: $experience)
                         .keyboardType(.numberPad)
-                    
-                    Section(header: Text("Personal Information")) {
-                        Text("Date of Birth: \(dob)")
-                            .foregroundColor(.secondary)
-                        TextField("Address", text: $address)
-                        TextField("Qualifications", text: $qualifications)
-                    }
-                    
                     Picker("Doctor Type", selection: $doctorTypeId) {
                         ForEach(dataStore.doctorTypes, id: \.id) { type in
                             Text(type.name).tag(type.id)
                         }
                     }
+                }
+                
+                Section(header: Text("Personal Information")) {
+                    Text("Date of Birth: \(dob)")
+                        .foregroundColor(.secondary)
+                    TextField("Address", text: $address)
+                    TextField("Qualifications", text: $qualifications)
                 }
                 
                 if let error = errorMessage {
@@ -738,6 +771,13 @@ struct EditDoctorView: View {
                 }
             }
             .navigationTitle("Edit Doctor")
+            .disabled(isLoading)
+            .overlay(
+                isLoading ? ProgressView().progressViewStyle(CircularProgressViewStyle()) : nil
+            )
+            .sheet(isPresented: $showingPhotoPicker) {
+                PhotoPickerView(selectedPhotoUrl: $profilePhoto)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
@@ -748,16 +788,34 @@ struct EditDoctorView: View {
                     Button("Save") {
                         saveChanges()
                     }
-                    .disabled(name.isEmpty || email.isEmpty || mobile.isEmpty || specialization.isEmpty || license.isEmpty || experience.isEmpty || doctorTypeId == 0)
+                    .disabled(name.isEmpty || email.isEmpty || mobile.isEmpty || specialization.isEmpty || license.isEmpty || experience.isEmpty || doctorTypeId == 0 || qualifications.isEmpty || profilePhoto.isEmpty)
                 }
             }
         }
     }
     
     private func saveChanges() {
-        guard let experienceYears = Int(experience),
-              let doctorDetails = doctorDetails else {
-            errorMessage = "Please enter valid experience and doctor type"
+        guard let experienceYears = Int(experience) else {
+            errorMessage = "Please enter a valid number for experience"
+            print("Invalid experience: \(experience)")
+            return
+        }
+        
+        guard doctorTypeId != 0 else {
+            errorMessage = "Please select a valid doctor type"
+            print("Invalid doctorTypeId: \(doctorTypeId)")
+            return
+        }
+        
+        guard email.contains("@") && email.contains(".") else {
+            errorMessage = "Please enter a valid email address"
+            print("Invalid email: \(email)")
+            return
+        }
+        
+        guard !profilePhoto.isEmpty else {
+            errorMessage = "Profile photo is required"
+            print("Missing profile photo")
             return
         }
         
@@ -772,21 +830,22 @@ struct EditDoctorView: View {
             specialization: specialization,
             license: license,
             experience_years: experienceYears,
-            doctor_type_id: doctorTypeId,  // Using Int directly
+            doctor_type_id: doctorTypeId,
             staff_dob: dob,
-            staff_address: address,
-            staff_qualification: qualifications
+            staff_address: address.isEmpty ? nil : address,
+            staff_qualification: qualifications,
+            profile_photo: profilePhoto
         )
+        
+        print("EditDoctorRequest: \(request)")
         
         DoctorService.shared.updateDoctor(staffId: staff.id, request: request) { result in
             DispatchQueue.main.async {
                 isLoading = false
-                
                 switch result {
                 case .success(let response):
-                    print("Doctor updated successfully: \(response.message)")
+                    print("Update successful: \(response.message)")
                     
-                    // Create updated objects
                     let updatedStaff = Staff(
                         id: staff.id,
                         staffName: name,
@@ -797,36 +856,42 @@ struct EditDoctorView: View {
                         onLeave: onLeave
                     )
                     
-                    // Find the selected doctor type
-                    let selectedType = dataStore.doctorTypes.first { $0.id == doctorTypeId }
-                    
-                    var updatedDetails = doctorDetails
-                    updatedDetails.staff_name = name
-                    updatedDetails.staff_email = email
-                    updatedDetails.staff_mobile = mobile
-                    updatedDetails.on_leave = onLeave
-                    updatedDetails.specialization = specialization
-                    updatedDetails.license = license
-                    updatedDetails.experience_years = experienceYears
-                    updatedDetails.doctor_type = DoctorType(
-                        id: doctorTypeId,
-                        name: selectedType?.name ?? "Unknown"
+                    let updatedDetails = SpecificDoctorResponse(
+                        staff_id: staff.id,
+                        staff_name: name,
+                        staff_email: email,
+                        staff_mobile: mobile,
+                        created_at: doctorDetails?.created_at ?? "",
+                        specialization: specialization,
+                        license: license,
+                        experience_years: experienceYears,
+                        doctor_type: DoctorType(
+                            id: doctorTypeId,
+                            name: dataStore.doctorTypes.first { $0.id == doctorTypeId }?.name ?? "Unknown"
+                        ),
+                        on_leave: onLeave,
+                        staff_dob: dob,
+                        staff_address: address,
+                        staff_qualification: qualifications,
+                        profile_photo: profilePhoto
                     )
-                    updatedDetails.staff_dob = dob
-                    updatedDetails.staff_address = address
-                    updatedDetails.staff_qualification = qualifications
                     
-                    // Update local data store
                     dataStore.updateStaff(staff: updatedStaff)
+                    dataStore.updateDoctorDetails(details: DoctorDetails(
+                        id: UUID().uuidString,
+                        staffId: staff.id,
+                        doctorSpecialization: specialization,
+                        doctorLicense: license,
+                        doctorExperienceYears: experienceYears,
+                        doctorTypeId: doctorTypeId
+                    ))
                     
-                    // Call completion handler
                     onSave(updatedStaff, updatedDetails)
-                    
-                    // Dismiss the view
                     presentationMode.wrappedValue.dismiss()
                     
                 case .failure(let error):
                     errorMessage = "Failed to update doctor: \(error.localizedDescription)"
+                    print("Update failed: \(error)")
                 }
             }
         }
@@ -855,6 +920,50 @@ struct SearchBar: View {
             .padding(8)
             .background(Color(.systemGray6))
             .cornerRadius(10)
+        }
+    }
+}
+
+struct PhotoPickerView: View {
+    @Binding var selectedPhotoUrl: String
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Select Profile Photo")) {
+                    Button(action: {
+                        // Simulate photo selection by setting a placeholder URL
+                        // In a real app, this would open a photo picker and upload to a server
+                        selectedPhotoUrl = "https://example.com/doctor_profile_\(UUID().uuidString).jpg"
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "photo")
+                            Text("Choose Photo")
+                        }
+                    }
+                    
+                    Button(action: {
+                        // Reset to default
+                        selectedPhotoUrl = "file_upload"
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("Remove Photo")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select Photo")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
         }
     }
 }
