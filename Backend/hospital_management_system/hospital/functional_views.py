@@ -1241,3 +1241,4 @@ class AddLabTestResultsView(APIView):
             "message": "Lab test results added successfully",
             "lab_test_id": lab_test.lab_test_id
         }, status=200)
+

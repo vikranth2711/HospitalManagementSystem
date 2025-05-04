@@ -12,6 +12,8 @@ from .permissions import IsAdminStaff
 import uuid
 import datetime
 from django.contrib.auth.hashers import make_password
+from .serializers import LabSerializer
+from .models import Lab, LabType
 class StaffProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -703,3 +705,58 @@ class CreateDoctorView(APIView):
             return Response({"error": str(e)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class LabListCreateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminStaff]
+    
+    def get(self, request):
+        """List all labs"""
+        labs = Lab.objects.all()
+        serializer = LabSerializer(labs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+        """Create a new lab"""
+        serializer = LabSerializer(data=request.data)
+        if serializer.is_valid():
+            # Verify that lab_type exists
+            try:
+                LabType.objects.get(lab_type_id=request.data.get('lab_type'))
+            except LabType.DoesNotExist:
+                return Response({"error": "Invalid lab type ID"}, status=status.HTTP_400_BAD_REQUEST)
+                
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LabDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminStaff]
+    
+    def get(self, request, lab_id):
+        """Retrieve a lab by ID"""
+        lab = get_object_or_404(Lab, lab_id=lab_id)
+        serializer = LabSerializer(lab)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def put(self, request, lab_id):
+        """Update a lab"""
+        lab = get_object_or_404(Lab, lab_id=lab_id)
+        serializer = LabSerializer(lab, data=request.data)
+        if serializer.is_valid():
+            # Verify that lab_type exists if it's being updated
+            if 'lab_type' in request.data:
+                try:
+                    LabType.objects.get(lab_type_id=request.data.get('lab_type'))
+                except LabType.DoesNotExist:
+                    return Response({"error": "Invalid lab type ID"}, status=status.HTTP_400_BAD_REQUEST)
+                    
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, lab_id):
+        """Delete a lab"""
+        lab = get_object_or_404(Lab, lab_id=lab_id)
+        lab.delete()
+        return Response({"message": "Lab deleted successfully"}, status=status.HTTP_204_NO_CONTENT)

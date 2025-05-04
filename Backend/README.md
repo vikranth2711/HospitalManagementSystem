@@ -1551,3 +1551,114 @@ urlpatterns = [
     path('lab-tests//generate-invoice/', views.GenerateLabTestInvoiceView.as_view(), name='generate-lab-test-invoice'),
     path('lab-tests/generate-multiple-invoice/', views.GenerateMultipleLabTestsInvoiceView.as_view(), name='generate-multiple-lab-tests-invoice'),
 ]
+```
+
+# Lab Management API Reference
+
+## Lab CRUD Operations
+
+### List All Labs
+
+- **URL**: `/api/hospital/admin/labs/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves a list of all labs in the system
+- **Response**: 
+  ```json
+  [
+    {
+      "lab_id": 1,
+      "lab_name": "Pathology Lab",
+      "lab_type": 1,
+      "lab_type_name": "Pathology",
+      "functional": true
+    },
+    {
+      "lab_id": 2,
+      "lab_name": "Radiology Lab",
+      "lab_type": 2,
+      "lab_type_name": "Radiology",
+      "functional": true
+    }
+  ]
+  ```
+
+### Create Lab
+
+- **URL**: `/api/hospital/admin/labs/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Creates a new lab
+- **Request Body**:
+  ```json
+  {
+    "lab_name": "Biochemistry Lab",
+    "lab_type": 3,
+    "functional": true
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "lab_id": 3,
+    "lab_name": "Biochemistry Lab",
+    "lab_type": 3,
+    "lab_type_name": "Biochemistry",
+    "functional": true
+  }
+  ```
+
+### Retrieve Lab
+
+- **URL**: `/api/hospital/admin/labs//`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves details of a specific lab
+- **Response**: 
+  ```json
+  {
+    "lab_id": 1,
+    "lab_name": "Pathology Lab",
+    "lab_type": 1,
+    "lab_type_name": "Pathology",
+    "functional": true
+  }
+  ```
+
+### Update Lab
+
+- **URL**: `/api/hospital/admin/labs//`
+- **Method**: PUT
+- **Authentication**: Required (Admin)
+- **Description**: Updates a lab's details
+- **Request Body**:
+  ```json
+  {
+    "lab_name": "Advanced Pathology Lab",
+    "lab_type": 1,
+    "functional": true
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "lab_id": 1,
+    "lab_name": "Advanced Pathology Lab",
+    "lab_type": 1,
+    "lab_type_name": "Pathology",
+    "functional": true
+  }
+  ```
+
+### Delete Lab
+
+- **URL**: `/api/hospital/admin/labs//`
+- **Method**: DELETE
+- **Authentication**: Required (Admin)
+- **Description**: Deletes a lab
+- **Response**: 
+  ```json
+  {
+    "message": "Lab deleted successfully"
+  }
+  ```
