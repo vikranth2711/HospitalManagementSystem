@@ -11,24 +11,8 @@ struct AppointmentsListView: View {
     
     var body: some View {
         VStack {
-            // Doctor info header
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("Welcome, \(doctorName)")
-                        .font(.headline)
-                    Text(formattedCurrentDate())
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                Image(systemName: "bell")
-                    .font(.title3)
-                    .foregroundColor(.blue)
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-            .padding(.horizontal)
+            
+            Spacer()
             
             // Filter selector
             Picker("Filter", selection: $filterOption) {

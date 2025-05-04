@@ -178,13 +178,10 @@ struct ActionButtonsSection: View {
                 )
             }
             
-            NavigationLink(destination: ConsultationView(
-                appointmentId: appointmentId,
-                patientId: patientId
-            )) {
+            NavigationLink(destination:  PrescriptionFormView()) {
                 ActionButtonContent(
                     icon: "stethoscope",
-                    title: "Diagnose",
+                    title: "Diagnosis",
                     color: .blue
                 )
             }

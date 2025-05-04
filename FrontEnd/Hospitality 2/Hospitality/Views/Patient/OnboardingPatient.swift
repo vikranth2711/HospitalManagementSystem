@@ -1,12 +1,14 @@
 import SwiftUI
 import UIKit // For haptic feedback
 
-struct Onboarding: View {
+
+
+struct OnboardingPatient: View {
     @State private var currentScreen = 0
     @State private var opacity: Double = 0.0
     @State private var scale: CGFloat = 0.8
     @State private var offset: CGFloat = 0.0
-    @State private var navigateToLogin = false
+    @State private var navigateToHome = false
     @State private var cardRotation: Double = 0
     @State private var iconPulse: CGFloat = 1.0
     @Environment(\.colorScheme) var colorScheme
@@ -17,38 +19,35 @@ struct Onboarding: View {
     @State private var isAnimating = false
     @State private var cardScale: CGFloat = 1.0
     
-    @State private var indicatorWidth: CGFloat = 8
-    @State private var indicatorOffset: CGFloat = 0
-    
     let screens = [
-        OnboardingScreen(
-            title: "Patient Management",
-            icon: "Patient", // Image from Assets.xcassets
-            description: "Streamlined healthcare access",
+        OnboardingScreen1(
+            title: "Book Appointments",
+            icon: "Calendar",
+            description: "Schedule visits with ease",
             features: [
-                "Schedule Appointments",
-                "Access Medical Records",
-                "View Test Results"
+                "Choose your doctor",
+                "Pick convenient times",
+                "Get reminders"
             ]
         ),
-        OnboardingScreen(
-            title: "Doctor Management",
-            icon: "Doctor",
-            description: "Efficient patient care system",
+        OnboardingScreen1(
+            title: "Medical Records",
+            icon: "Records",
+            description: "Access your health history",
             features: [
-                "Manage Schedules",
-                "Update Records",
-                "Review Results"
+                "View past visits",
+                "Download reports",
+                "Share with doctors"
             ]
         ),
-        OnboardingScreen(
-            title: "Hospital",
-            icon: "Hospital", // Replace with your actual asset name
-            description: "Complete facility oversight",
+        OnboardingScreen1(
+            title: "Test Results",
+            icon: "Results",
+            description: "Stay informed about your health",
             features: [
-                "Oversee Operations",
-                "Manage Staff",
-                "Track Resources"
+                "View lab results",
+                "Track trends",
+                "Get notifications"
             ]
         )
     ]
@@ -68,10 +67,10 @@ struct Onboarding: View {
                     )
                     .ignoresSafeArea()
                     
-                    ForEach(0..<12) { _ in
+                    ForEach(0..<8) { _ in
                         Circle()
                             .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
-                            .frame(width: CGFloat.random(in: 50...200))
+                            .frame(width: CGFloat.random(in: 50...150))
                             .position(
                                 x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
                                 y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
@@ -88,7 +87,7 @@ struct Onboarding: View {
                                 .foregroundColor(colorScheme == .dark ? .blue : Color(hex: "4A90E2"))
                                 .font(.system(size: 24))
                             
-                            Text("Hospitality")
+                            Text("Patient Care")
                                 .font(.system(size: 20, weight: .bold, design: .rounded))
                                 .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
                         }
@@ -99,7 +98,7 @@ struct Onboarding: View {
                         Button(action: {
                             triggerHaptic()
                             withAnimation(.easeInOut(duration: 0.6)) {
-                                navigateToLogin = true
+                                navigateToHome = true
                                 opacity = 0
                                 scale = 0.8
                                 offset = 50
@@ -123,20 +122,14 @@ struct Onboarding: View {
                     
                     // Card Container
                     ZStack {
-                        // Content Card
                         VStack(spacing: 25) {
                             ZStack {
                                 Circle()
                                     .fill(colorScheme == .dark ? Color.blue.opacity(0.1) : Color.blue.opacity(0.05))
-                                    .frame(width: 180, height: 180)
+                                    .frame(width: 160, height: 160)
                                     .scaleEffect(iconPulse)
                                 
-                                Circle()
-                                    .fill(colorScheme == .dark ? Color.blue.opacity(0.15) : Color.blue.opacity(0.08))
-                                    .frame(width: 160, height: 160)
-                                    .scaleEffect(iconPulse * 0.95)
-                                
-                                Image(screens[currentScreen].icon) // ✅ Using asset image
+                                Image(screens[currentScreen].icon)
                                     .resizable()
                                     .scaledToFit()
                                     .frame(width: 80, height: 80)
@@ -193,7 +186,6 @@ struct Onboarding: View {
                         )
                         .padding(.horizontal, 20)
                         .rotation3DEffect(.degrees(cardRotation / 6), axis: (x: 0, y: 1, z: 0))
-                        // Apply moving card animation
                         .offset(x: cardOffset)
                         .scaleEffect(cardScale)
                         .opacity(cardOpacity)
@@ -201,16 +193,18 @@ struct Onboarding: View {
                     
                     Spacer()
                     
+                    // Progress Indicators
                     HStack(spacing: 8) {
                         ForEach(0..<screens.count, id: \.self) { index in
                             Circle()
                                 .fill(index == currentScreen ? Color(hex: "4A90E2") : Color.gray.opacity(0.3))
-                                .frame(width: index == currentScreen ? indicatorWidth * 2 : indicatorWidth, height: indicatorWidth)
+                                .frame(width: index == currentScreen ? 16 : 8, height: 8)
                                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentScreen)
                         }
                     }
                     .padding(.top, 10)
                     
+                    // Next/Get Started Button
                     Button(action: {
                         triggerHaptic()
                         animateCardTransition()
@@ -244,8 +238,11 @@ struct Onboarding: View {
                 }
                 .opacity(opacity)
                 .offset(x: 0, y: offset)
-                .navigationDestination(isPresented: $navigateToLogin) {
-                    Login()
+                .navigationDestination(isPresented: $navigateToHome) {
+                    HomePatient()
+                        .navigationBarBackButtonHidden(true)
+
+                    
                 }
                 .onAppear {
                     withAnimation(.easeInOut(duration: 0.8)) { opacity = 1 }
@@ -259,43 +256,43 @@ struct Onboarding: View {
         }
     }
     
-    // Card transition animation - now going LEFT instead of right
+    // Card transition animation (slides left, then in from rightTeX
     private func animateCardTransition() {
         guard !isAnimating else { return }
         isAnimating = true
         
-        // First phase - slide out to the LEFT and fade
+        // Slide out to the left
         withAnimation(.easeInOut(duration: 0.3)) {
             cardOffset = -UIScreen.main.bounds.width
             cardOpacity = 0
             cardScale = 0.8
-            cardRotation = -15  // Rotate counterclockwise for left movement
+            cardRotation = -15
         }
         
-        // After slide out completes, change content and prepare for slide in
+        // Update content and slide in from right
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             if currentScreen < screens.count - 1 {
                 currentScreen += 1
+                cardOffset = UIScreen.main.bounds.width
+                cardRotation = 15
+                
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                    cardOffset = 0
+                    cardOpacity = 1
+                    cardScale = 1
+                    cardRotation = 0
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isAnimating = false
+                }
             } else {
-                navigateToLogin = true
-                isAnimating = false
-                return
-            }
-            
-            // Position card off-screen on the RIGHT
-            cardOffset = UIScreen.main.bounds.width
-            cardRotation = 15  // Rotate clockwise for right position
-            
-            // Second phase - slide in from RIGHT side
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.3)) {
-                cardOffset = 0
-                cardOpacity = 1
-                cardScale = 1
-                cardRotation = 0
-            }
-            
-            // Animation complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation(.easeInOut(duration: 0.6)) {
+                    navigateToHome = true
+                    opacity = 0
+                    scale = 0.8
+                    offset = 50
+                }
                 isAnimating = false
             }
         }
@@ -308,18 +305,22 @@ struct Onboarding: View {
     }
 }
 
-struct OnboardingScreen {
+// Reused OnboardingScreen struct
+struct OnboardingScreen1 {
     let title: String
     let icon: String
     let description: String
     let features: [String]
 }
 
-struct Onboarding_Previews: PreviewProvider {
+
+struct OnboardingPatient_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            Onboarding().preferredColorScheme(.light)
-            Onboarding().preferredColorScheme(.dark)
+            OnboardingPatient().preferredColorScheme(.light)
+            OnboardingPatient().preferredColorScheme(.dark)
+            HomePatient().preferredColorScheme(.light)
+            HomePatient().preferredColorScheme(.dark)
         }
     }
 }

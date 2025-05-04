@@ -136,37 +136,36 @@ class DoctorViewModel: ObservableObject {
     }
     
     // Enter Diagnosis - FIXED: added missing function
-    func enterDiagnosis(appointmentId: String, organ: String, notes: String, symptoms: [String], labTestRequired: Bool, followUpRequired: Bool) {
-        self.isLoading = true
-        
-        let diagnosisData = DiagnosisData(
-            organ: organ,
-            notes: notes,
-            symptoms: symptoms
-        )
-        
-        let diagnosisRequest = EnterDiagnosisRequest(
-            diagnosis_data: diagnosisData,
-            lab_test_required: labTestRequired,
-            follow_up_required: followUpRequired
-        )
-        
-        Task {
-            do {
-                let response = try await doctorService.enterDiagnosis(appointmentId: appointmentId, diagnosisData: diagnosisRequest)
-                DispatchQueue.main.async {
-                    self.diagnosisMessage = response.message
-                    self.isLoading = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                    print("[SwatiSwapna] Error entering diagnosis: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
+//    func enterDiagnosis(appointmentId: String, organ: String, notes: String, symptoms: [String], labTestRequired: Bool, followUpRequired: Bool) {
+//        self.isLoading = true
+//
+//        let diagnosisData = DiagnosisData(
+//            symptoms: symptoms, findings: notes,
+//            notes: notes
+//        )
+//
+//        let diagnosisRequest = EnterDiagnosisRequest(
+//            diagnosis_data: diagnosisData,
+//            lab_test_required: labTestRequired,
+//            follow_up_required: followUpRequired
+//        )
+//
+//        Task {
+//            do {
+//                let response = try await doctorService.enterDiagnosis(appointmentId: appointmentId, diagnosisData: diagnosisRequest)
+//                DispatchQueue.main.async {
+//                    self.diagnosisMessage = response.message
+//                    self.isLoading = false
+//                }
+//            } catch {
+//                DispatchQueue.main.async {
+//                    self.errorMessage = error.localizedDescription
+//                    self.isLoading = false
+//                    print("[SwatiSwapna] Error entering diagnosis: \(error.localizedDescription)")
+//                }
+//            }
+//        }
+//    }
   
     func handleDiagnosis(diagnosisId: Int) {
         self.isLoading = true
@@ -193,7 +192,7 @@ class DoctorViewModel: ObservableObject {
         
         let prescriptionRequest = PrescriptionRequest(
             remarks: remarks,
-            medicines: medicines
+            medicines: medicines, appointmentId: appointmentId
         )
         
         Task {

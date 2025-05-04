@@ -1,133 +1,3 @@
-//import SwiftUI
-//
-//struct VitalsFormView: View {
-//    let appointmentId: Int
-//    @ObservedObject var viewModel: DoctorViewModel
-//    
-//    @State private var height: String = ""
-//    @State private var weight: String = ""
-//    @State private var heartRate: String = ""
-//    @State private var spo2: String = ""
-//    @State private var temperature: String = ""
-//    
-//    @Environment(\.dismiss) private var dismiss
-//    
-//    var body: some View {
-//        NavigationView {
-//            Form {
-//                Section(header: Text("Patient Vitals")) {
-//                    HStack {
-//                        Image(systemName: "ruler")
-//                            .foregroundColor(.blue)
-//                            .frame(width: 30)
-//                        TextField("Height (cm)", text: $height)
-//                            .keyboardType(.decimalPad)
-//                    }
-//                    
-//                    HStack {
-//                        Image(systemName: "scalemass")
-//                            .foregroundColor(.blue)
-//                            .frame(width: 30)
-//                        TextField("Weight (kg)", text: $weight)
-//                            .keyboardType(.decimalPad)
-//                    }
-//                    
-//                    HStack {
-//                        Image(systemName: "heart")
-//                            .foregroundColor(.red)
-//                            .frame(width: 30)
-//                        TextField("Heart Rate (bpm)", text: $heartRate)
-//                            .keyboardType(.numberPad)
-//                    }
-//                    
-//                    HStack {
-//                        Image(systemName: "lungs")
-//                            .foregroundColor(.blue)
-//                            .frame(width: 30)
-//                        TextField("SPO2 (%)", text: $spo2)
-//                            .keyboardType(.decimalPad)
-//                    }
-//                    
-//                    HStack {
-//                        Image(systemName: "thermometer")
-//                            .foregroundColor(.orange)
-//                            .frame(width: 30)
-//                        TextField("Temperature (°C)", text: $temperature)
-//                            .keyboardType(.decimalPad)
-//                    }
-//                }
-//                
-//                if viewModel.isLoading {
-//                    HStack {
-//                        Spacer()
-//                        ProgressView("Saving...")
-//                        Spacer()
-//                    }
-//                } else if !viewModel.enterVitalsMessage.isEmpty {
-//                    Section {
-//                        HStack {
-//                            Image(systemName: "checkmark.circle.fill")
-//                                .foregroundColor(.green)
-//                            Text(viewModel.enterVitalsMessage)
-//                                .foregroundColor(.green)
-//                            Spacer()
-//                        }
-//                    }
-//                } else if let errorMessage = viewModel.errorMessage {
-//                    Section {
-//                        HStack {
-//                            Image(systemName: "exclamationmark.triangle.fill")
-//                                .foregroundColor(.red)
-//                            Text(errorMessage)
-//                                .foregroundColor(.red)
-//                            Spacer()
-//                        }
-//                    }
-//                }
-//            }
-//            .navigationTitle("Enter Vitals")
-//            .toolbar {
-//                ToolbarItem(placement: .confirmationAction) {
-//                    Button("Save") {
-//                        submitVitals()
-//                    }
-//                    .disabled(viewModel.isLoading || !isFormValid())
-//                }
-//                ToolbarItem(placement: .cancellationAction) {
-//                    Button("Cancel") {
-//                        dismiss()
-//                    }
-//                    .disabled(viewModel.isLoading)
-//                }
-//            }
-//        }
-//    }
-//    
-//    private func isFormValid() -> Bool {
-//        return !height.isEmpty && !weight.isEmpty && !heartRate.isEmpty &&
-//               !spo2.isEmpty && !temperature.isEmpty
-//    }
-//    
-//    private func submitVitals() {
-//        let vitals: [String: Any] = [
-//            "patient_height": Double(height) ?? 0.0,
-//            "patient_weight": Double(weight) ?? 0.0,
-//            "patient_heartrate": Int(heartRate) ?? 0,
-//            "patient_spo2": Double(spo2) ?? 0.0,
-//            "patient_temperature": Double(temperature) ?? 0.0
-//        ]
-//        
-//        viewModel.enterVitals(appointmentId: appointmentId, vitals: vitals)
-//        
-//        // Dismiss after successful submission
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-//            if !viewModel.enterVitalsMessage.isEmpty && viewModel.errorMessage == nil {
-//                dismiss()
-//            }
-//        }
-//    }
-//}
-//
 import SwiftUI
 struct ConsultationView: View {
     let appointmentId: Int
@@ -219,14 +89,28 @@ struct ConsultationView: View {
     }
     
     private func submitConsultation() {
-        // Implement the consultation submission here
         isSubmitting = true
-        
-        // Simulating network request
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            diagnosisMessage = "Consultation submitted successfully"
+
+        // Example of a network call — replace with your real API
+        Task {
+            do {
+                // Replace with actual API submission logic
+                try await simulateNetworkSubmission()
+
+                // On success
+                diagnosisMessage = "Consultation submitted successfully"
+            } catch {
+                // Log or silently handle the error — no UI update
+                print("Submission error: \(error.localizedDescription)")
+            }
+
             isSubmitting = false
         }
+    }
+
+    private func simulateNetworkSubmission() async throws {
+        try await Task.sleep(nanoseconds: 1_000_000_000) // Simulates 1-second delay
+        // throw URLError(.badServerResponse) // Uncomment to simulate an error
     }
 }
 
@@ -261,9 +145,9 @@ struct ConsultationSectionView: View {
                                     Spacer()
                                 }
                                 .padding(.top, 16)
-                            }
                         }
-                    )
+                    }
+                )
             }
         }
     }

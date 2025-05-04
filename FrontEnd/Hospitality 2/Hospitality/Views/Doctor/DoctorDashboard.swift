@@ -77,11 +77,11 @@ struct ProfileHeaderView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Dr. Swati Swapna")
+                Text("Welcome Back")
                     .font(.title3)
                     .fontWeight(.bold)
                 
-                Text("General Medicine")
+                Text("Doctor")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }

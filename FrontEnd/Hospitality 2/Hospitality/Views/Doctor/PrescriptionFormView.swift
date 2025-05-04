@@ -17,6 +17,7 @@ struct PrescriptionFormView: View {
         followUpDate: nil,
         doctorNotes: ""
     )
+    
     @State private var doctorNoteInput: String = ""
     @State private var doctorNotePoints: [String] = []
     @State private var editingIndex: Int? = nil
@@ -26,6 +27,12 @@ struct PrescriptionFormView: View {
     @State private var editingMedicineIndex: Int? = nil
     
     @State private var showSubmissionAlert = false
+    
+    
+    @State private var appointmentId: String = "" // This should be passed in or fetched
+    @State private var isLoading = false
+    @State private var apiError: String?
+
     
     // Form inputs separately
     @State private var newMedicineName: String = ""
@@ -45,8 +52,23 @@ struct PrescriptionFormView: View {
         TargetOrgan(id: "3", targetOrganName: "Heart", targetOrganRemark: nil)
     ]
     
+    
     @State private var selectedOrganForNote: [Int: TargetOrgan] = [:] // Mapping note index to selected organ
     @State private var showOrganPickerForNote: NoteIndexWrapper? = nil
+    
+    @State private var symptomsInput: String = ""
+    @State private var findings: String = ""
+    @State private var diagnosisNotes: String = ""
+    @State private var labTestRequired: Bool = false
+    @State private var followUpRequiredDiagnosis: Bool = false
+    
+    @State private var symptomText: String = ""
+    @State private var notes: String = ""
+    @State private var followUpRequired: Bool = false
+
+    @State private var isSubmitting = false
+    @State private var message: String = ""
+
     
     private var medicationsSection: some View {
         Section(header: Text("Medications")) {
@@ -116,6 +138,26 @@ struct PrescriptionFormView: View {
         }
     }
     
+    func buildPrescriptionPayload() -> PrescriptionPayload {
+        let medicinesPayload = prescription.medicines.map { med -> MedicinePayload in
+            return MedicinePayload(
+                medicine_id: Int(med.medicine.medicineID) ?? 1, // map your UUID to real IDs from DB
+                dosage: Dosage(
+                    morning: 1, // map from your dosage logic
+                    afternoon: 0,
+                    evening: 1
+                ),
+                fasting_required: false // map from your form
+            )
+        }
+        
+        return PrescriptionPayload(
+            remarks: prescription.doctorNotes,
+            medicines: medicinesPayload
+        )
+    }
+
+    
     
     var body: some View {
         
@@ -123,7 +165,31 @@ struct PrescriptionFormView: View {
             backgroundView
             
             Form {
+                
+                
+                Section(header: Text("Symptoms (comma-separated)")) {
+                    TextField("e.g. fever, cough", text: $symptomText)
+                        .autocapitalization(.none)
+                }
+                
+                Section(header: Text("Findings")) {
+                    TextField("Enter findings", text: $findings)
+                }
+                
                 medicationsSection
+                
+                
+
+                
+//                Section(header: Text("Diagnosis")) {
+//                    Button("Submit Diagnosis") {
+//                        submitDiagnosis()
+//                    }
+//                    .disabled(symptomsInput.isEmpty || findings.isEmpty)
+//                }
+                Section(header: Text("Lab Tests")) {
+                    Toggle("Lab Test Required", isOn: $labTestRequired)
+                }
                 
                 Section {
                     Toggle("Follow-up Required", isOn: $prescription.followUpRequired)
@@ -134,24 +200,25 @@ struct PrescriptionFormView: View {
                             set: { prescription.followUpDate = $0 }
                         ), displayedComponents: .date)
                     }
-                } header: {
+                }
+                header: {
                     Text("Follow-up")
                 }
                 
                 doctorNotesSection
-                
-                
-                
-                
+
                 Section {
                     Button("Submit Prescription") {
-                        
+                        let payload = buildPrescriptionPayload()
+
                         printDoctorEnteredData(prescription: prescription)
+                        submitPrescription(to: "http://ec2-13-127-223-203.ap-south-1.compute.amazonaws.com/api/hospital/general/appointments/1/prescription/", token: UserDefaults.accessToken, payload: payload)
+                        submitDiagnosis()
                         
                         showSubmissionAlert = true
                         print("Submitted: \(prescription)")
                     }
-                    .disabled(!isFormValid)
+                    .disabled(!isFormValid || isLoading)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -170,114 +237,99 @@ struct PrescriptionFormView: View {
         !prescription.medicines.isEmpty
     }
     
-    private var doctorNotesSection: some View {
-        Section(header: Text("Doctor's Notes")) {
-            ForEach(doctorNotePoints.indices, id: \.self) { index in
-                doctorNoteRow(for: index)
-            }
-            .onDelete { indices in
-                doctorNotePoints.remove(atOffsets: indices)
-                updatePrescriptionNotes()
-            }
-            
-            if isAddingNote {
-                HStack {
-                    TextField("Enter note", text: $doctorNoteInput)
-                        .textFieldStyle(.roundedBorder)
-                    
-                    Button(action: {
-                        saveDoctorNote()
-                    }) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.accentColor)
-                            .imageScale(.large)
+    //MARK: diagnosis
+    func submitDiagnosis() {
+        isSubmitting = true
+        let symptomsArray = symptomText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        let payload = DiagnosisPayload(
+            diagnosis_data: DiagnosisData(symptoms: symptomsArray, findings: findings, notes: notes),
+            lab_test_required: labTestRequired,
+            follow_up_required: followUpRequired
+        )
+
+        guard let jsonData = try? JSONEncoder().encode(payload) else {
+            message = "Failed to encode payload"
+            isSubmitting = false
+            return
+        }
+
+        // ✅ Print the JSON as a string
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("➡️ JSON Sent to Backend:\n\(jsonString)")
+        }
+
+        guard let url = URL(string: "http://ec2-13-127-223-203.ap-south-1.compute.amazonaws.com/api/hospital/general/appointments/1/diagnosis/") else {
+            message = "Invalid URL"
+            isSubmitting = false
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = jsonData
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isSubmitting = false
+
+                if let error = error {
+                    message = "Submission error: \(error.localizedDescription)"
+                    return
+                }
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    message = "Invalid response"
+                    return
+                }
+
+                if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+                    message = "Diagnosis successfully submitted"
+                } else {
+                    if let data = data,
+                       let serverResponse = String(data: data, encoding: .utf8) {
+                        message = "Server error: \(serverResponse)"
+                    } else {
+                        message = "Unexpected error: HTTP \(httpResponse.statusCode)"
                     }
                 }
-            } else {
-                Button("Add Note") {
-                    isAddingNote = true
-                }
             }
-        }
-        .sheet(item: $showOrganPickerForNote) { wrapper in
-            let index = wrapper.index
-            List {
-                ForEach(availableOrgans) { organ in
-                    Button(action: {
-                        selectedOrganForNote[index] = organ
-                        showOrganPickerForNote = nil
-                    }) {
-                        Text(organ.targetOrganName)
-                    }
-                }
-            }
-        }
+        }.resume()
     }
+
+
     
-    private func doctorNoteRow(for index: Int) -> some View {
-        HStack(alignment: .top) {
-            Text("•").bold()
-            VStack(alignment: .leading) {
-                HStack {
-                    Text(doctorNotePoints[index])
-                        .onTapGesture {
-                            doctorNoteInput = doctorNotePoints[index]
-                            editingIndex = index
-                            isAddingNote = true
-                        }
-                        .foregroundColor(editingIndex == index ? .blue : .primary)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        showOrganPickerForNote = NoteIndexWrapper(index: index)
-                    }) {
-                        Text(selectedOrganForNote[index]?.targetOrganName ?? "Select Organ")
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
-                            .padding(6)
-                            .background(Color.gray.opacity(0.2))
-                            .cornerRadius(8)
-                    }
-                }
-                
-                if let organ = selectedOrganForNote[index] {
-                    Text("Organ: \(organ.targetOrganName)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+    func submitPrescription(to urlString: String, token: String, payload: PrescriptionPayload) {
+        guard let url = URL(string: urlString),
+              let jsonData = try? JSONEncoder().encode(payload) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = jsonData
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Error submitting prescription: \(error)")
+                return
             }
-        }
-    }
-    private func organPicker(for index: Int) -> some View {
-        List {
-            ForEach(availableOrgans) { organ in
-                Button(action: {
-                    selectedOrganForNote[index] = organ
-                    showOrganPickerForNote = nil
-                }) {
-                    Text(organ.targetOrganName)
-                }
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Server responded with status code: \(httpResponse.statusCode)")
             }
-        }
+
+            if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                print("Response: \(responseBody)")
+            }
+        }.resume()
     }
-    private func saveDoctorNote() {
-        let trimmed = doctorNoteInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        
-        if let index = editingIndex {
-            doctorNotePoints[index] = trimmed
-            editingIndex = nil
-        } else {
-            doctorNotePoints.append(trimmed)
-        }
-        
-        doctorNoteInput = ""
-        isAddingNote = false
-        updatePrescriptionNotes()
-    }
-    
-    
+
+
     private var backgroundView: some View {
         LinearGradient(
             gradient: Gradient(colors: [
@@ -324,6 +376,116 @@ struct PrescriptionFormView: View {
         )
         return PrescribedMedicineWrapper(medicine: medicine, prescribed: prescribed)
     }
+    
+    
+        private var doctorNotesSection: some View {
+            Section(header: Text("Doctor's Notes")) {
+                ForEach(doctorNotePoints.indices, id: \.self) { index in
+                    doctorNoteRow(for: index)
+                }.onDelete { indices in
+                    doctorNotePoints.remove(atOffsets: indices)
+                    updatePrescriptionNotes()
+                
+                }
+    
+                if isAddingNote {
+                    HStack {
+                        TextField("Enter note", text: $notes)
+                            .textFieldStyle(.roundedBorder)
+    
+                        Button(action: {
+                            saveDoctorNote()
+                        }) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.accentColor)
+                                .imageScale(.large)
+                        }
+                    }
+                } else {
+                    Button("Add Note") {
+                        isAddingNote = true
+                    }
+                }
+            }
+//            .sheet(item: $showOrganPickerForNote) { wrapper in
+//                let index = wrapper.index
+//                List {
+//                    ForEach(availableOrgans) { organ in
+//                        Button(action: {
+//                            selectedOrganForNote[index] = organ
+//                            showOrganPickerForNote = nil
+//                        }) {
+//                            Text(organ.targetOrganName)
+//                        }
+//                    }
+//                }
+//            }
+        }
+        
+        private func doctorNoteRow(for index: Int) -> some View {
+            HStack(alignment: .top) {
+                Text("•").bold()
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text(doctorNotePoints[index])
+                            .onTapGesture {
+                                doctorNoteInput = doctorNotePoints[index]
+                                editingIndex = index
+                                isAddingNote = true
+                            }
+                            .foregroundColor(editingIndex == index ? .blue : .primary)
+    
+                        Spacer()
+    
+//                        Button(action: {
+//                            showOrganPickerForNote = NoteIndexWrapper(index: index)
+//                        }) {
+//                            Text(selectedOrganForNote[index]?.targetOrganName ?? "Select Organ")
+//                                .font(.caption)
+//                                .foregroundColor(.accentColor)
+//                                .padding(6)
+//                                .background(Color.gray.opacity(0.2))
+//                                .cornerRadius(8)
+//                        }
+                    }
+    
+//                    if let organ = selectedOrganForNote[index] {
+//                        Text("Organ: \(organ.targetOrganName)")
+//                            .font(.caption)
+//                            .foregroundColor(.secondary)
+//                    }
+                }
+            }
+        }
+    
+        private func organPicker(for index: Int) -> some View {
+            List {
+                ForEach(availableOrgans) { organ in
+                    Button(action: {
+                        selectedOrganForNote[index] = organ
+                        showOrganPickerForNote = nil
+                    }) {
+                        Text(organ.targetOrganName)
+                    }
+                }
+            }
+        }
+        private func saveDoctorNote() {
+            let trimmed = doctorNoteInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+    
+            if let index = editingIndex {
+                doctorNotePoints[index] = trimmed
+                editingIndex = nil
+            } else {
+                doctorNotePoints.append(trimmed)
+            }
+    
+            doctorNoteInput = ""
+            isAddingNote = false
+            updatePrescriptionNotes()
+        }
+
     
     func printDoctorEnteredData(prescription: Prescription) {
         print("\n=== DOCTOR ENTERED DATA ===")
@@ -412,6 +574,7 @@ struct PrescribedMedicineUI: Identifiable {
 }
 
 // MARK: - Color Extension
+
 struct PrescriptionFormView_Previews: PreviewProvider {
     static var previews: some View {
         PrescriptionFormView()
@@ -422,29 +585,51 @@ struct NoteIndexWrapper: Identifiable {
     var index: Int
 }
 
+// Request Models
+struct DiagnosisRequest1: Codable {
+    let diagnosis_data: DiagnosisData
+    let lab_test_required: Bool
+    let follow_up_required: Bool
+    let appointmentId: Int? // not required in payload but can be useful in struct
 
+    struct DiagnosisData: Codable {
+        let symptoms: [String]
+        let findings: String
+        let notes: String
+    }
+}
 
+struct PrescriptionRequest1: Codable {
+    let remarks: String
+    let medicines: [Medicine]
+    let appointmentId: Int? // Optional unless needed in payload
 
-// MARK: - Color Extension
-//private extension Color {
-//    init(hex: String) {
-//        let scanner = Scanner(string: hex)
-//        _ = scanner.scanString("#")
-//        
-//        var rgb: UInt64 = 0
-//        scanner.scanHexInt64(&rgb)
-//        
-//        let r = Double((rgb >> 16) & 0xFF) / 255
-//        let g = Double((rgb >> 8) & 0xFF) / 255
-//        let b = Double(rgb & 0xFF) / 255
-//        
-//        self.init(red: r, green: g, blue: b)
-//    }
-//}
+    struct Medicine: Codable {
+        let medicine_id: Int
+        let dosage: Dosage
+        let fasting_required: Bool
 
-//// MARK: - Preview
-//struct PrescriptionFormView_Previews: PreviewProvider {
-//    static var previews: some View {
-//        PrescriptionFormView()
-//    }
-//}
+        struct Dosage: Codable {
+            let morning: Int
+            let afternoon: Int
+            let evening: Int
+        }
+    }
+}
+
+struct Dosage: Codable {
+    let morning: Int
+    let afternoon: Int
+    let evening: Int
+}
+
+struct MedicinePayload: Codable {
+    let medicine_id: Int
+    let dosage: Dosage
+    let fasting_required: Bool
+}
+
+struct PrescriptionPayload: Codable {
+    let remarks: String
+    let medicines: [MedicinePayload]
+}

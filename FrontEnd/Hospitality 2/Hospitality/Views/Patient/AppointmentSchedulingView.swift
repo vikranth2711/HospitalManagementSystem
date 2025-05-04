@@ -1,6 +1,8 @@
 import SwiftUI
 import PDFKit
 
+
+
 struct AppointmentSchedulingView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
@@ -59,21 +61,7 @@ struct AppointmentSchedulingView: View {
     
     var body: some View {
         ZStack {
-            backgroundView
-            mainContentView
-            overlaysView
-        }
-        .navigationBarBackButtonHidden(true)
-        .sheet(isPresented: $showShareSheet) {
-            if let pdfURL = pdfURL {
-                ActivityViewController(activityItems: [pdfURL])
-            }
-        }
-    }
-    
-    // Background view
-    private var backgroundView: some View {
-        Group {
+            // Background
             LinearGradient(
                 gradient: Gradient(colors: [
                     colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
@@ -84,6 +72,7 @@ struct AppointmentSchedulingView: View {
             )
             .ignoresSafeArea()
             
+            // Background circles
             ForEach(0..<8) { _ in
                 Circle()
                     .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
@@ -94,416 +83,378 @@ struct AppointmentSchedulingView: View {
                     )
                     .blur(radius: 3)
             }
-        }
-    }
-    
-    // Main content view
-    private var mainContentView: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                headerView
-                dateSelectionView
-                if confirmedDoctor == nil {
-                    findDoctorView
+            
+            // Main content
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Schedule Appointment")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                            
+                            Text("Fill in the details to book your appointment")
+                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            triggerHaptic(style: .medium)
+                            dismiss()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
+                        }
+                    }
+                    .padding(.top, 8)
+                    .padding(.horizontal, 20)
+                    
+                    // Step 1: Date Selection Button
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Step 1: Select Date")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                            .padding(.horizontal, 20)
+                        
+                        // Date button that shows date picker when tapped
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showDatePicker = true
+                            }
+                            triggerHaptic(style: .light)
+                        }) {
+                            HStack {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(hex: "4A90E2").opacity(0.15))
+                                        .frame(width: 50, height: 50)
+                                    
+                                    Image(systemName: "calendar")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(Color(hex: "4A90E2"))
+                                }
+                                
+                                Text(formattedDate)
+                                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                                    .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.5) : Color(hex: "4A5568"))
+                            }
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
+                            )
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.top, 10)
+                    
+                    // Step 2: Find a Doctor (only show if no doctor is confirmed)
+                    if confirmedDoctor == nil {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Step 2: Find a Doctor")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                                .padding(.horizontal, 20)
+                            
+                            // Doctor search field
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.gray)
+                                
+                                TextField("Search by doctor name or specialty", text: $searchText)
+                                    .font(.system(size: 16))
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                
+                                if !searchText.isEmpty {
+                                    Button(action: {
+                                        searchText = ""
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
+                            )
+                            .padding(.horizontal, 20)
+                            
+                            // Doctor list results
+                            Text("\(filteredDoctors.count) doctor\(filteredDoctors.count != 1 ? "s" : "") available")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
+                                .padding(.horizontal, 20)
+                            
+                            // Doctor grid with horizontal scrolling
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(alignment: .top, spacing: 0) {
+                                    if filteredDoctors.isEmpty {
+                                        // No results message
+                                        VStack(spacing: 10) {
+                                            Image(systemName: "magnifyingglass")
+                                                .font(.system(size: 30))
+                                                .foregroundColor(Color.gray.opacity(0.6))
+                                            
+                                            Text("No doctors match your search")
+                                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                                .foregroundColor(Color.gray.opacity(0.8))
+                                                .multilineTextAlignment(.center)
+                                        }
+                                        .frame(width: UIScreen.main.bounds.width - 80, height: 150)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
+                                        )
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 20)
+                                    } else {
+                                        // Group doctors in rows of 4
+                                        LazyHGrid(rows: [
+                                            GridItem(.fixed(130), spacing: 10),
+                                            GridItem(.fixed(130), spacing: 10)
+                                        ], spacing: 10) {
+                                            ForEach(filteredDoctors) { doctor in
+                                                doctorSquareCard(doctor: doctor)
+                                            }
+                                        }
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 10)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.top, 10)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    
+                    // Display confirmed doctor (if any)
+                    if let doctor = confirmedDoctor {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Selected Doctor")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                                .padding(.horizontal, 20)
+                            
+                            // Confirmed doctor card
+                            HStack(spacing: 16) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(hex: "4A90E2").opacity(0.15))
+                                        .frame(width: 60, height: 60)
+                                    
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 26))
+                                        .foregroundColor(Color(hex: "4A90E2"))
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(doctor.name)
+                                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
+                                    
+                                    Text(doctor.specialty)
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
+                                    
+                                    Text("Tap to view profile or change doctor")
+                                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                                        .foregroundColor(Color(hex: "4A90E2"))
+                                        .padding(.top, 2)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    // Clear confirmed doctor to select another
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        confirmedDoctor = nil
+                                        searchText = "" // Reset search
+                                    }
+                                    triggerHaptic(style: .medium)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.gray)
+                                }
+                            }
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
+                            )
+                            .padding(.horizontal, 20)
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    selectedDoctor = doctor
+                                    showDoctorDetails = true
+                                }
+                                triggerHaptic(style: .light)
+                            }
+                        }
+                        .padding(.top, 10)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        
+                        // Step 3: Select Time (only show if doctor is confirmed)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Step 3: Select Time")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                                .padding(.horizontal, 20)
+                            
+                            timeSelectionView
+                        }
+                        .padding(.top, 10)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        
+                        // Step 4: Reason for visit (only show if doctor is confirmed)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Step 4: Reason for Visit")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                                .padding(.horizontal, 20)
+                            
+                            TextEditor(text: $reason)
+                                .padding(12)
+                                .frame(minHeight: 120)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
+                                )
+                                .overlay(
+                                    Text(reason.isEmpty ? "Please describe your symptoms or reason for appointment (optional)" : "")
+                                        .foregroundColor(Color.gray.opacity(0.7))
+                                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 12),
+                                    alignment: .topLeading
+                                )
+                                .padding(.horizontal, 20)
+                        }
+                        .padding(.top, 10)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        
+                        // Schedule Button (only show if doctor is confirmed)
+                        Button(action: {
+                            triggerHaptic()
+                            scheduleAppointment()
+                        }) {
+                            ZStack {
+                                if isScheduling {
+                                    // Loading state
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [
+                                                    Color(hex: "4A90E2"),
+                                                    Color(hex: "5E5CE6")
+                                                ]),
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .overlay(
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                .scaleEffect(1.2)
+                                        )
+                                        .frame(height: 54)
+                                } else {
+                                    // Normal state
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [
+                                                    Color(hex: "4A90E2"),
+                                                    Color(hex: "5E5CE6")
+                                                ]),
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .overlay(
+                                            HStack {
+                                                Text("Schedule Appointment")
+                                                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                                                    .foregroundColor(.white)
+                                                
+                                                Image(systemName: "calendar.badge.checkmark")
+                                                    .font(.system(size: 16, weight: .semibold))
+                                                    .foregroundColor(.white)
+                                            }
+                                        )
+                                        .frame(height: 54)
+                                }
+                            }
+                            .shadow(color: Color(hex: "4A90E2").opacity(0.4), radius: 8, x: 0, y: 4)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                        }
+                        .disabled(isScheduling)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+                    
+                    Spacer(minLength: 20)
                 }
-                if let doctor = confirmedDoctor {
-                    confirmedDoctorView(doctor: doctor)
-                    timeSelectionSection
-                    reasonForVisitView
-                    scheduleButtonView
+                .padding(.vertical, 10)
+            }
+            .opacity(opacity)
+            .scaleEffect(cardScale)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    opacity = 1.0
+                    cardScale = 1.0
                 }
-                Spacer(minLength: 20)
             }
-            .padding(.vertical, 10)
-        }
-        .opacity(opacity)
-        .scaleEffect(cardScale)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.4)) {
-                opacity = 1.0
-                cardScale = 1.0
-            }
-        }
-    }
-    
-    // Overlays view
-    private var overlaysView: some View {
-        Group {
+            
+            // Date Picker Overlay
             if showDatePicker {
                 datePickerOverlay
             }
+            
+            // Doctor Details Overlay
             if showDoctorDetails, let doctor = selectedDoctor {
                 doctorDetailsOverlay(doctor: doctor)
             }
+            
+            // Appointment confirmation overlay
             if showAppointmentConfirmation {
                 appointmentConfirmationOverlay
             }
         }
-    }
-    
-    // Header view
-    private var headerView: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text("Schedule Appointment")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                
-                Text("Fill in the details to book your appointment")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-            }
-            
-            Spacer()
-            
-            Button(action: {
-                triggerHaptic(style: .medium)
-                dismiss()
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
+        .navigationBarBackButtonHidden(true)
+        .sheet(isPresented: $showShareSheet) {
+            if let pdfURL = pdfURL {
+                ActivityViewController(activityItems: [pdfURL])
             }
         }
-        .padding(.top, 8)
-        .padding(.horizontal, 20)
-    }
-    
-    // Date selection view
-    private var dateSelectionView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Step 1: Select Date")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                .padding(.horizontal, 20)
-            
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    showDatePicker = true
-                }
-                triggerHaptic(style: .light)
-            }) {
-                dateButtonContent
-            }
-            .padding(.horizontal, 20)
-        }
-        .padding(.top, 10)
-    }
-    
-    // Date button content
-    private var dateButtonContent: some View {
-        HStack {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "4A90E2").opacity(0.15))
-                    .frame(width: 50, height: 50)
-                
-                Image(systemName: "calendar")
-                    .font(.system(size: 20))
-                    .foregroundColor(Color(hex: "4A90E2"))
-            }
-            
-            Text(formattedDate)
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.5) : Color(hex: "4A5568"))
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
-        )
-    }
-    
-    // Find doctor view
-    private var findDoctorView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Step 2: Find a Doctor")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                .padding(.horizontal, 20)
-            
-            searchBarView
-            doctorListView
-        }
-        .padding(.top, 10)
-        .transition(.opacity.combined(with: .move(edge: .top)))
-    }
-    
-    // Search bar view
-    private var searchBarView: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
-            
-            TextField("Search by doctor name or specialty", text: $searchText)
-                .font(.system(size: 16))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
-            
-            if !searchText.isEmpty {
-                Button(action: {
-                    searchText = ""
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
-        )
-        .padding(.horizontal, 20)
-    }
-    
-    // Doctor list view
-    private var doctorListView: some View {
-        Group {
-            Text("\(filteredDoctors.count) doctor\(filteredDoctors.count != 1 ? "s" : "") available")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-                .padding(.horizontal, 20)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 0) {
-                    if filteredDoctors.isEmpty {
-                        noResultsView
-                    } else {
-                        doctorGridView
-                    }
-                }
-            }
-        }
-    }
-    
-    // No results view
-    private var noResultsView: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 30))
-                .foregroundColor(Color.gray.opacity(0.6))
-            
-            Text("No doctors match your search")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(Color.gray.opacity(0.8))
-                .multilineTextAlignment(.center)
-        }
-        .frame(width: UIScreen.main.bounds.width - 80, height: 150)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-        )
-        .padding(.vertical, 10)
-        .padding(.horizontal, 20)
-    }
-    
-    // Doctor grid view
-    private var doctorGridView: some View {
-        LazyHGrid(rows: [
-            GridItem(.fixed(130), spacing: 10),
-            GridItem(.fixed(130), spacing: 10)
-        ], spacing: 10) {
-            ForEach(filteredDoctors) { doctor in
-                doctorSquareCard(doctor: doctor)
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-    }
-    
-    // Confirmed doctor view
-    private func confirmedDoctorView(doctor: Doctor) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Selected Doctor")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                .padding(.horizontal, 20)
-            
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: "4A90E2").opacity(0.15))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 26))
-                        .foregroundColor(Color(hex: "4A90E2"))
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(doctor.name)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
-                    
-                    Text(doctor.specialty)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-                    
-                    Text("Tap to view profile or change doctor")
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
-                        .foregroundColor(Color(hex: "4A90E2"))
-                        .padding(.top, 2)
-                }
-                
-                Spacer()
-                
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        confirmedDoctor = nil
-                        searchText = ""
-                    }
-                    triggerHaptic(style: .medium)
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color.gray)
-                }
-            }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
-            )
-            .padding(.horizontal, 20)
-            .onTapGesture {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    selectedDoctor = doctor
-                    showDoctorDetails = true
-                }
-                triggerHaptic(style: .light)
-            }
-        }
-        .padding(.top, 10)
-        .transition(.opacity.combined(with: .move(edge: .top)))
-    }
-    
-    // Time selection section
-    private var timeSelectionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Step 3: Select Time")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                .padding(.horizontal, 20)
-            
-            timeSelectionView
-        }
-        .padding(.top, 10)
-        .transition(.opacity.combined(with: .move(edge: .top)))
-    }
-    
-    // Reason for visit view
-    private var reasonForVisitView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Step 4: Reason for Visit")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                .padding(.horizontal, 20)
-            
-            TextEditor(text: $reason)
-                .padding(12)
-                .frame(minHeight: 120)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
-                )
-                .overlay(
-                    Text(reason.isEmpty ? "Please describe your symptoms or reason for appointment (optional)" : "")
-                        .foregroundColor(Color.gray.opacity(0.7))
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12),
-                    alignment: .topLeading
-                )
-                .padding(.horizontal, 20)
-        }
-        .padding(.top, 10)
-        .transition(.opacity.combined(with: .move(edge: .top)))
-    }
-    
-    // Schedule button view
-    private var scheduleButtonView: some View {
-        Button(action: {
-            triggerHaptic()
-            scheduleAppointment()
-        }) {
-            scheduleButtonContent
-        }
-        .disabled(isScheduling)
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-    }
-    
-    // Schedule button content
-    private var scheduleButtonContent: some View {
-        ZStack {
-            if isScheduling {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(hex: "4A90E2"),
-                                Color(hex: "5E5CE6")
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .overlay(
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.2)
-                    )
-                    .frame(height: 54)
-            } else {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(hex: "4A90E2"),
-                                Color(hex: "5E5CE6")
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .overlay(
-                        HStack {
-                            Text("Schedule Appointment")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                            
-                            Image(systemName: "calendar.badge.checkmark")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-                    )
-                    .frame(height: 54)
-            }
-        }
-        .shadow(color: Color(hex: "4A90E2").opacity(0.4), radius: 8, x: 0, y: 4)
     }
     
     // Doctor square card component
@@ -554,6 +505,7 @@ struct AppointmentSchedulingView: View {
     // Doctor details overlay
     private func doctorDetailsOverlay(doctor: Doctor) -> some View {
         ZStack {
+            // Background overlay
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
                 .onTapGesture {
@@ -562,15 +514,141 @@ struct AppointmentSchedulingView: View {
                     }
                 }
             
+            // Doctor details card
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    doctorDetailsHeader(doctor: doctor)
-                    doctorProfilePicture
-                    doctorEmailSection(doctor: doctor)
-                    doctorExperienceSection(doctor: doctor)
-                    doctorQualificationSection(doctor: doctor)
-                    doctorAvailableDaysSection(doctor: doctor)
-                    confirmDoctorButton(doctor: doctor)
+                    // Header with doctor info
+                    HStack {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(doctor.name)
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                            
+                            Text(doctor.specialty)
+                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showDoctorDetails = false
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 26))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
+                        }
+                    }
+                    
+                    // Doctor profile picture
+                    HStack {
+                        Spacer()
+                        
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "4A90E2").opacity(0.15))
+                                .frame(width: 120, height: 120)
+                            
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(Color(hex: "4A90E2"))
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    // Email section
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Email")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                        
+                        Text(doctor.email)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
+                    }
+                    
+                    // Experience section
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Experience")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                        
+                        Text(doctor.experience)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
+                    }
+                    
+                    // Qualification section
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Qualification")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                        
+                        Text(doctor.qualification)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
+                    // Available days section
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Available Days")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                        
+                        HStack(spacing: 8) {
+                            ForEach(1...7, id: \.self) { day in
+                                let isAvailable = doctor.availableDays.contains(day)
+                                let dayName = getDayName(for: day)
+                                
+                                VStack {
+                                    Text(dayName.prefix(1))
+                                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                        .foregroundColor(isAvailable ?
+                                                        (colorScheme == .dark ? .white : Color(hex: "2D3748")) :
+                                                        (colorScheme == .dark ? Color.white.opacity(0.4) : Color.gray))
+                                    
+                                    Circle()
+                                        .fill(isAvailable ? Color(hex: "4A90E2") : Color.gray.opacity(0.3))
+                                        .frame(width: 8, height: 8)
+                                }
+                                .frame(width: 20)
+                            }
+                        }
+                    }
+                    
+                    // Confirm doctor button
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            confirmedDoctor = doctor
+                            showDoctorDetails = false
+                        }
+                        triggerHaptic(style: .medium)
+                    }) {
+                        Text("Confirm Doctor")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color(hex: "4A90E2"),
+                                                Color(hex: "5E5CE6")
+                                            ]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            )
+                            .shadow(color: Color(hex: "4A90E2").opacity(0.3), radius: 5, x: 0, y: 3)
+                    }
+                    .padding(.top, 10)
                 }
                 .padding(20)
             }
@@ -586,154 +664,10 @@ struct AppointmentSchedulingView: View {
         }
     }
     
-    // Doctor details header
-    private func doctorDetailsHeader(doctor: Doctor) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(doctor.name)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                
-                Text(doctor.specialty)
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
-            }
-            
-            Spacer()
-            
-            Button(action: {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    showDoctorDetails = false
-                }
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 26))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-            }
-        }
-    }
-    
-    // Doctor profile picture
-    private var doctorProfilePicture: some View {
-        HStack {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "4A90E2").opacity(0.15))
-                    .frame(width: 120, height: 120)
-                
-                Image(systemName: "person.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(Color(hex: "4A90E2"))
-            }
-            Spacer()
-        }
-    }
-    
-    // Doctor email section
-    private func doctorEmailSection(doctor: Doctor) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Email")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-            
-            Text(doctor.email)
-                .font(.system(size: 14, weight: .regular, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
-        }
-    }
-    
-    // Doctor experience section
-    private func doctorExperienceSection(doctor: Doctor) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Experience")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-            
-            Text(doctor.experience)
-                .font(.system(size: 14, weight: .regular, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
-        }
-    }
-    
-    // Doctor qualification section
-    private func doctorQualificationSection(doctor: Doctor) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Qualification")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-            
-            Text(doctor.qualification)
-                .font(.system(size: 14, weight: .regular, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-    
-    // Doctor available days section
-    private func doctorAvailableDaysSection(doctor: Doctor) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Available Days")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-            
-            HStack(spacing: 8) {
-                ForEach(1...7, id: \.self) { day in
-                    let isAvailable = doctor.availableDays.contains(day)
-                    let dayName = getDayName(for: day)
-                    
-                    VStack {
-                        Text(dayName.prefix(1))
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(isAvailable ?
-                                            (colorScheme == .dark ? .white : Color(hex: "2D3748")) :
-                                            (colorScheme == .dark ? Color.white.opacity(0.4) : Color.gray))
-                        
-                        Circle()
-                            .fill(isAvailable ? Color(hex: "4A90E2") : Color.gray.opacity(0.3))
-                            .frame(width: 8, height: 8)
-                    }
-                    .frame(width: 20)
-                }
-            }
-        }
-    }
-    
-    // Confirm doctor button
-    private func confirmDoctorButton(doctor: Doctor) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                confirmedDoctor = doctor
-                showDoctorDetails = false
-            }
-            triggerHaptic(style: .medium)
-        }) {
-            Text("Confirm Doctor")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color(hex: "4A90E2"),
-                                    Color(hex: "5E5CE6")
-                                ]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-                .shadow(color: Color(hex: "4A90E2").opacity(0.3), radius: 5, x: 0, y: 3)
-        }
-        .padding(.top, 10)
-    }
-    
     // Date picker overlay
     private var datePickerOverlay: some View {
         ZStack {
+            // Background overlay
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
                 .onTapGesture {
@@ -742,8 +676,29 @@ struct AppointmentSchedulingView: View {
                     }
                 }
             
+            // Date picker card
             VStack(spacing: 16) {
-                datePickerHeader
+                // Header
+                HStack {
+                    Text("Select Date")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            showDatePicker = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
+                    }
+                }
+                .padding(.bottom, 8)
+                
+                // Date picker
                 DatePicker(
                     "Select Date",
                     selection: $selectedDate,
@@ -754,6 +709,7 @@ struct AppointmentSchedulingView: View {
                 .accentColor(colorScheme == .dark ? .blue : Color(hex: "4A90E2"))
                 .labelsHidden()
                 
+                // Confirm button
                 Button(action: {
                     withAnimation(.easeOut(duration: 0.2)) {
                         showDatePicker = false
@@ -783,34 +739,29 @@ struct AppointmentSchedulingView: View {
         }
     }
     
-    // Date picker header
-    private var datePickerHeader: some View {
-        HStack {
-            Text("Select Date")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-            
-            Spacer()
-            
-            Button(action: {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    showDatePicker = false
-                }
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-            }
-        }
-        .padding(.bottom, 8)
-    }
-    
-    // Time selection view
+    // Time selection view with time slots
     private var timeSelectionView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(timeSlots, id: \.self) { time in
-                    timeSlotButton(time: time)
+                    Button(action: {
+                        selectedTime = time
+                        triggerHaptic(style: .light)
+                    }) {
+                        Text(time)
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundColor(selectedTime == time ? .white : (colorScheme == .dark ? .white : Color(hex: "2D3748")))
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(selectedTime == time ? Color(hex: "4A90E2") : (colorScheme == .dark ? Color(hex: "1E2533") : Color.white))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(selectedTime == time ? Color(hex: "4A90E2") : (colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3)), lineWidth: 1.5)
+                            )
+                    }
                 }
             }
             .padding(.vertical, 10)
@@ -818,76 +769,14 @@ struct AppointmentSchedulingView: View {
         }
     }
     
-    // Time slot button
-    private func timeSlotButton(time: String) -> some View {
-        let isPast = isTimeSlotInPast(time: time)
-        return Button(action: {
-            if !isPast {
-                selectedTime = time
-                triggerHaptic(style: .light)
-            }
-        }) {
-            timeSlotButtonContent(time: time, isPast: isPast)
-        }
-        .disabled(isPast)
-    }
-    
-    // Time slot button content
-    private func timeSlotButtonContent(time: String, isPast: Bool) -> some View {
-        Text(time)
-            .font(.system(size: 14, weight: .medium, design: .rounded))
-            .foregroundColor(timeSlotForegroundColor(time: time, isPast: isPast))
-            .padding(.vertical, 10)
-            .padding(.horizontal, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(timeSlotBackgroundColor(time: time, isPast: isPast))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(timeSlotBorderColor(time: time, isPast: isPast), lineWidth: 1.5)
-            )
-    }
-    
-    // Time slot foreground color
-    private func timeSlotForegroundColor(time: String, isPast: Bool) -> Color {
-        if isPast {
-            return .gray
-        } else if selectedTime == time {
-            return .white
-        } else {
-            return colorScheme == .dark ? .white : Color(hex: "2D3748")
-        }
-    }
-    
-    // Time slot background color
-    private func timeSlotBackgroundColor(time: String, isPast: Bool) -> Color {
-        if isPast {
-            return Color.gray.opacity(0.2)
-        } else if selectedTime == time {
-            return Color(hex: "4A90E2")
-        } else {
-            return colorScheme == .dark ? Color(hex: "1E2533") : .white
-        }
-    }
-    
-    // Time slot border color
-    private func timeSlotBorderColor(time: String, isPast: Bool) -> Color {
-        if isPast {
-            return Color.gray.opacity(0.3)
-        } else if selectedTime == time {
-            return Color(hex: "4A90E2")
-        } else {
-            return colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3)
-        }
-    }
-    
     // Appointment confirmation overlay
     private var appointmentConfirmationOverlay: some View {
         ZStack {
+            // Background overlay
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
                 .onTapGesture {
+                    // Only allow closing after animation is complete
                     if appointmentScheduled {
                         withAnimation(.easeOut(duration: 0.2)) {
                             showAppointmentConfirmation = false
@@ -895,11 +784,102 @@ struct AppointmentSchedulingView: View {
                     }
                 }
             
+            // Confirmation card
             VStack(spacing: 20) {
                 if appointmentScheduled {
-                    appointmentConfirmationContent
+                    // Success icon
+                    ZStack {
+                        Circle()
+                            .fill(Color.green.opacity(0.2))
+                            .frame(width: 80, height: 80)
+                        
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.green)
+                    }
+                    .padding(.top, 20)
+                    
+                    Text("Appointment Scheduled!")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                    
+                    // Appointment details
+                    VStack(alignment: .leading, spacing: 12) {
+                        appointmentDetailRow(title: "Doctor", value: confirmedDoctor?.name ?? "")
+                        appointmentDetailRow(title: "Specialty", value: confirmedDoctor?.specialty ?? "")
+                        appointmentDetailRow(title: "Date", value: formattedDate)
+                        appointmentDetailRow(title: "Time", value: selectedTime)
+                        
+                        if !reason.isEmpty {
+                            Divider()
+                                .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.2))
+                            
+                            Text("Reason for Visit:")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.5) : Color(hex: "718096"))
+                            
+                            Text(reason)
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "2D3748"))
+                                .padding(.top, 4)
+                        }
+                    }
+                    .padding(.vertical, 10)
+                    
+                    // Share button
+                    Button(action: {
+                        generatePDF()
+                        showShareSheet = true
+                        triggerHaptic(style: .medium)
+                    }) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Share Appointment")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(hex: "4A90E2"))
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // Done button
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            showAppointmentConfirmation = false
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            dismiss()
+                        }
+                    }) {
+                        Text("Done")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(hex: "4A90E2"))
+                            )
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 20)
                 } else {
-                    loadingView
+                    // Loading state
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "4A90E2")))
+                        .scaleEffect(1.5)
+                        .padding(40)
+                    
+                    Text("Scheduling your appointment...")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
                 }
             }
             .padding(20)
@@ -910,105 +890,6 @@ struct AppointmentSchedulingView: View {
             )
             .frame(maxWidth: 320)
             .transition(.scale.combined(with: .opacity))
-        }
-    }
-    
-    // Appointment confirmation content
-    private var appointmentConfirmationContent: some View {
-        Group {
-            ZStack {
-                Circle()
-                    .fill(Color.green.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.green)
-            }
-            .padding(.top, 20)
-            
-            Text("Appointment Scheduled!")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-            
-            VStack(alignment: .leading, spacing: 12) {
-                appointmentDetailRow(title: "Doctor", value: confirmedDoctor?.name ?? "")
-                appointmentDetailRow(title: "Specialty", value: confirmedDoctor?.specialty ?? "")
-                appointmentDetailRow(title: "Date", value: formattedDate)
-                appointmentDetailRow(title: "Time", value: selectedTime)
-                
-                if !reason.isEmpty {
-                    Divider()
-                        .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.2))
-                    
-                    Text("Reason for Visit:")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.5) : Color(hex: "718096"))
-                    
-                    Text(reason)
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "2D3748"))
-                        .padding(.top, 4)
-                }
-            }
-            .padding(.vertical, 10)
-            
-            Button(action: {
-                generatePDF()
-                showShareSheet = true
-                triggerHaptic(style: .medium)
-            }) {
-                HStack {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Share Appointment")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(hex: "4A90E2"))
-                )
-            }
-            .padding(.horizontal, 20)
-            
-            Button(action: {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    showAppointmentConfirmation = false
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    dismiss()
-                }
-            }) {
-                Text("Done")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(hex: "4A90E2"))
-                    )
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 20)
-        }
-    }
-    
-    // Loading view
-    private var loadingView: some View {
-        Group {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "4A90E2")))
-                .scaleEffect(1.5)
-                .padding(40)
-            
-            Text("Scheduling your appointment...")
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "4A5568"))
         }
     }
     
@@ -1041,40 +922,18 @@ struct AppointmentSchedulingView: View {
         return formatter.string(from: selectedDate)
     }
     
-    // Check if time slot is in the past
-    private func isTimeSlotInPast(time: String) -> Bool {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        let isToday = calendar.isDate(selectedDate, inSameDayAs: now)
-        if !isToday {
-            return false
-        }
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "hh:mm a"
-        guard let slotTime = formatter.date(from: time) else { return false }
-        
-        let slotComponents = calendar.dateComponents([.hour, .minute], from: slotTime)
-        guard let slotHour = slotComponents.hour, let slotMinute = slotComponents.minute else { return false }
-        
-        var slotDateComponents = calendar.dateComponents([.year, .month, .day], from: now)
-        slotDateComponents.hour = slotHour
-        slotDateComponents.minute = slotMinute
-        
-        guard let slotDate = calendar.date(from: slotDateComponents) else { return false }
-        return slotDate < now
-    }
-    
     // Schedule appointment logic
     private func scheduleAppointment() {
         guard confirmedDoctor != nil else { return }
         
         isScheduling = true
+        
+        // Show confirmation overlay
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             showAppointmentConfirmation = true
         }
         
+        // Simulate scheduling delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             withAnimation {
                 appointmentScheduled = true
@@ -1094,7 +953,7 @@ struct AppointmentSchedulingView: View {
         let format = UIGraphicsPDFRendererFormat()
         format.documentInfo = pdfMetaData as [String: Any]
         
-        let pageWidth = 8.5 * 72.0
+        let pageWidth = 8.5 * 72.0 // US Letter size in points
         let pageHeight = 11.0 * 72.0
         let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
         
@@ -1117,34 +976,40 @@ struct AppointmentSchedulingView: View {
             
             var currentY: CGFloat = 40
             
+            // Title
             let title = "Appointment Confirmation"
             title.draw(at: CGPoint(x: 20, y: currentY), withAttributes: attributesTitle)
             currentY += 40
             
+            // Doctor
             let doctorLabel = "Doctor:"
             doctorLabel.draw(at: CGPoint(x: 20, y: currentY), withAttributes: attributesLabel)
             let doctorValue = doctor.name
             doctorValue.draw(at: CGPoint(x: 100, y: currentY), withAttributes: attributesValue)
             currentY += 30
             
+            // Specialty
             let specialtyLabel = "Specialty:"
             specialtyLabel.draw(at: CGPoint(x: 20, y: currentY), withAttributes: attributesLabel)
             let specialtyValue = doctor.specialty
             specialtyValue.draw(at: CGPoint(x: 100, y: currentY), withAttributes: attributesValue)
             currentY += 30
             
+            // Date
             let dateLabel = "Date:"
             dateLabel.draw(at: CGPoint(x: 20, y: currentY), withAttributes: attributesLabel)
             let dateValue = formattedDate
             dateValue.draw(at: CGPoint(x: 100, y: currentY), withAttributes: attributesValue)
             currentY += 30
             
+            // Time
             let timeLabel = "Time:"
             timeLabel.draw(at: CGPoint(x: 20, y: currentY), withAttributes: attributesLabel)
             let timeValue = selectedTime
             timeValue.draw(at: CGPoint(x: 100, y: currentY), withAttributes: attributesValue)
             currentY += 30
             
+            // Reason for Visit
             if !reason.isEmpty {
                 let reasonLabel = "Reason for Visit:"
                 reasonLabel.draw(at: CGPoint(x: 20, y: currentY), withAttributes: attributesLabel)
@@ -1159,6 +1024,7 @@ struct AppointmentSchedulingView: View {
             }
         }
         
+        // Save PDF to temporary directory
         let tempDir = FileManager.default.temporaryDirectory
         let fileName = "Appointment_\(formattedDate.replacingOccurrences(of: ", ", with: "_")).pdf"
         let fileURL = tempDir.appendingPathComponent(fileName)
@@ -1188,7 +1054,7 @@ struct Doctor: Identifiable {
     let experience: String
     let qualification: String
     let image: String
-    let availableDays: [Int]
+    let availableDays: [Int] // 1-7 for days of week (1 = Sunday)
 }
 
 // Activity View Controller for sharing
@@ -1202,8 +1068,6 @@ struct ActivityViewController: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
-
-
 
 struct AppointmentSchedulingView_Previews: PreviewProvider {
     static var previews: some View {

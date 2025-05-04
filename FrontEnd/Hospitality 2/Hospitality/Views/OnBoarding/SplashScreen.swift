@@ -3,8 +3,8 @@ import SwiftUI
 struct SplashScreen: View {
     @State private var opacity = 1.0
     @State private var scale: CGFloat = 1.0
-    @State private var isActive = false
     @Environment(\.colorScheme) var colorScheme
+    var onComplete: () -> Void
     
     var body: some View {
         ZStack {
@@ -19,13 +19,11 @@ struct SplashScreen: View {
             )
             .ignoresSafeArea()
             
-            // Background patterns - matching login screen
-            ForEach(0..<10) { i in
+            // Background patterns (reduced to 5 for performance)
+            ForEach(0..<5) { _ in
                 Circle()
-                    .fill(colorScheme == .dark ?
-                          Color.blue.opacity(0.05) :
-                          Color.blue.opacity(0.03))
-                    .frame(width: CGFloat.random(in: 50...200))
+                    .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
+                    .frame(width: CGFloat.random(in: 50...150))
                     .position(
                         x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
                         y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
@@ -35,7 +33,7 @@ struct SplashScreen: View {
             
             // Icon and text - matching login screen styling
             VStack(spacing: 5) {
-                // Logo - same as in login screen
+                // Logo
                 ZStack {
                     Circle()
                         .fill(Color(hex: "4A90E2"))
@@ -49,7 +47,7 @@ struct SplashScreen: View {
                 }
                 .scaleEffect(scale)
                 
-                // Brand text - same as in login screen
+                // Brand text
                 Text("Hospitality")
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
@@ -67,32 +65,25 @@ struct SplashScreen: View {
                     opacity = 0.8
                 }
                 
-                // Fade out after 2 seconds
+                // Trigger completion after 2 seconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     withAnimation(.easeOut(duration: 0.5)) {
                         opacity = 0
                         scale = 0.8
                     }
-                    isActive = true
+                    onComplete()
                 }
             }
-        }
-        .fullScreenCover(isPresented: $isActive) {
-            // Transition to the first screen after splash
-            Onboarding()
         }
     }
 }
 
-
-
 struct SplashScreen_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            SplashScreen()
+            SplashScreen(onComplete: {})
                 .preferredColorScheme(.light)
-            
-            SplashScreen()
+            SplashScreen(onComplete: {})
                 .preferredColorScheme(.dark)
         }
     }

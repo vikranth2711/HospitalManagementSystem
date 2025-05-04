@@ -27,23 +27,25 @@ struct PostVitals: Codable {
 }
 
 //2.Doc puts vitals->post
-struct EnterDiagnosisRequest: Codable {
-    let diagnosis_data: DiagnosisData
-    let lab_test_required: Bool
-    let follow_up_required: Bool
-}
+//struct EnterDiagnosisRequest: Codable {
+//    let diagnosis_data: DiagnosisData
+//    let lab_test_required: Bool
+//    let follow_up_required: Bool
+//}
 
-//3. doc enters diag data -> post
-struct DiagnosisData: Codable {
-    let organ: String
-    let notes: String
-    let symptoms: [String]
-}
+////3. doc enters diag data -> post
+//struct DiagnosisData: Codable {
+//    let organ: String
+//    let notes: String
+//    let symptoms: [String]
+//}
 
 // 4. Doc enters pres data -> post
+// MARK: - Models for API Communication
 struct PrescriptionRequest: Codable {
     let remarks: String
     let medicines: [Medicine]
+    let appointmentId: String
     
     struct Medicine: Codable {
         let medicine_id: String
@@ -57,4 +59,17 @@ struct PrescriptionRequest: Codable {
         }
     }
 }
+
+//struct DiagnosisRequest: Codable {
+//    let diagnosis_data: DiagnosisData
+//    let lab_test_required: Bool
+//    let follow_up_required: Bool
+//    let appointmentId: String
+//
+//    struct DiagnosisData: Codable {
+//        let organ: String
+//        let notes: String
+//        let symptoms: [String]
+//    }
+//}
 
