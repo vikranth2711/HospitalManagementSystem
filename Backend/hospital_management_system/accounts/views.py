@@ -861,8 +861,7 @@ class PatientProfileView(APIView):
                 "patient_dob": details.patient_dob,
                 "patient_gender": details.patient_gender,
                 "patient_blood_group": details.patient_blood_group,
-                "patient_address": details.patient_address,
-                "profile_photo": request.build_absolute_uri(details.profile_photo.url) if details.profile_photo else None
+                "patient_address": details.patient_address
             })
             # Fix the duplicated https:// issue
             if details.profile_photo:
