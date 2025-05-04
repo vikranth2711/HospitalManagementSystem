@@ -235,7 +235,7 @@ struct createLabTechResponse: Codable {
 }
 
 struct LabTechListResponse: Codable {
-    let staff_id: String // Add this
+    let staff_id: String
     let staff_name: String
     let staff_email: String
     let staff_mobile: String
@@ -245,8 +245,55 @@ struct LabTechListResponse: Codable {
     let on_leave: Bool
 }
 
+struct SpecificLabTechResponse: Codable {
+    let staff_id: String
+    let staff_name: String
+    let staff_email: String
+    let staff_mobile: String
+    let created_at: String
+    let certification: String
+    let lab_experience_years: Int
+    let assigned_lab: String
+    let on_leave: Bool
+    let staff_dob: String?
+    let staff_address: String?
+    let staff_qualification: String?
+    let profile_photo: String?
+}
+
+struct UpdateLabTechRequest: Codable {
+    let staff_name: String
+    let staff_email: String
+    let staff_mobile: String
+    let certification: String
+    let lab_experience_years: Int
+    let assigned_lab: String
+    let on_leave: Bool
+    let staff_dob: String?
+    let staff_address: String?
+    let staff_qualification: String?
+    let profile_photo: String? // Base64 string or URL
+}
+struct UpdateLabTechResponse: Codable {
+    let message: String
+}
+
 struct DeleteLabTechResponse: Codable {
     let message: String
+}
+
+struct CreateLabRequest: Codable {
+    let lab_name: String
+    let lab_type: Int
+    let functional: Bool
+}
+
+struct CreateLabResponse: Codable {
+    let lab_id: Int
+    let lab_name: String
+    let lab_type: Int
+    let lab_type_name: String
+    let functional: Bool
 }
 
 class AuthService {
@@ -817,6 +864,152 @@ class LabTechnicianService: ObservableObject {
             } catch {
                 print("Decoding error: \(error)")
                 completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+    
+    func fetchSpecificLabTechnician(staffId: String, completion: @escaping (Result<SpecificLabTechResponse, DoctorCreationError>) -> Void) {
+            guard let url = URL(string: "\(baseURL)/hospital/admin/lab-technicians/\(staffId)/") else {
+                print("Invalid URL: \(baseURL)/hospital/admin/lab-technicians/\(staffId)/")
+                completion(.failure(.invalidURL))
+                return
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+            
+            print("Fetching specific lab technician with ID: \(staffId)")
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("Network error: \(error.localizedDescription)")
+                    completion(.failure(.serverError(error.localizedDescription)))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("No HTTP response")
+                    completion(.failure(.unknownError))
+                    return
+                }
+                
+                print("HTTP Status Code: \(httpResponse.statusCode)")
+                if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                    print("Response Data: \(responseString)")
+                }
+                
+                if httpResponse.statusCode == 401 {
+                    print("Unauthorized access")
+                    completion(.failure(.unauthorized))
+                    return
+                }
+                
+                guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                    let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                    print("Server error: \(errorMessage)")
+                    completion(.failure(.serverError(errorMessage)))
+                    return
+                }
+                
+                do {
+                    let response = try JSONDecoder().decode(SpecificLabTechResponse.self, from: data)
+                    print("Decoded Response: \(response)")
+                    completion(.success(response))
+                } catch {
+                    print("Decoding error: \(error)")
+                    completion(.failure(.decodingError))
+                }
+            }.resume()
+        }
+        
+    func updateLabTechnician(
+        staffId: String,
+        name: String,
+        email: String,
+        mobile: String,
+        certification: String,
+        experienceYears: Int,
+        assignedLab: String,
+        onLeave: Bool,
+        dob: String,
+        address: String,
+        qualification: String,
+        photo: UIImage?,
+        completion: @escaping (Result<UpdateLabTechResponse, Error>) -> Void
+    ) {
+        let endpoint = "\(baseURL)/hospital/admin/lab-technicians/\(staffId)/"
+        
+        guard let url = URL(string: endpoint) else {
+            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        
+        // Create boundary for multipart form data
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        var body = Data()
+        
+        // Add text fields
+        let textParams: [String: Any] = [
+            "staff_name": name,
+            "staff_email": email,
+            "staff_mobile": mobile,
+            "certification": certification,
+            "lab_experience_years": experienceYears,
+            "assigned_lab": assignedLab,
+            "on_leave": onLeave,
+            "staff_dob": dob,
+            "staff_address": address,
+            "staff_qualification": qualification
+        ]
+        
+        for (key, value) in textParams {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        
+        // Add image data if available
+        if let image = photo, let imageData = image.jpegData(compressionQuality: 0.8) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"profile_photo\"; filename=\"profile.jpg\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+            body.append(imageData)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(NSError(domain: "", code: -2, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMessage])))
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(UpdateLabTechResponse.self, from: data)
+                completion(.success(response))
+            } catch {
+                completion(.failure(error))
             }
         }.resume()
     }

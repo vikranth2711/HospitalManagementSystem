@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AdminDashboardView: View {
-    @StateObject private var dataStore = MockHospitalDataStore()
+    @EnvironmentObject private var dataStore: MockHospitalDataStore
     
     var body: some View {
         NavigationView {
