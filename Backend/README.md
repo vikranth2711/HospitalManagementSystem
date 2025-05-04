@@ -1,7 +1,5 @@
 # Hospital Management System API Reference
 
-This document provides a comprehensive reference for all APIs in the Hospital Management System, organized by functional areas.
-
 ## Authentication and User Management
 
 ### Request OTP
@@ -1297,3 +1295,259 @@ This document provides a comprehensive reference for all APIs in the Hospital Ma
       "target_organ_remark": "Respiratory system"
     }
   ]
+
+# Transaction and Invoice API Reference
+
+## Invoice Management
+
+### List Invoices
+
+- **URL**: `/api/transactions/invoices/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Lists invoices based on user type (patients see only their own, admins see all)
+- **Response**: 
+  ```json
+  [
+    {
+      "invoice_id": 1,
+      "invoice_number": "INV-20250504-0001",
+      "invoice_datetime": "2025-05-04T10:30:00Z",
+      "tran": 456,
+      "invoice_type": 1,
+      "invoice_type_name": "appointment",
+      "patient": 101,
+      "patient_name": "John Doe",
+      "invoice_items": [123],
+      "invoice_subtotal": 2000.00,
+      "invoice_tax": 100.00,
+      "invoice_total": 2100.00,
+      "invoice_unit": 1,
+      "unit_symbol": "$",
+      "invoice_status": "paid",
+      "invoice_remark": "Invoice for appointment on 2025-05-04"
+    }
+  ]
+  ```
+
+### Invoice Detail
+
+- **URL**: `/api/transactions/invoices//`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Gets detailed information about a specific invoice
+- **Response**: 
+  ```json
+  {
+    "invoice_id": 1,
+    "invoice_number": "INV-20250504-0001",
+    "invoice_datetime": "2025-05-04T10:30:00Z",
+    "tran": 456,
+    "invoice_type": 1,
+    "invoice_type_name": "appointment",
+    "patient": 101,
+    "patient_name": "John Doe",
+    "invoice_items": [123],
+    "invoice_subtotal": 2000.00,
+    "invoice_tax": 100.00,
+    "invoice_total": 2100.00,
+    "invoice_unit": 1,
+    "unit_symbol": "$",
+    "invoice_status": "paid",
+    "invoice_remark": "Invoice for appointment on 2025-05-04",
+    "detailed_items": [
+      {
+        "item_id": 123,
+        "item_type": "appointment",
+        "doctor_name": "Dr. Johnson",
+        "appointment_date": "2025-05-04",
+        "slot_time": "10:30"
+      }
+    ]
+  }
+  ```
+
+### Update Invoice Status
+
+- **URL**: `/api/transactions/invoices//status/`
+- **Method**: PUT
+- **Authentication**: Required (Admin)
+- **Description**: Updates the status of an invoice
+- **Request Body**:
+  ```json
+  {
+    "status": "paid"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "invoice_id": 1,
+    "invoice_number": "INV-20250504-0001",
+    "invoice_datetime": "2025-05-04T10:30:00Z",
+    "tran": 456,
+    "invoice_type": 1,
+    "invoice_type_name": "appointment",
+    "patient": 101,
+    "patient_name": "John Doe",
+    "invoice_items": [123],
+    "invoice_subtotal": 2000.00,
+    "invoice_tax": 100.00,
+    "invoice_total": 2100.00,
+    "invoice_unit": 1,
+    "unit_symbol": "$",
+    "invoice_status": "paid",
+    "invoice_remark": "Invoice for appointment on 2025-05-04"
+  }
+  ```
+
+### Generate Invoice PDF
+
+- **URL**: `/api/transactions/invoices//pdf/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Generates a PDF version of the invoice
+- **Response**: PDF file download
+
+### Patient Invoices
+
+- **URL**: `/api/transactions/patients//invoices/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Lists all invoices for a specific patient
+- **Response**: 
+  ```json
+  [
+    {
+      "invoice_id": 1,
+      "invoice_number": "INV-20250504-0001",
+      "invoice_datetime": "2025-05-04T10:30:00Z",
+      "tran": 456,
+      "invoice_type": 1,
+      "invoice_type_name": "appointment",
+      "patient": 101,
+      "patient_name": "John Doe",
+      "invoice_items": [123],
+      "invoice_subtotal": 2000.00,
+      "invoice_tax": 100.00,
+      "invoice_total": 2100.00,
+      "invoice_unit": 1,
+      "unit_symbol": "$",
+      "invoice_status": "paid",
+      "invoice_remark": "Invoice for appointment on 2025-05-04"
+    }
+  ]
+  ```
+
+## Invoice Generation
+
+### Generate Appointment Invoice
+
+- **URL**: `/api/transactions/appointments//generate-invoice/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Generates an invoice for an appointment
+- **Response**: 
+  ```json
+  {
+    "invoice_id": 1,
+    "invoice_number": "INV-20250504-0001",
+    "invoice_datetime": "2025-05-04T10:30:00Z",
+    "tran": 456,
+    "invoice_type": 1,
+    "invoice_type_name": "appointment",
+    "patient": 101,
+    "patient_name": "John Doe",
+    "invoice_items": [123],
+    "invoice_subtotal": 2000.00,
+    "invoice_tax": 100.00,
+    "invoice_total": 2100.00,
+    "invoice_unit": 1,
+    "unit_symbol": "$",
+    "invoice_status": "paid",
+    "invoice_remark": "Invoice for appointment on 2025-05-04"
+  }
+  ```
+
+### Generate Lab Test Invoice
+
+- **URL**: `/api/transactions/lab-tests//generate-invoice/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Generates an invoice for a lab test
+- **Response**: 
+  ```json
+  {
+    "invoice_id": 2,
+    "invoice_number": "INV-20250504-0002",
+    "invoice_datetime": "2025-05-04T11:15:00Z",
+    "tran": 457,
+    "invoice_type": 2,
+    "invoice_type_name": "lab_test",
+    "patient": 101,
+    "patient_name": "John Doe",
+    "invoice_items": [56],
+    "invoice_subtotal": 500.00,
+    "invoice_tax": 25.00,
+    "invoice_total": 525.00,
+    "invoice_unit": 1,
+    "unit_symbol": "$",
+    "invoice_status": "paid",
+    "invoice_remark": "Invoice for Blood Test on 2025-05-04"
+  }
+  ```
+
+### Generate Multiple Lab Tests Invoice
+
+- **URL**: `/api/transactions/lab-tests/generate-multiple-invoice/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Generates a single invoice for multiple lab tests
+- **Request Body**:
+  ```json
+  {
+    "lab_test_ids": [56, 57],
+    "patient_id": 101
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "invoice_id": 3,
+    "invoice_number": "INV-20250504-0003",
+    "invoice_datetime": "2025-05-04T11:30:00Z",
+    "tran": 457,
+    "invoice_type": 2,
+    "invoice_type_name": "lab_test",
+    "patient": 101,
+    "patient_name": "John Doe",
+    "invoice_items": [56, 57],
+    "invoice_subtotal": 800.00,
+    "invoice_tax": 40.00,
+    "invoice_total": 840.00,
+    "invoice_unit": 1,
+    "unit_symbol": "$",
+    "invoice_status": "paid",
+    "invoice_remark": "Invoice for multiple lab tests on 2025-05-04"
+  }
+  ```
+
+## URL Configuration
+
+The transaction and invoice APIs are configured under the `/api/transactions/` path prefix. Here's the complete URL configuration:
+
+```python
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    # Invoice endpoints
+    path('invoices/', views.InvoiceListView.as_view(), name='invoice-list'),
+    path('invoices//', views.InvoiceDetailView.as_view(), name='invoice-detail'),
+    path('invoices//status/', views.UpdateInvoiceStatusView.as_view(), name='update-invoice-status'),
+    path('invoices//pdf/', views.GenerateInvoicePDFView.as_view(), name='generate-invoice-pdf'),
+    path('patients//invoices/', views.PatientInvoicesView.as_view(), name='patient-invoices'),
+    path('appointments//generate-invoice/', views.GenerateAppointmentInvoiceView.as_view(), name='generate-appointment-invoice'),
+    path('lab-tests//generate-invoice/', views.GenerateLabTestInvoiceView.as_view(), name='generate-lab-test-invoice'),
+    path('lab-tests/generate-multiple-invoice/', views.GenerateMultipleLabTestsInvoiceView.as_view(), name='generate-multiple-lab-tests-invoice'),
+]
