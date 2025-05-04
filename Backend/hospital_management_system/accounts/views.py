@@ -857,6 +857,13 @@ class PatientProfileView(APIView):
         # Get additional patient details if they exist
         try:
             details = patient.details
+            patient_data.update({
+                "patient_dob": details.patient_dob,
+                "patient_gender": details.patient_gender,
+                "patient_blood_group": details.patient_blood_group,
+                "patient_address": details.patient_address,
+                "profile_photo": request.build_absolute_uri(details.profile_photo.url) if details.profile_photo else None
+            })
             # Fix the duplicated https:// issue
             if details.profile_photo:
                 photo_url = details.profile_photo.url
@@ -868,13 +875,6 @@ class PatientProfileView(APIView):
                     patient_data["profile_photo"] = request.build_absolute_uri(photo_url)
             else:
                 patient_data["profile_photo"] = None
-            patient_data.update({
-                "patient_dob": details.patient_dob,
-                "patient_gender": details.patient_gender,
-                "patient_blood_group": details.patient_blood_group,
-                "patient_address": details.patient_address,
-                "profile_photo": request.build_absolute_uri(details.profile_photo.url) if details.profile_photo else None
-            })
         except PatientDetails.DoesNotExist:
             # No additional details exist yet
             pass
