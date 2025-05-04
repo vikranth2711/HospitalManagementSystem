@@ -866,11 +866,18 @@
 - **Request Body**:
   ```json
   {
-    "diagnosis_data": {
-      "symptoms": ["fever", "cough"],
-      "findings": "Mild respiratory infection",
-      "notes": "Rest advised"
-    },
+    "diagnosis_data": [
+      {
+      "organ" : "Head",
+      "notes": "Patient reports recurring episodes",
+      "symptoms": ["Headache", "Light sensitivity", "Nausea"]
+      },
+      {
+      "organ" : "Tail",
+      "notes": "Patient reports recurring episodes",
+      "symptoms": ["Headache", "Light sensitivity", "Nausea"]
+      }
+    ],
     "lab_test_required": true,
     "follow_up_required": false
   }
@@ -1369,7 +1376,7 @@
 
 ### Update Invoice Status
 
-- **URL**: `/api/transactions/invoices//status/`
+- **URL**: `/api/transactions/invoices/status/`
 - **Method**: PUT
 - **Authentication**: Required (Admin)
 - **Description**: Updates the status of an invoice
@@ -1661,4 +1668,63 @@ urlpatterns = [
   {
     "message": "Lab deleted successfully"
   }
+  ```
+
+### List All Lab Test Types
+
+- **URL**: `/api/hospital/general/lab-test-types/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves a list of all available lab test types
+
+- **Query Parameters**:
+
+  - `category_id` (optional): Filter test types by category
+
+  - `target_organ_id` (optional): Filter test types by target organ
+
+- **Response**:
+  ```json
+  [
+    {
+      "test_type_id": 1,
+      "test_name": "Complete Blood Count",
+      "test_schema": {
+        "hemoglobin": {"type": "number", "unit": "g/dL"},
+        "wbc_count": {"type": "number", "unit": "cells/μL"},
+        "rbc_count": {"type": "number", "unit": "cells/μL"},
+        "platelets": {"type": "number", "unit": "cells/μL"}
+      },
+      "test_category": {
+        "category_id": 1,
+        "category_name": "Hematology"
+      },
+      "test_target_organ": {
+        "target_organ_id": 3,
+        "target_organ_name": "Blood"
+      },
+      "image_required": false,
+      "test_remark": "Basic blood test to evaluate overall health"
+    },
+    {
+      "test_type_id": 2,
+      "test_name": "Liver Function Test",
+      "test_schema": {
+        "alt": {"type": "number", "unit": "U/L"},
+        "ast": {"type": "number", "unit": "U/L"},
+        "alp": {"type": "number", "unit": "U/L"},
+        "bilirubin": {"type": "number", "unit": "mg/dL"}
+      },
+      "test_category": {
+        "category_id": 2,
+        "category_name": "Biochemistry"
+      },
+      "test_target_organ": {
+        "target_organ_id": 1,
+        "target_organ_name": "Liver"
+      },
+      "image_required": false,
+      "test_remark": "Evaluates liver function and detects liver damage"
+    }
+  ]
   ```

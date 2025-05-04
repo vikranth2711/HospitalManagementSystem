@@ -17,7 +17,7 @@ class LabSerializer(serializers.ModelSerializer):
 class LabTestCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = LabTestCategory
-        fields = ['category_id', 'category_name']
+        fields = ['test_category_id', 'test_category_name']
 
 class TargetOrganSerializer(serializers.ModelSerializer):
     class Meta:
