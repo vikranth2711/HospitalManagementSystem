@@ -115,10 +115,12 @@ struct AppointmentsListView: View {
 
 struct AppointmentCardView: View {
     let appointment: DoctorResponse.DocAppointment
+    @State private var patientName: String = "Loading..."
+    @State private var isLoading = false
     
     var body: some View {
         HStack {
-            // Left: Date indicator with improved styling
+            // Left: Date indicator
             VStack(spacing: 4) {
                 Text(getDayFromDate(appointment.date))
                     .font(.title2)
@@ -143,7 +145,7 @@ struct AppointmentCardView: View {
                 .cornerRadius(2)
                 .padding(.horizontal, 8)
             
-            // Right: Appointment details with more info
+            // Right: Appointment details
             VStack(alignment: .leading, spacing: 6) {
                 Text("Patient #\(appointment.patientId)")
                     .font(.headline)
@@ -152,8 +154,14 @@ struct AppointmentCardView: View {
                     Image(systemName: "person")
                         .foregroundColor(.secondary)
                         .font(.caption)
-                    Text(getPatientDisplayName(appointment.patientId))
-                        .font(.subheadline)
+                    
+                    if isLoading {
+                        ProgressView()
+                            .scaleEffect(0.5)
+                    } else {
+                        Text(patientName)
+                            .font(.subheadline)
+                    }
                 }
                 
                 HStack {
@@ -184,15 +192,39 @@ struct AppointmentCardView: View {
         .background(Color(.systemGray6))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .onAppear {
+            loadPatientName()
+        }
     }
     
-    // Helper function to get patient name (would normally come from a patient service)
-    private func getPatientDisplayName(_ patientId: Int) -> String {
-        // In a real app, you would lookup the patient name
-        return "Patient Name"
+    private func loadPatientName() {
+        if let cachedName = PatientCache.shared.getName(for: appointment.patientId) {
+            patientName = cachedName
+            return
+        }
+        
+        isLoading = true
+        
+        Task {
+            do {
+                let profile = try await DoctorServices().fetchPatientProfile(patientId: String(appointment.patientId))
+                let name = profile.patientName
+                PatientCache.shared.store(name: name, for: appointment.patientId)
+                
+                DispatchQueue.main.async {
+                    patientName = name
+                    isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    patientName = "Patient \(appointment.patientId)"
+                    isLoading = false
+                }
+            }
+        }
     }
     
-    // Helper functions to extract date components
+    // Helper functions for date components (unchanged from your original code)
     private func getDayFromDate(_ dateString: String) -> String {
         if dateString.count >= 10 {
             let dayStartIndex = dateString.index(dateString.startIndex, offsetBy: 8)
@@ -208,7 +240,6 @@ struct AppointmentCardView: View {
             let monthEndIndex = dateString.index(dateString.startIndex, offsetBy: 7)
             let monthNumber = String(dateString[monthStartIndex..<monthEndIndex])
             
-            // Convert month number to name
             let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
             if let month = Int(monthNumber), month >= 1, month <= 12 {
                 return months[month - 1]
@@ -227,14 +258,33 @@ struct AppointmentCardView: View {
     
     private func getStatusColor(_ status: String) -> Color {
         switch status.lowercased() {
-        case "completed":
-            return .green
-        case "scheduled":
-            return .blue
-        case "cancelled":
-            return .red
-        default:
-            return .gray
+        case "completed": return .green
+        case "scheduled": return .blue
+        case "cancelled": return .red
+        default: return .gray
+        }
+    }
+}
+
+struct StatusBadge: View {
+    let status: String
+    
+    var body: some View {
+        Text(status.capitalized)
+            .font(.caption2)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(statusBackgroundColor)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+    }
+    
+    private var statusBackgroundColor: Color {
+        switch status.lowercased() {
+        case "completed": return .green
+        case "scheduled": return .blue
+        case "cancelled": return .red
+        default: return .gray
         }
     }
 }

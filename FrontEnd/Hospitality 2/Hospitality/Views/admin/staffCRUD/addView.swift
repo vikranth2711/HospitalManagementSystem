@@ -22,22 +22,9 @@ struct AdminDashboardView: View {
                         Label("Lab Technicians", systemImage: "person.text.rectangle")
                     }
                 }
-                
-                Section(header: Text("Services").font(.headline)) {
-                    NavigationLink(destination: LabTestsListView().environmentObject(dataStore)) {
-                        Label("Lab Tests", systemImage: "testtube.2")
-                    }
-                }
             }
             .listStyle(InsetGroupedListStyle())
             .navigationTitle("Hospital Admin")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {}) {
-                        Image(systemName: "person.crop.circle")
-                    }
-                }
-            }
         }
         .navigationViewStyle(.stack) // Prevents sidebar behavior on iPad
     }

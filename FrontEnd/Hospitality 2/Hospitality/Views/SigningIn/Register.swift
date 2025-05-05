@@ -5,26 +5,27 @@ struct Register: View {
     @StateObject private var viewModel = UserSignupViewModel()
     
     @State private var currentStep = 1
-        @State private var name = ""
-        @State private var phone = ""
-        @State private var email = ""
-        @State private var password = ""
-        @State private var confirmPassword = ""
-        @State private var otpCode = ""
-        @State private var dob = Date()
-        @State private var bloodGroup = ""
-        @State private var gender: String?
-        @State private var isLoading = false
-        @State private var showError = false
-        @State private var errorMessage = ""
-        @State private var navigateToHome = false
-        @State private var isPasswordVisible = false
-        @State private var isConfirmPasswordVisible = false
-        @FocusState private var focusedField: Field?
-        @Environment(\.dismiss) var dismiss
+    @State private var name = ""
+    @State private var phone = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var confirmPassword = ""
+    @State private var otpCode = ""
+    @State private var dob = Date()
+    @State private var bloodGroup = ""
+    @State private var gender: String?
+    @State private var isLoading = false
+    @State private var showError = false
+    @State private var errorMessage = ""
+    @State private var navigateToHome = false
+    @State private var navigateToLogin = false
+    @State private var isPasswordVisible = false
+    @State private var isConfirmPasswordVisible = false
+    @FocusState private var focusedField: Field?
+    @Environment(\.dismiss) var dismiss
     
     enum Field: Hashable {
-        case name, phone, email,password,confirmPassword, otp
+        case name, phone, email, password, confirmPassword, otp
     }
     
     @State private var cancellables = Set<AnyCancellable>()
@@ -65,14 +66,29 @@ struct Register: View {
                                 }
                                 
                                 ContinueButton()
+                                
+                                // Have an account? Login button
+                                Button(action: {
+                                    navigateToLogin = true
+                                }) {
+                                    Text("Have an account? Login")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(Color(hex: "4A90E2"))
+                                }
+                                .padding(.top, 8)
                             }
                             .padding(.horizontal, 20)
                         }
                     }
                 }
             }
+            .navigationBarBackButtonHidden(true) 
             .navigationDestination(isPresented: $navigateToHome) {
                 HomePatient()
+                    .navigationBarBackButtonHidden(true)
+            }
+            .navigationDestination(isPresented: $navigateToLogin) {
+                Login() // Replace with your actual Login view
                     .navigationBarBackButtonHidden(true)
             }
             .alert("Error", isPresented: $showError) {
@@ -115,7 +131,13 @@ struct Register: View {
             
             InfoField(title: "Phone Number", text: $phone)
                 .focused($focusedField, equals: .phone)
-                .keyboardType(.phonePad)
+                .keyboardType(.numberPad)
+                .onChange(of: phone) { newValue in
+                    phone = newValue.filter { $0.isNumber }
+                    if phone.count > 10 {
+                        phone = String(phone.prefix(10))
+                    }
+                }
                 .submitLabel(.next)
             
             InfoField(title: "Email Address", text: $email)
@@ -124,46 +146,54 @@ struct Register: View {
                     email = newValue.lowercased()
                 }
                 .keyboardType(.emailAddress)
-                .submitLabel(.done)
+                .submitLabel(.next)
             
-            // Password Field
-                        PasswordField(
-                            title: "Password",
-                            text: $password,
-                            isVisible: $isPasswordVisible
-                        )
-                        .focused($focusedField, equals: .password)
-                        .submitLabel(.next)
-                        
-                        // Confirm Password Field
-                        PasswordField(
-                            title: "Confirm Password",
-                            text: $confirmPassword,
-                            isVisible: $isConfirmPasswordVisible
-                        )
-                        .focused($focusedField, equals: .confirmPassword)
-                        .submitLabel(.done)
-                        
-                        // Password strength indicator
-                        if !password.isEmpty {
-                            PasswordStrengthView(password: password)
-                        }
-                        
-                        // Password match indicator
-                        if !confirmPassword.isEmpty {
-                            HStack {
-                                Image(systemName: password == confirmPassword ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(password == confirmPassword ? .green : .red)
-                                
-                                Text(password == confirmPassword ? "Passwords match" : "Passwords don't match")
-                                    .font(.caption)
-                                    .foregroundColor(password == confirmPassword ? .green : .red)
-                                
-                                Spacer()
-                            }
-                            .padding(.top, -12)
-                            .padding(.leading, 4)
-                        }
+            // Password Field with Hint
+            VStack(spacing: 4) {
+                PasswordField(
+                    title: "Password",
+                    text: $password,
+                    isVisible: $isPasswordVisible
+                )
+                .focused($focusedField, equals: .password)
+                .submitLabel(.next)
+                
+                Text("Minimum 1 upper, 1 lower, 1 special character, and 1 number")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 16)
+            }
+            
+            // Confirm Password Field
+            PasswordField(
+                title: "Confirm Password",
+                text: $confirmPassword,
+                isVisible: $isConfirmPasswordVisible
+            )
+            .focused($focusedField, equals: .confirmPassword)
+            .submitLabel(.done)
+            
+            // Password strength indicator
+            if !password.isEmpty {
+                PasswordStrengthView(password: password)
+            }
+            
+            // Password match indicator
+            if !confirmPassword.isEmpty {
+                HStack {
+                    Image(systemName: password == confirmPassword ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(password == confirmPassword ? .green : .red)
+                    
+                    Text(password == confirmPassword ? "Passwords match" : "Passwords don't match")
+                        .font(.caption)
+                        .foregroundColor(password == confirmPassword ? .green : .red)
+                    
+                    Spacer()
+                }
+                .padding(.top, -12)
+                .padding(.leading, 4)
+            }
         }
     }
     
@@ -299,12 +329,32 @@ struct Register: View {
             showError(message: "Please enter your full name")
             return
         }
-        guard !phone.isEmpty else {
-            showError(message: "Please enter your phone number")
+        guard phone.count == 10 && phone.allSatisfy({ $0.isNumber }) else {
+            showError(message: "Please enter a valid 10-digit phone number")
             return
         }
         guard !email.isEmpty else {
             showError(message: "Please enter your email address")
+            return
+        }
+        guard !password.isEmpty else {
+            showError(message: "Please enter a password")
+            return
+        }
+        guard password == confirmPassword else {
+            showError(message: "Passwords don't match")
+            return
+        }
+        guard password.count >= 8 else {
+            showError(message: "Password must be at least 8 characters")
+            return
+        }
+        let hasUppercase = password.rangeOfCharacter(from: .uppercaseLetters) != nil
+        let hasLowercase = password.rangeOfCharacter(from: .lowercaseLetters) != nil
+        let hasNumber = password.rangeOfCharacter(from: .decimalDigits) != nil
+        let hasSpecial = password.rangeOfCharacter(from: .punctuationCharacters) != nil || password.rangeOfCharacter(from: .symbols) != nil
+        guard hasUppercase && hasLowercase && hasNumber && hasSpecial else {
+            showError(message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character")
             return
         }
         print("Button pressed")
@@ -322,7 +372,6 @@ struct Register: View {
             return
         }
         
-        // Password validation - make sure passwords were entered and match
         guard !password.isEmpty else {
             showError(message: "Please enter a password")
             return
@@ -333,7 +382,6 @@ struct Register: View {
             return
         }
         
-        // Minimum password length check
         guard password.count >= 8 else {
             showError(message: "Password must be at least 8 characters")
             return
@@ -344,7 +392,7 @@ struct Register: View {
             otp: otpCode,
             patientName: name,
             patientPhone: phoneInt,
-            patientPassword: password // Use the user input password instead of hardcoded value
+            patientPassword: password
         )
     }
     
@@ -374,7 +422,7 @@ struct Register: View {
             patientDob: dob,
             patientGender: genderBoolean,
             patientBloodGroup: bloodGroup,
-            patientAddress: "Default Address" // You might want to add an address field to your form
+            patientAddress: "Default Address"
         )
     }
     
@@ -396,7 +444,6 @@ struct StickyHeaderView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Gradient Top Bar
             Rectangle()
                 .fill(
                     LinearGradient(
@@ -411,9 +458,8 @@ struct StickyHeaderView: View {
                 .frame(height: 30)
 
             HStack {
-                Spacer() // Replace left arrow with spacer
+                Spacer()
                 
-                // Centered Title and logo
                 VStack(spacing: 2) {
                     ZStack {
                         Circle()
@@ -445,14 +491,14 @@ struct StickyHeaderView: View {
                         .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
                 }
 
-                Spacer() // Balance the layout
+                Spacer()
             }
             .padding(.top, 40)
             .padding(.bottom, 8)
             .background(
                 LinearGradient(
                     gradient: Gradient(colors: [
-                        colorScheme == .dark ? Color(hex: "101420").opacity(0.95) : Color(hex: "E8F5FF").opacity(0.95),
+                        colorScheme == .dark ? Color(hex: "101420").opacity(0.95) : Color(hex: " величE8F5FF").opacity(0.95),
                         colorScheme == .dark ? Color(hex: "1A202C").opacity(0.9) : Color(hex: "F0F8FF").opacity(0.9)
                     ]),
                     startPoint: .top,
@@ -576,9 +622,6 @@ struct PasswordStrengthView: View {
         }
     }
 }
-
-
-
 
 struct DatePickerField: View {
     @Binding var selectedDate: Date

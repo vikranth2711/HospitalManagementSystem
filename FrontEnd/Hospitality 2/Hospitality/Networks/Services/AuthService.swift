@@ -1160,6 +1160,7 @@ extension UserDefaults {
         static let accessToken = "accessToken"
         static let refreshToken = "refreshToken"
         static let email = "email"
+        static let staffSubRole = "staffSubRole"
     }
     
     static var isLoggedIn: Bool {
@@ -1190,6 +1191,11 @@ extension UserDefaults {
     static var email: String {
         get { standard.string(forKey: Keys.email) ?? "" }
         set { standard.set(newValue, forKey: Keys.email) }
+    }
+    
+    static var staffSubRole: String {
+        get { standard.string(forKey: Keys.staffSubRole) ?? "doctor" }
+        set { standard.set(newValue, forKey: Keys.staffSubRole) }
     }
     
     static func clearAuthData() {

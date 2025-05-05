@@ -27,10 +27,10 @@ struct DocProfile: View {
     @State private var errorMessage = ""
     
     let availableSlots = [
-        (id: 1, name: "Morning (8AM-12PM)"),
-        (id: 2, name: "Afternoon (12PM-4PM)"),
-        (id: 3, name: "Evening (4PM-8PM)"),
-        (id: 4, name: "Night (8PM-12AM)")
+        (id: 1, name: "Morning (6AM-12PM)"),
+        (id: 2, name: "Afternoon (12PM-6PM)"),
+        (id: 3, name: "Evening (6PM-12AM)"),
+        (id: 4, name: "Night (12AM-6AM)")
     ]
     
     var body: some View {

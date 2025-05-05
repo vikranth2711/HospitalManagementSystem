@@ -21,8 +21,8 @@ struct DoctorDashboardView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Profile Header
-                    ProfileHeaderView()
+                    // Regular Header instead of ProfileHeaderView
+                    RegularHeaderView()
                     
                     // Tab Content
                     TabView(selection: $selectedTab) {
@@ -34,8 +34,8 @@ struct DoctorDashboardView: View {
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     
-                    // Custom Tab Bar
-                    CustomTabBar(selectedTab: $selectedTab)
+                    // Improved Tab Bar
+                    ImprovedTabBar(selectedTab: $selectedTab)
                 }
             }
             .navigationBarHidden(true)
@@ -70,7 +70,7 @@ struct DoctorDashboardView: View {
     }
 }
 
-struct ProfileHeaderView: View {
+struct RegularHeaderView: View {
     @State private var showingProfileDetails = false
     @Environment(\.colorScheme) var colorScheme
     
@@ -81,9 +81,6 @@ struct ProfileHeaderView: View {
                     .font(.title3)
                     .fontWeight(.bold)
                 
-                Text("Doctor")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
             }
             
             Spacer()
@@ -103,19 +100,11 @@ struct ProfileHeaderView: View {
             }
         }
         .padding()
-        .background(
-            colorScheme == .dark ?
-                Color(hex: "1E2433").opacity(0.8) :
-                Color.white.opacity(0.9)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-        .padding(.horizontal)
         .padding(.top, 10)
     }
 }
 
-struct CustomTabBar: View {
+struct ImprovedTabBar: View {
     @Binding var selectedTab: Int
     @Environment(\.colorScheme) var colorScheme
     
@@ -129,16 +118,8 @@ struct CustomTabBar: View {
                 selectedTab = 1
             }
         }
-        .padding(.vertical, 12)
-        .background(
-            colorScheme == .dark ?
-                Color(hex: "1E2433").opacity(0.9) :
-                Color.white.opacity(0.9)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: -2)
-        .padding(.horizontal)
-        .padding(.bottom, 10)
+        .padding(.vertical, 8)
+        .background(colorScheme == .dark ? Color(hex: "1E2433") : Color.clear)
     }
 }
 
@@ -157,9 +138,8 @@ struct TabButton: View {
                 Text(title)
                     .font(.system(size: 12, weight: .semibold))
             }
-            .foregroundColor(isSelected ? .blue : .gray)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .foregroundColor(isSelected ? .blue : .gray)
         }
     }
 }

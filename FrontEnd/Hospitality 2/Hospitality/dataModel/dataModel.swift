@@ -106,6 +106,29 @@ struct PrescribedMedicine{
     let fastingRequired: String
 }
 
+class PatientCache {
+    static let shared = PatientCache()
+    private var cache = [Int: String]()
+    private let queue = DispatchQueue(label: "com.yourapp.patientCache", attributes: .concurrent)
+    
+    func getName(for id: Int) -> String? {
+        queue.sync {
+            return cache[id]
+        }
+    }
+    
+    func store(name: String, for id: Int) {
+        queue.async(flags: .barrier) {
+            self.cache[id] = name
+        }
+    }
+    
+    func clear() {
+        queue.async(flags: .barrier) {
+            self.cache.removeAll()
+        }
+    }
+}
 
 // MARK: - Patient Models
 struct Patient: Identifiable, Codable {
