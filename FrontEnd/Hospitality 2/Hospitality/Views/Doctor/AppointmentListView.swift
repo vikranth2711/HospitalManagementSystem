@@ -1,58 +1,60 @@
 import SwiftUI
 
 struct AppointmentsListView: View {
-    let appointments: [DoctorResponse.DocAppointment]
+    @State private var appointments: [DoctorResponse.DocAppointment] = []
     @State private var currentDateTime = Date()
-    @State private var doctorName = "User"
     @State private var filterOption = "All"
+    @State private var isLoading = false
+    @State private var errorMessage: String?
     
-    // Filter options
     private let filterOptions = ["All", "Today", "Upcoming", "Past"]
     
     var body: some View {
         VStack {
-            
-            Spacer()
-            
-            // Filter selector
-            Picker("Filter", selection: $filterOption) {
-                ForEach(filterOptions, id: \.self) { option in
-                    Text(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            
-            ScrollView {
-                LazyVStack(spacing: 16) {
-                    if filteredAppointments.isEmpty {
-                        EmptyStateView(
-                            icon: "You don't have any \(filterOption.lowercased()) appointments scheduled.", title: "Hey", message: "calendar.badge.exclamationmark"
-                        )
-                        .padding(.top, 40)
-                    } else {
-                        ForEach(filteredAppointments) { appointment in
-                            NavigationLink(destination: AppointmentDetailsView(appointment: appointment)) {
-                                AppointmentCardView(appointment: appointment)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
+            if let error = errorMessage {
+                ErrorViewAppoint(error: error, onRetry: loadAppointments)
+            } else if isLoading {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .padding(.top, 50)
+            } else {
+                Spacer()
+                
+                // Filter selector
+                Picker("Filter", selection: $filterOption) {
+                    ForEach(filterOptions, id: \.self) { option in
+                        Text(option)
                     }
                 }
-                .padding()
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        if filteredAppointments.isEmpty {
+                            EmptyStateView(
+                                icon: "calendar.badge.exclamationmark",
+                                title: "No Appointments",
+                                message: "You don't have any \(filterOption.lowercased()) appointments scheduled."
+                            )
+                            .padding(.top, 40)
+                        } else {
+                            ForEach(filteredAppointments) { appointment in
+                                NavigationLink(destination: AppointmentDetailsView(appointment: appointment)) {
+                                    AppointmentCardView(appointment: appointment)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                    }
+                    .padding()
+                }
             }
         }
         .navigationTitle("Appointments")
         .onAppear {
-            // Set current date/time when view appears
             currentDateTime = Date()
-            
-            // Update with current date - hardcoded for the specific timestamp
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            if let specificDate = dateFormatter.date(from: "2025-04-27 20:15:53") {
-                currentDateTime = specificDate
-            }
+            loadAppointments()
             
             // Start a timer to update current time every minute
             Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
@@ -61,7 +63,26 @@ struct AppointmentsListView: View {
         }
     }
     
-    // Filter appointments based on selected option
+    private func loadAppointments() {
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
+                DispatchQueue.main.async {
+                    self.appointments = fetchedAppointments
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
     private var filteredAppointments: [DoctorResponse.DocAppointment] {
         switch filterOption {
         case "Today":
@@ -75,7 +96,7 @@ struct AppointmentsListView: View {
         }
     }
     
-    // Helper functions for date filtering
+    // Helper functions for date filtering (unchanged from your original code)
     private func isToday(_ dateString: String) -> Bool {
         let today = formattedDateOnly(Date())
         return dateString == today
@@ -91,21 +112,12 @@ struct AppointmentsListView: View {
         return appointmentDate < currentDateTime
     }
     
-    // Helper function to format current date for display
-    private func formattedCurrentDate() -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        return formatter.string(from: currentDateTime)
-    }
-    
-    // Helper function to get date-only string for comparison
     private func formattedDateOnly(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
     }
     
-    // Helper function to parse date string from API
     private func parseDate(_ dateString: String) -> Date? {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -289,5 +301,31 @@ struct StatusBadge: View {
     }
 }
 
-
-
+struct ErrorViewAppoint: View {
+    let error: String
+    let onRetry: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48))
+                .foregroundColor(.red)
+            
+            Text("Error Loading Appointments")
+                .font(.headline)
+            
+            Text(error)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            
+            Button(action: onRetry) {
+                Label("Try Again", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .padding(.top, 8)
+        }
+        .padding()
+    }
+}

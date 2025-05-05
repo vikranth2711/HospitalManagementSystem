@@ -114,7 +114,12 @@ struct PatientDoctorDetailView: View {
                                     SlotButton(
                                         slot: slot,
                                         isSelected: selectedSlot?.slot_id == slot.slot_id,
-                                        onSelect: { selectedSlot = slot }
+                                        onSelect: {
+                                            if !isSlotPassed(date: selectedDate, timeString: slot.slot_start_time) {
+                                                selectedSlot = slot
+                                            }
+                                        },
+                                        isPassed: isSlotPassed(date: selectedDate, timeString: slot.slot_start_time)
                                     )
                                 }
                             }
@@ -179,6 +184,40 @@ struct PatientDoctorDetailView: View {
                     }
                 }
             )
+        }
+    }
+    
+    // Function to check if a slot's time has already passed
+    private func isSlotPassed(date: Date, timeString: String) -> Bool {
+        let now = Date()
+        let calendar = Calendar.current
+        
+        // First check if the date is in the past
+        if !calendar.isDateInToday(date) {
+            return date < now
+        }
+        
+        // For today, we need to parse the time format which appears to be "HH:mm:ss"
+        let timeComponents = timeString.components(separatedBy: ":")
+        guard timeComponents.count >= 2,
+              let hour = Int(timeComponents[0]),
+              let minute = Int(timeComponents[1]) else {
+            print("Failed to parse time: \(timeString)")
+            return false
+        }
+        
+        // Get current time components
+        let currentComponents = calendar.dateComponents([.hour, .minute], from: now)
+        let currentHour = currentComponents.hour ?? 0
+        let currentMinute = currentComponents.minute ?? 0
+        
+        // Compare times
+        if hour < currentHour {
+            return true
+        } else if hour == currentHour {
+            return minute <= currentMinute
+        } else {
+            return false
         }
     }
     
@@ -267,6 +306,12 @@ struct PatientDoctorDetailView: View {
                     let response = try JSONDecoder().decode([PatientSlotListResponse].self, from: data)
                     self.slots = response.filter { !$0.is_booked }
                     self.selectedSlot = nil // Reset selected slot when date changes
+                    
+                    // If the selected slot is now in the past, deselect it
+                    if let selected = self.selectedSlot,
+                       isSlotPassed(date: selectedDate, timeString: selected.slot_start_time) {
+                        self.selectedSlot = nil
+                    }
                 } catch {
                     errorMessage = "Failed to decode response: \(error.localizedDescription)"
                 }
@@ -353,17 +398,28 @@ struct SlotButton: View {
     let slot: PatientSlotListResponse
     let isSelected: Bool
     let onSelect: () -> Void
+    let isPassed: Bool
     
     var body: some View {
         Button(action: onSelect) {
             Text(slot.slot_start_time)
                 .font(.subheadline)
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(isPassed ? .gray : (isSelected ? .white : .primary))
                 .padding(10)
                 .frame(maxWidth: .infinity)
-                .background(isSelected ? Color.blue : Color(.secondarySystemBackground))
+                .background(
+                    isPassed ? Color.gray.opacity(0.3) :
+                        (isSelected ? Color.blue : Color(.secondarySystemBackground))
+                )
                 .cornerRadius(8)
+                .overlay(
+                    isPassed ?
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.gray.opacity(0.5), lineWidth: 1) :
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isSelected ? 1 : 0)
+                )
         }
+        .disabled(isPassed)
     }
 }
-

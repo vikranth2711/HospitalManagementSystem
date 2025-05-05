@@ -53,16 +53,16 @@ struct DoctorDashboardView: View {
                 .progressViewStyle(CircularProgressViewStyle())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let errorMessage = viewModel.errorMessage {
-            DocErrorView(message: errorMessage) {
+            DocErrorView(message: errorMessage, retryAction: {
                 viewModel.fetchDoctorShifts(doctorId: doctorId)
                 viewModel.fetchDoctorAppointments()
-            }
+            })
         } else {
             switch tab {
             case 0:
                 ShiftsListView(shifts: viewModel.doctorShifts)
             case 1:
-                AppointmentsListView(appointments: viewModel.doctorAppointments)
+                AppointmentsListView()
             default:
                 EmptyView()
             }
