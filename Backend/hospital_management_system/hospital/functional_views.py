@@ -165,6 +165,7 @@ class BookAppointmentView(APIView):
             "appointment_id": appointment.appointment_id
         }, status=201)
 
+############## NEEDS FIXING ###########################
 class BookAppointmentWithPaymentView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -530,11 +531,10 @@ class AppointmentHistoryView(APIView):
             return Response({"error": "Invalid user"}, status=403)
 
         # Update statuses for appointments that should be marked as missed
-        now = timezone.now()
+        now = timezone.now().date()  # Get current date
         for appointment in appointments:
             # If appointment date has passed and status is still 'upcoming', mark as 'missed'
-            appointment_datetime = appointment.created_at
-            if appointment.status == 'upcoming' and appointment_datetime < now:
+            if appointment.status == 'upcoming' and appointment.appointment_date < now:
                 appointment.status = 'missed'
                 appointment.save()
 
@@ -542,7 +542,7 @@ class AppointmentHistoryView(APIView):
         for app in appointments:
             data.append({
                 "appointment_id": app.appointment_id,
-                "date": app.created_at.date(),
+                "date": app.appointment_date,
                 "slot_id": app.slot.slot_id,
                 "staff_id": app.staff.staff_id,
                 "patient_id": app.patient.patient_id,
