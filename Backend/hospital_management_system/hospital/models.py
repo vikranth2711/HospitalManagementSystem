@@ -166,6 +166,7 @@ class Appointment(models.Model):
     charge = models.ForeignKey(AppointmentCharge, on_delete=models.SET_NULL, null=True, blank=True, related_name='appointments')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
     reason = models.TextField(blank=True, null=True)  # Added to store appointment reason
+    appointment_date = models.DateField(null=True)
 
     def __str__(self):
         return f"Appointment for {self.patient.patient_name} with {self.staff.staff_name} at {self.created_at}"

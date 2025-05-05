@@ -147,7 +147,7 @@ class BookAppointmentView(APIView):
             return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
             
         if Appointment.objects.filter(
-            staff=staff, slot=slot, created_at__date=appointment_date
+            staff=staff, slot=slot, appointment_date=appointment_date
         ).exists():
             return Response({"error": "Slot already booked"}, status=409)
 
@@ -156,7 +156,8 @@ class BookAppointmentView(APIView):
             staff=staff,
             slot=slot,
             reason=reason,
-            status='upcoming'
+            status='upcoming',
+            appointment_date=appointment_date
         )
         
         return Response({
