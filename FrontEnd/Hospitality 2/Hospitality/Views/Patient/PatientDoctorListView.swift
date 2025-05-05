@@ -122,53 +122,83 @@ struct DoctorGridView: View {
 
 struct DoctorCardView: View {
     let doctor: PatientDoctorListResponse
+    @State private var showOnLeaveAlert = false
     
     var body: some View {
-        NavigationLink(destination: PatientDoctorDetailView(doctorId: doctor.staff_id)) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Doctor image placeholder
-                ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: "person.fill")
-                        .font(.title)
-                        .foregroundColor(.blue)
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Doctor info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(doctor.staff_name)
-                        .font(.headline)
-                        .lineLimit(1)
-                    
-                    Text(doctor.specialization)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                    
-                    HStack {
-                        Image(systemName: "stethoscope")
-                        Text(doctor.doctor_type)
+        Group {
+            if doctor.on_leave {
+                doctorCardContent
+                    .onTapGesture {
+                        showOnLeaveAlert = true
                     }
-                    .font(.caption)
+                    .alert(isPresented: $showOnLeaveAlert) {
+                        Alert(
+                            title: Text("Doctor Unavailable"),
+                            message: Text("Dr. \(doctor.staff_name) is currently on leave and not available for appointments."),
+                            dismissButton: .default(Text("OK"))
+                        )
+                    }
+            } else {
+                NavigationLink(destination: PatientDoctorDetailView(doctorId: doctor.staff_id)) {
+                    doctorCardContent
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+    
+    private var doctorCardContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Doctor image placeholder
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: 60, height: 60)
+                
+                Image(systemName: "person.fill")
+                    .font(.title)
+                    .foregroundColor(.blue)
+            }
+            .frame(maxWidth: .infinity)
+            
+            // Doctor info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(doctor.staff_name)
+                    .font(.headline)
+                    .lineLimit(1)
+                
+                Text(doctor.specialization)
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
-                    
-                    if doctor.on_leave {
+                    .lineLimit(1)
+                
+                HStack {
+                    Image(systemName: "stethoscope")
+                    Text(doctor.doctor_type)
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+                
+                if doctor.on_leave {
+                    HStack {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .foregroundColor(.orange)
                         Text("On Leave")
                             .font(.caption)
                             .foregroundColor(.orange)
+                            .bold()
                     }
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(doctor.on_leave ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 2)
+        )
     }
 }
 

@@ -201,7 +201,7 @@ struct HomeContent: View {
                                 refreshAppointments {}
                             }
                         } else if appointmentHistory.isEmpty {
-                            EmptyStateView(icon: "Not There", title: "bar", message: "jhfyhfillf")
+                            EmptyStateView(icon: "calendar.badge.exclamationmark", title: "No Appointments", message: "You don't have any recent appointments")
                         } else {
                             VStack(spacing: 16) {
                                 ForEach(appointmentHistory.sorted(by: { $0.appointment_id > $1.appointment_id })) { appointment in

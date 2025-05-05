@@ -60,7 +60,7 @@ struct DoctorDashboardView: View {
         } else {
             switch tab {
             case 0:
-                ShiftsListView(shifts: viewModel.doctorShifts)
+                ImprovedShiftsListView(shifts: viewModel.doctorShifts)
             case 1:
                 AppointmentsListView()
             default:
@@ -80,7 +80,6 @@ struct RegularHeaderView: View {
                 Text("Welcome Back")
                     .font(.title3)
                     .fontWeight(.bold)
-                
             }
             
             Spacer()
@@ -178,31 +177,138 @@ struct DocErrorView: View {
     }
 }
 
-struct ShiftsListView: View {
+struct ImprovedShiftsListView: View {
     let shifts: [DoctorResponse.PatientDoctorSlotResponse]
+    @State private var selectedFilter: ShiftFilter = .all
+    @Environment(\.colorScheme) var colorScheme
+    
+    enum ShiftFilter {
+        case all, booked, available
+    }
+    
+    var filteredShifts: [DoctorResponse.PatientDoctorSlotResponse] {
+        switch selectedFilter {
+        case .all:
+            return shifts
+        case .booked:
+            return shifts.filter { $0.is_booked }
+        case .available:
+            return shifts.filter { !$0.is_booked }
+        }
+    }
+    
+    var stats: (total: Int, booked: Int, available: Int) {
+        let booked = shifts.filter { $0.is_booked }.count
+        return (shifts.count, booked, shifts.count - booked)
+    }
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("My Shifts")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .padding(.horizontal)
+            VStack(alignment: .leading, spacing: 20) {
+                // Title and Overview Section
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("My Shifts")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    ShiftsOverviewView(stats: stats)
+                }
+                .padding(.horizontal)
                 
-                if shifts.isEmpty {
+                // Segment Control Filter
+                Picker("Filter", selection: $selectedFilter) {
+                    Text("All").tag(ShiftFilter.all)
+                    Text("Booked").tag(ShiftFilter.booked)
+                    Text("Available").tag(ShiftFilter.available)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal)
+                
+                // Shifts List
+                if filteredShifts.isEmpty {
                     EmptyStateView(
                         icon: "calendar.badge.clock",
-                        title: "No Shifts Available",
-                        message: "You don't have any shifts scheduled at this time."
+                        title: "No Shifts Found",
+                        message: selectedFilter == .all ?
+                            "You don't have any shifts scheduled at this time." :
+                            "No \(selectedFilter == .booked ? "booked" : "available") shifts found."
                     )
+                    .padding(.top, 20)
                 } else {
-                    ForEach(shifts, id: \.slot_id) { shift in
-                        ShiftCardView(shift: shift)
+                    LazyVStack(spacing: 12) {
+                        ForEach(filteredShifts, id: \.slot_id) { shift in
+                            ShiftCardView(shift: shift)
+                        }
                     }
+                    .padding(.horizontal)
                 }
             }
-            .padding()
+            .padding(.vertical)
         }
+    }
+}
+
+struct ShiftsOverviewView: View {
+    let stats: (total: Int, booked: Int, available: Int)
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            StatCard(
+                title: "Total",
+                value: "\(stats.total)",
+                icon: "calendar",
+                color: .blue
+            )
+            
+            StatCard(
+                title: "Booked",
+                value: "\(stats.booked)",
+                icon: "person.fill",
+                color: .purple
+            )
+            
+            StatCard(
+                title: "Available",
+                value: "\(stats.available)",
+                icon: "calendar.badge.plus",
+                color: .green
+            )
+        }
+    }
+}
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                
+                Text(title)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(value)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(colorScheme == .dark ? .white : .primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            colorScheme == .dark ?
+                Color(hex: "1E2433").opacity(0.7) :
+                Color.white.opacity(0.9)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: Color.black.opacity(0.07), radius: 3, x: 0, y: 2)
     }
 }
 
@@ -211,24 +317,20 @@ struct ShiftCardView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(formatTime(shift.slot_start_time))
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(formatTime(shift.slot_start_time))
+                        .font(.headline)
+                    
+                    Text("Slot #\(shift.slot_id)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
                 Spacer()
-                Text(shift.is_booked ? "Booked" : "Available")
-                    .font(.subheadline)
-                    .foregroundColor(shift.is_booked ? .blue : .green)
-            }
-
-            HStack(spacing: 12) {
-                Label("Slot #\(shift.slot_id)", systemImage: "clock")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                Spacer()
-                Circle()
-                    .fill(shift.is_booked ? Color.blue : Color.green)
-                    .frame(width: 10, height: 10)
+                
+              //  StatusBadge(isBooked: shift.is_booked)
             }
         }
         .padding()
@@ -239,12 +341,43 @@ struct ShiftCardView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .shadow(color: Color.black.opacity(0.07), radius: 3, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    shift.is_booked ? Color.blue.opacity(0.3) : Color.green.opacity(0.3),
+                    lineWidth: 1
+                )
+        )
     }
 
     private func formatTime(_ timeString: String) -> String {
         return timeString // You can format properly using `DateFormatter`
     }
 }
+
+/*struct StatusBadge: View {
+    let isBooked: Bool
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(isBooked ? Color.blue : Color.green)
+                .frame(width: 8, height: 8)
+            
+            Text(isBooked ? "Booked" : "Available")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(isBooked ? .blue : .green)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            (isBooked ? Color.blue : Color.green)
+                .opacity(0.15)
+        )
+        .clipShape(Capsule())
+    }
+}*/
 
 struct EmptyStateView: View {
     let icon: String
@@ -268,8 +401,7 @@ struct EmptyStateView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
         }
-        .padding(.top, 60)
-        .padding(.bottom, 60)
+        .padding(.vertical, 60)
         .frame(maxWidth: .infinity)
         .background(
             colorScheme == .dark ?
@@ -277,128 +409,6 @@ struct EmptyStateView: View {
                 Color.white.opacity(0.7)
         )
         .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-    }
-}
-
-struct DoctorProfileView: View {
-    @State private var name = "Dr. Swati Swapna"
-    @State private var specialty = "General Medicine"
-    @State private var email = "swati@hospital.com"
-    @State private var phone = "+1234567890"
-    @State private var showingLogoutConfirmation = false
-    @Environment(\.colorScheme) var colorScheme
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Profile header
-                VStack {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 120, height: 120)
-                        .foregroundColor(.blue)
-                        .padding()
-                    
-                    Text(name)
-                        .font(.title)
-                        .fontWeight(.bold)
-                    
-                    Text(specialty)
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding(.bottom)
-                }
-                .padding()
-                .background(
-                    colorScheme == .dark ?
-                        Color(hex: "1E2433").opacity(0.8) :
-                        Color(hex: "F0F8FF").opacity(0.9)
-                )
-                .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                
-                // Contact information
-                GroupBox(label: Label("Contact Information", systemImage: "envelope.fill").font(.headline)) {
-                    ProfileDetailRow(icon: "envelope", label: "Email", value: email)
-                    
-                    ProfileDetailRow(icon: "phone", label: "Phone", value: phone)
-                }
-                .groupBoxStyle(ModernGroupBoxStyle())
-                
-                // Settings
-                GroupBox(label: Label("Settings", systemImage: "gearshape.fill").font(.headline)) {
-                    NavigationLink(destination: Text("Working Hours Settings")) {
-                        ProfileSettingRow(icon: "clock", title: "Working Hours")
-                    }
-                    
-                    NavigationLink(destination: Text("Availability Settings")) {
-                        ProfileSettingRow(icon: "calendar", title: "Set Availability")
-                    }
-                    
-                    NavigationLink(destination: Text("Notifications Settings")) {
-                        ProfileSettingRow(icon: "bell", title: "Notifications")
-                    }
-                    
-                    NavigationLink(destination: Text("Security Settings")) {
-                        ProfileSettingRow(icon: "lock.shield", title: "Security & Privacy")
-                    }
-                }
-                .groupBoxStyle(ModernGroupBoxStyle())
-                
-                // Log out button
-                Button(action: {
-                    showingLogoutConfirmation = true
-                }) {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .padding(.trailing, 10)
-                        Text("Log Out")
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Color.red)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                .padding(.top)
-                .alert("Confirm Logout", isPresented: $showingLogoutConfirmation) {
-                    Button("Cancel", role: .cancel) {}
-                    Button("Log Out", role: .destructive) {
-                        // Handle logout
-                    }
-                } message: {
-                    Text("Are you sure you want to log out?")
-                }
-            }
-            .padding()
-        }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
-                    colorScheme == .dark ? Color(hex: "1A202C") : Color(hex: "F0F8FF")
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
-        .navigationTitle("My Profile")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.blue)
-                }
-            }
-        }
     }
 }
 
@@ -473,7 +483,6 @@ struct ProfileSettingRow: View {
         .padding(.vertical, 8)
     }
 }
-
 
 struct DoctorDashboardView_Preview: PreviewProvider {
     static var previews: some View {
