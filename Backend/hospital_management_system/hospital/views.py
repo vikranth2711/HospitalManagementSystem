@@ -7,14 +7,14 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from accounts.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-from .models import Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType, AppointmentRating
+from .models import Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType, AppointmentRating, AppointmentCharge, LabTestCharge
 from .permissions import IsAdminStaff
 import uuid
 import datetime
 from django.contrib.auth.hashers import make_password
-from .serializers import LabSerializer, LabTestTypeSerializer
+from .serializers import LabSerializer, LabTestTypeSerializer, LabTestChargeSerializer
 from .models import Lab, LabType, LabTestType, Appointment
-from .serializers import AppointmentRatingSerializer
+from .serializers import AppointmentRatingSerializer, AppointmentChargeSerializer
 class StaffProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1000,3 +1000,132 @@ class PatientRatingsView(APIView):
         }
         
         return Response(response_data, status=200)
+
+class AppointmentChargeListCreateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminStaff]
+
+    def get(self, request):
+        charges = AppointmentCharge.objects.all()
+        serializer = AppointmentChargeSerializer(charges, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = AppointmentChargeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class AppointmentChargeDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminStaff]
+
+    def get(self, request, appointment_charge_id):
+        charge = get_object_or_404(AppointmentCharge, appointment_charge_id=appointment_charge_id)
+        serializer = AppointmentChargeSerializer(charge)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, appointment_charge_id):
+        charge = get_object_or_404(AppointmentCharge, appointment_charge_id=appointment_charge_id)
+        serializer = AppointmentChargeSerializer(charge, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, appointment_charge_id):
+        charge = get_object_or_404(AppointmentCharge, appointment_charge_id=appointment_charge_id)
+        charge.delete()
+        return Response({"message": "Appointment charge deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    
+class DoctorChargeView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, staff_id):
+        try:
+            charge = AppointmentCharge.objects.get(doctor__staff_id=staff_id, is_active=True)
+            serializer = AppointmentChargeSerializer(charge)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except AppointmentCharge.DoesNotExist:
+            return Response({"error": "No charge found for this doctor"}, status=status.HTTP_404_NOT_FOUND)
+
+class LabTestChargeListCreateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminStaff]
+
+    def get(self, request):
+        """List all lab test charges"""
+        charges = LabTestCharge.objects.all()
+        serializer = LabTestChargeSerializer(charges, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Create a new lab test charge"""
+        serializer = LabTestChargeSerializer(data=request.data)
+        if serializer.is_valid():
+            # Check if there's already an active charge for this test
+            if 'is_active' in request.data and request.data['is_active']:
+                # Deactivate all other charges for this test
+                LabTestCharge.objects.filter(
+                    test=request.data['test'], 
+                    is_active=True
+                ).update(is_active=False)
+                
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LabTestChargeDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminStaff]
+
+    def get(self, request, test_charge_id):
+        """Retrieve a specific lab test charge"""
+        charge = get_object_or_404(LabTestCharge, test_charge_id=test_charge_id)
+        serializer = LabTestChargeSerializer(charge)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, test_charge_id):
+        """Update a lab test charge"""
+        charge = get_object_or_404(LabTestCharge, test_charge_id=test_charge_id)
+        serializer = LabTestChargeSerializer(charge, data=request.data)
+        if serializer.is_valid():
+            # If setting this charge to active, deactivate all other charges for this test
+            if 'is_active' in request.data and request.data['is_active']:
+                LabTestCharge.objects.filter(
+                    test=charge.test, 
+                    is_active=True
+                ).exclude(test_charge_id=test_charge_id).update(is_active=False)
+                
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, test_charge_id):
+        """Delete a lab test charge"""
+        charge = get_object_or_404(LabTestCharge, test_charge_id=test_charge_id)
+        charge.delete()
+        return Response({"message": "Lab test charge deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    
+class LabTestChargeForPatientView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, test_type_id):
+        try:
+            charge = LabTestCharge.objects.get(test__test_type_id=test_type_id, is_active=True)
+            serializer = LabTestChargeSerializer(charge)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except LabTestCharge.DoesNotExist:
+            return Response({"error": "No charge found for this lab test"}, status=status.HTTP_404_NOT_FOUND)
+
+class AllLabTestChargesView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        charges = LabTestCharge.objects.filter(is_active=True)
+        serializer = LabTestChargeSerializer(charges, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

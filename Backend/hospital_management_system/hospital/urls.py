@@ -64,4 +64,14 @@ urlpatterns = [
     path('general/appointments/<int:appointment_id>/rating/', views.AppointmentRatingView.as_view(), name='appointment-rating'),
     path('general/doctors/<str:staff_id>/ratings/', views.DoctorRatingsView.as_view(), name='doctor-ratings'),
     path('general/patient/ratings/', views.PatientRatingsView.as_view(), name='patient-ratings'),
+
+    path('admin/lab-test-charges/', views.LabTestChargeListCreateView.as_view(), name='labtestcharge-list-create'),
+    path('admin/lab-test-charges/<int:test_charge_id>/', views.LabTestChargeDetailView.as_view(), name='labtestcharge-detail'),
+    path('admin/appointment-charges/', views.AppointmentChargeListCreateView.as_view(), name='appointmentcharge-list-create'),
+    path('admin/appointment-charges/<int:appointment_charge_id>/', views.AppointmentChargeDetailView.as_view(), name='appointmentcharge-detail'),
+    
+    # Patient-facing APIs
+    path('general/doctors/<str:staff_id>/charge/', views.DoctorChargeView.as_view(), name='doctor-charge'),
+    path('general/lab-tests/<int:test_type_id>/charge/', views.LabTestChargeForPatientView.as_view(), name='lab-test-charge'),
+    path('general/lab-tests/charges/', views.AllLabTestChargesView.as_view(), name='all-lab-test-charges'),
 ]

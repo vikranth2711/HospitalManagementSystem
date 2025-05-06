@@ -1911,3 +1911,333 @@ urlpatterns = [
     ]
   }
   ```
+
+# Charge Management API Reference
+
+## Lab Test Charge Management
+
+### List Lab Test Charges
+
+- **URL**: `/api/hospital/admin/lab-test-charges/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves a list of all lab test charges
+- **Response**: 
+  ```json
+  [
+    {
+      "test_charge_id": 1,
+      "test": 1,
+      "test_name": "Complete Blood Count",
+      "charge_amount": 500.00,
+      "charge_unit": 1,
+      "charge_unit_symbol": "₹",
+      "charge_remark": "Standard blood test",
+      "is_active": true,
+      "created_at": "2025-05-01T10:30:00Z",
+      "updated_at": "2025-05-01T10:30:00Z"
+    }
+  ]
+  ```
+
+### Create Lab Test Charge
+
+- **URL**: `/api/hospital/admin/lab-test-charges/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Creates a new lab test charge
+- **Request Body**:
+  ```json
+  {
+    "test": 1,
+    "charge_amount": 500.00,
+    "charge_unit": 1,
+    "charge_remark": "Standard blood test",
+    "is_active": true
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "test_charge_id": 1,
+    "test": 1,
+    "test_name": "Complete Blood Count",
+    "charge_amount": 500.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Standard blood test",
+    "is_active": true,
+    "created_at": "2025-05-06T15:38:00Z",
+    "updated_at": "2025-05-06T15:38:00Z"
+  }
+  ```
+
+### Retrieve Lab Test Charge
+
+- **URL**: `/api/hospital/admin/lab-test-charges//`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves details of a specific lab test charge
+- **Response**: 
+  ```json
+  {
+    "test_charge_id": 1,
+    "test": 1,
+    "test_name": "Complete Blood Count",
+    "charge_amount": 500.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Standard blood test",
+    "is_active": true,
+    "created_at": "2025-05-01T10:30:00Z",
+    "updated_at": "2025-05-01T10:30:00Z"
+  }
+  ```
+
+### Update Lab Test Charge
+
+- **URL**: `/api/hospital/admin/lab-test-charges//`
+- **Method**: PUT
+- **Authentication**: Required (Admin)
+- **Description**: Updates a lab test charge
+- **Request Body**:
+  ```json
+  {
+    "charge_amount": 550.00,
+    "charge_remark": "Updated standard blood test",
+    "is_active": true
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "test_charge_id": 1,
+    "test": 1,
+    "test_name": "Complete Blood Count",
+    "charge_amount": 550.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Updated standard blood test",
+    "is_active": true,
+    "created_at": "2025-05-01T10:30:00Z",
+    "updated_at": "2025-05-06T15:38:00Z"
+  }
+  ```
+
+### Delete Lab Test Charge
+
+- **URL**: `/api/hospital/admin/lab-test-charges//`
+- **Method**: DELETE
+- **Authentication**: Required (Admin)
+- **Description**: Deletes a lab test charge
+- **Response**: 
+  ```json
+  {
+    "message": "Lab test charge deleted successfully"
+  }
+  ```
+
+## Appointment Charge Management
+
+### List Appointment Charges
+
+- **URL**: `/api/hospital/admin/appointment-charges/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves a list of all appointment charges
+- **Response**: 
+  ```json
+  [
+    {
+      "appointment_charge_id": 1,
+      "doctor": "DOC123",
+      "doctor_name": "Dr. Smith",
+      "charge_amount": 1000.00,
+      "charge_unit": 1,
+      "charge_unit_symbol": "₹",
+      "charge_remark": "Standard consultation",
+      "is_active": true,
+      "created_at": "2025-05-01T10:30:00Z",
+      "updated_at": "2025-05-01T10:30:00Z"
+    }
+  ]
+  ```
+
+### Create Appointment Charge
+
+- **URL**: `/api/hospital/admin/appointment-charges/`
+- **Method**: POST
+- **Authentication**: Required (Admin)
+- **Description**: Creates a new appointment charge
+- **Request Body**:
+  ```json
+  {
+    "doctor": "DOC123",
+    "charge_amount": 1000.00,
+    "charge_unit": 1,
+    "charge_remark": "Standard consultation",
+    "is_active": true
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "appointment_charge_id": 1,
+    "doctor": "DOC123",
+    "doctor_name": "Dr. Smith",
+    "charge_amount": 1000.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Standard consultation",
+    "is_active": true,
+    "created_at": "2025-05-06T15:38:00Z",
+    "updated_at": "2025-05-06T15:38:00Z"
+  }
+  ```
+
+### Retrieve Appointment Charge
+
+- **URL**: `/api/hospital/admin/appointment-charges//`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves details of a specific appointment charge
+- **Response**: 
+  ```json
+  {
+    "appointment_charge_id": 1,
+    "doctor": "DOC123",
+    "doctor_name": "Dr. Smith",
+    "charge_amount": 1000.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Standard consultation",
+    "is_active": true,
+    "created_at": "2025-05-01T10:30:00Z",
+    "updated_at": "2025-05-01T10:30:00Z"
+  }
+  ```
+
+### Update Appointment Charge
+
+- **URL**: `/api/hospital/admin/appointment-charges//`
+- **Method**: PUT
+- **Authentication**: Required (Admin)
+- **Description**: Updates an appointment charge
+- **Request Body**:
+  ```json
+  {
+    "charge_amount": 1200.00,
+    "charge_remark": "Updated consultation fee",
+    "is_active": true
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "appointment_charge_id": 1,
+    "doctor": "DOC123",
+    "doctor_name": "Dr. Smith",
+    "charge_amount": 1200.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Updated consultation fee",
+    "is_active": true,
+    "created_at": "2025-05-01T10:30:00Z",
+    "updated_at": "2025-05-06T15:38:00Z"
+  }
+  ```
+
+### Delete Appointment Charge
+
+- **URL**: `/api/hospital/admin/appointment-charges//`
+- **Method**: DELETE
+- **Authentication**: Required (Admin)
+- **Description**: Deletes an appointment charge
+- **Response**: 
+  ```json
+  {
+    "message": "Appointment charge deleted successfully"
+  }
+  ```
+
+## Patient-Facing Charge APIs
+
+### Get Doctor Charge
+
+- **URL**: `/api/hospital/general/doctors//charge/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves the active charge for a specific doctor
+- **Response**: 
+  ```json
+  {
+    "appointment_charge_id": 1,
+    "doctor": "DOC123",
+    "doctor_name": "Dr. Smith",
+    "charge_amount": 1000.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Standard consultation",
+    "is_active": true,
+    "created_at": "2025-05-01T10:30:00Z",
+    "updated_at": "2025-05-01T10:30:00Z"
+  }
+  ```
+
+### Get Lab Test Charge
+
+- **URL**: `/api/hospital/general/lab-tests//charge/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves the active charge for a specific lab test
+- **Response**: 
+  ```json
+  {
+    "test_charge_id": 1,
+    "test": 1,
+    "test_name": "Complete Blood Count",
+    "charge_amount": 500.00,
+    "charge_unit": 1,
+    "charge_unit_symbol": "₹",
+    "charge_remark": "Standard blood test",
+    "is_active": true,
+    "created_at": "2025-05-01T10:30:00Z",
+    "updated_at": "2025-05-01T10:30:00Z"
+  }
+  ```
+
+### Get All Lab Test Charges
+
+- **URL**: `/api/hospital/general/lab-tests/charges/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves all active lab test charges
+- **Response**: 
+  ```json
+  [
+    {
+      "test_charge_id": 1,
+      "test": 1,
+      "test_name": "Complete Blood Count",
+      "charge_amount": 500.00,
+      "charge_unit": 1,
+      "charge_unit_symbol": "₹",
+      "charge_remark": "Standard blood test",
+      "is_active": true,
+      "created_at": "2025-05-01T10:30:00Z",
+      "updated_at": "2025-05-01T10:30:00Z"
+    },
+    {
+      "test_charge_id": 2,
+      "test": 2,
+      "test_name": "Liver Function Test",
+      "charge_amount": 800.00,
+      "charge_unit": 1,
+      "charge_unit_symbol": "₹",
+      "charge_remark": "Comprehensive liver panel",
+      "is_active": true,
+      "created_at": "2025-05-01T11:15:00Z",
+      "updated_at": "2025-05-01T11:15:00Z"
+    }
+  ]
+  ```
