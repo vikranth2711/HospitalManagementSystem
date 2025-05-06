@@ -177,19 +177,26 @@ struct DocErrorView: View {
     }
 }
 
+
+
+
+
+
+
+//MARK
+
 struct ImprovedShiftsListView: View {
     let shifts: [DoctorResponse.PatientDoctorSlotResponse]
-    @State private var selectedFilter: ShiftFilter = .all
+    @State private var selectedFilter: ShiftFilter = .booked
     @Environment(\.colorScheme) var colorScheme
+    @State private var showAddSchedule = false
     
     enum ShiftFilter {
-        case all, booked, available
+        case booked, available
     }
     
     var filteredShifts: [DoctorResponse.PatientDoctorSlotResponse] {
         switch selectedFilter {
-        case .all:
-            return shifts
         case .booked:
             return shifts.filter { $0.is_booked }
         case .available:
@@ -197,27 +204,52 @@ struct ImprovedShiftsListView: View {
         }
     }
     
-    var stats: (total: Int, booked: Int, available: Int) {
-        let booked = shifts.filter { $0.is_booked }.count
-        return (shifts.count, booked, shifts.count - booked)
+    var bookedCount: Int {
+        return shifts.filter { $0.is_booked }.count
     }
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Title and Overview Section
-                VStack(alignment: .leading, spacing: 16) {
+                // Title and Overview Section with Add Schedule Button
+                HStack {
                     Text("My Shifts")
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    ShiftsOverviewView(stats: stats)
+                    Spacer()
+                    
+                    Button(action: {
+                        showAddSchedule = true
+                    }) {
+                        Label("Add Schedule", systemImage: "plus")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                    }
+                    .sheet(isPresented: $showAddSchedule) {
+                        NavigationView {
+                            DocAddScheduleView()
+                        }
+                    }
                 }
                 .padding(.horizontal)
                 
-                // Segment Control Filter
+                // Only Booked Stats Card
+                SingleStatCard(
+                    title: "Booked",
+                    value: "\(bookedCount)",
+                    icon: "person.fill",
+                    color: .purple
+                )
+                .padding(.horizontal)
+                
+                // Segment Control Filter with only Booked and Available options
                 Picker("Filter", selection: $selectedFilter) {
-                    Text("All").tag(ShiftFilter.all)
                     Text("Booked").tag(ShiftFilter.booked)
                     Text("Available").tag(ShiftFilter.available)
                 }
@@ -229,9 +261,7 @@ struct ImprovedShiftsListView: View {
                     EmptyStateView(
                         icon: "calendar.badge.clock",
                         title: "No Shifts Found",
-                        message: selectedFilter == .all ?
-                            "You don't have any shifts scheduled at this time." :
-                            "No \(selectedFilter == .booked ? "booked" : "available") shifts found."
+                        message: "No \(selectedFilter == .booked ? "booked" : "available") shifts found."
                     )
                     .padding(.top, 20)
                 } else {
@@ -248,37 +278,7 @@ struct ImprovedShiftsListView: View {
     }
 }
 
-struct ShiftsOverviewView: View {
-    let stats: (total: Int, booked: Int, available: Int)
-    @Environment(\.colorScheme) var colorScheme
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            StatCard(
-                title: "Total",
-                value: "\(stats.total)",
-                icon: "calendar",
-                color: .blue
-            )
-            
-            StatCard(
-                title: "Booked",
-                value: "\(stats.booked)",
-                icon: "person.fill",
-                color: .purple
-            )
-            
-            StatCard(
-                title: "Available",
-                value: "\(stats.available)",
-                icon: "calendar.badge.plus",
-                color: .green
-            )
-        }
-    }
-}
-
-struct StatCard: View {
+struct SingleStatCard: View {
     let title: String
     let value: String
     let icon: String
@@ -286,22 +286,24 @@ struct StatCard: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(color)
+                .font(.system(size: 20))
+            
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.footnote)
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
+                
+                Text(value)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(colorScheme == .dark ? .white : .primary)
             }
             
-            Text(value)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(colorScheme == .dark ? .white : .primary)
+            Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding()
         .background(
             colorScheme == .dark ?
                 Color(hex: "1E2433").opacity(0.7) :
@@ -330,7 +332,6 @@ struct ShiftCardView: View {
                 
                 Spacer()
                 
-              //  StatusBadge(isBooked: shift.is_booked)
             }
         }
         .padding()
@@ -351,33 +352,9 @@ struct ShiftCardView: View {
     }
 
     private func formatTime(_ timeString: String) -> String {
-        return timeString // You can format properly using `DateFormatter`
+        return timeString
     }
 }
-
-/*struct StatusBadge: View {
-    let isBooked: Bool
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(isBooked ? Color.blue : Color.green)
-                .frame(width: 8, height: 8)
-            
-            Text(isBooked ? "Booked" : "Available")
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(isBooked ? .blue : .green)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(
-            (isBooked ? Color.blue : Color.green)
-                .opacity(0.15)
-        )
-        .clipShape(Capsule())
-    }
-}*/
 
 struct EmptyStateView: View {
     let icon: String
@@ -412,9 +389,10 @@ struct EmptyStateView: View {
     }
 }
 
+
+
 struct ModernGroupBoxStyle: GroupBoxStyle {
     @Environment(\.colorScheme) var colorScheme
-    
     func makeBody(configuration: Configuration) -> some View {
         VStack {
             HStack {
@@ -423,7 +401,6 @@ struct ModernGroupBoxStyle: GroupBoxStyle {
                 Spacer()
             }
             .padding(.bottom, 8)
-            
             VStack(alignment: .leading) {
                 configuration.content
             }
@@ -449,12 +426,9 @@ struct ProfileDetailRow: View {
             Image(systemName: icon)
                 .foregroundColor(.blue)
                 .frame(width: 30)
-            
             Text(label)
                 .foregroundColor(.secondary)
-            
             Spacer()
-            
             Text(value)
                 .fontWeight(.medium)
         }
@@ -471,11 +445,8 @@ struct ProfileSettingRow: View {
             Image(systemName: icon)
                 .foregroundColor(.blue)
                 .frame(width: 30)
-            
             Text(title)
-            
             Spacer()
-            
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundColor(.secondary)
