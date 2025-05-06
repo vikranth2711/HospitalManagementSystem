@@ -2241,3 +2241,113 @@ urlpatterns = [
     }
   ]
   ```
+
+# Lab and Lab Test API Reference
+
+## Doctor APIs
+
+### List All Labs
+
+- **URL**: `/api/hospital/general/labs/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves a list of all functional labs
+- **Response**: 
+  ```json
+  [
+    {
+      "lab_id": 1,
+      "lab_name": "Pathology Lab",
+      "lab_type": 1,
+      "lab_type_name": "Pathology",
+      "functional": true
+    },
+    {
+      "lab_id": 2,
+      "lab_name": "Radiology Lab",
+      "lab_type": 2,
+      "lab_type_name": "Radiology",
+      "functional": true
+    }
+  ]
+  ```
+
+### List Lab Tests
+
+- **URL**: `/api/hospital/general/lab-tests/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves a list of lab tests with optional filtering
+- **Query Parameters**:
+  - `lab_id`: Filter by lab
+  - `test_type_id`: Filter by test type
+- **Response**: 
+  ```json
+  [
+    {
+      "lab_test_id": 1,
+      "lab": 1,
+      "lab_name": "Pathology Lab",
+      "test_datetime": "2025-05-10T10:00:00Z",
+      "test_result": null,
+      "test_type": 1,
+      "test_type_name": "Complete Blood Count",
+      "appointment": 123,
+      "priority": "high"
+    }
+  ]
+  ```
+
+## Patient APIs
+
+### Patient Recommended Lab Tests
+
+- **URL**: `/api/hospital/general/patient/recommended-lab-tests/`
+- **Method**: GET
+- **Authentication**: Required (Patient)
+- **Description**: Retrieves all lab tests recommended for the authenticated patient
+- **Response**: 
+  ```json
+  [
+    {
+      "lab_test_id": 1,
+      "lab": 1,
+      "lab_name": "Pathology Lab",
+      "test_datetime": "2025-05-10T10:00:00Z",
+      "test_result": null,
+      "test_type": 1,
+      "test_type_name": "Complete Blood Count",
+      "priority": "high",
+      "appointment": 123
+    }
+  ]
+  ```
+
+## Lab Technician APIs
+
+### Lab Technician Assigned Patients
+
+- **URL**: `/api/hospital/general/lab-technician/assigned-patients/`
+- **Method**: GET
+- **Authentication**: Required (Lab Technician)
+- **Description**: Retrieves patients assigned to the authenticated lab technician
+- **Query Parameters**:
+  - `start_datetime`: Filter by start datetime
+  - `end_datetime`: Filter by end datetime
+- **Response**: 
+  ```json
+  [
+    {
+      "appointment_id": 123,
+      "patient": 101,
+      "patient_name": "John Doe",
+      "staff": "LABTECH123",
+      "staff_name": "Tech User",
+      "slot": 1,
+      "slot_start_time": "09:00:00",
+      "created_at": "2025-05-01T09:00:00Z",
+      "status": "upcoming",
+      "reason": "Blood test"
+    }
+  ]
+  ```

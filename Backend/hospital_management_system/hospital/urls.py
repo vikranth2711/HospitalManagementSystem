@@ -74,4 +74,14 @@ urlpatterns = [
     path('general/doctors/<str:staff_id>/charge/', views.DoctorChargeView.as_view(), name='doctor-charge'),
     path('general/lab-tests/<int:test_type_id>/charge/', views.LabTestChargeForPatientView.as_view(), name='lab-test-charge'),
     path('general/lab-tests/charges/', views.AllLabTestChargesView.as_view(), name='all-lab-test-charges'),
+
+    # Doctor APIs
+    path('general/labs/', functional_views.LabListView.as_view(), name='lab-list'),
+    path('general/lab-tests/', functional_views.LabTestListView.as_view(), name='lab-test-list'),
+    
+    # Patient APIs
+    path('general/patient/recommended-lab-tests/', functional_views.PatientRecommendedLabTestsView.as_view(), name='patient-recommended-lab-tests'),
+    
+    # Lab Technician APIs
+    path('general/lab-technician/assigned-patients/', functional_views.LabTechnicianAssignedPatientsView.as_view(), name='lab-tech-assigned-patients'),
 ]

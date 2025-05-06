@@ -13,9 +13,10 @@ from .models import (Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, R
 from .permissions import IsAdminStaff
 import uuid
 import datetime
+from django.utils.dateparse import parse_datetime
 from transactions.models import Transaction, PaymentMethod, TransactionType, Unit, InvoiceType, Invoice
 import json
-
+from .serializers import LabTestSerializer, LabSerializer, RecommendedLabTestSerializer, AssignedPatientSerializer
 class DoctorListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1536,3 +1537,68 @@ class AddLabTestResultsView(APIView):
             "lab_test_id": lab_test.lab_test_id
         }, status=200)
 
+class LabListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        labs = Lab.objects.filter(functional=True)
+        serializer = LabSerializer(labs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class LabTestListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Optional filters
+        lab_id = request.query_params.get('lab_id')
+        test_type_id = request.query_params.get('test_type_id')
+
+        queryset = LabTest.objects.all()
+        if lab_id:
+            queryset = queryset.filter(lab__lab_id=lab_id)
+        if test_type_id:
+            queryset = queryset.filter(test_type__test_type_id=test_type_id)
+
+        serializer = LabTestSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class PatientRecommendedLabTestsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        patient = request.user
+        # Get recommended lab tests for this patient
+        lab_tests = LabTest.objects.filter(appointment__patient=patient).order_by('-test_datetime')
+        serializer = RecommendedLabTestSerializer(lab_tests, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class LabTechnicianAssignedPatientsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if not hasattr(user, 'staff_id'):
+            return Response({"error": "Only staff can access this endpoint"}, status=403)
+
+        # Filters
+        start_datetime_str = request.query_params.get('start_datetime')
+        end_datetime_str = request.query_params.get('end_datetime')
+
+        queryset = Appointment.objects.filter(staff=user)
+
+        if start_datetime_str:
+            start_datetime = parse_datetime(start_datetime_str)
+            if start_datetime:
+                queryset = queryset.filter(created_at__gte=start_datetime)
+
+        if end_datetime_str:
+            end_datetime = parse_datetime(end_datetime_str)
+            if end_datetime:
+                queryset = queryset.filter(created_at__lte=end_datetime)
+
+        serializer = AssignedPatientSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
