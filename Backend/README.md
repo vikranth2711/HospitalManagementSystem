@@ -666,15 +666,21 @@
 - **URL**: `/api/hospital/general/appointments/book-with-payment/`
 - **Method**: POST
 - **Authentication**: Required
-- **Description**: Books an appointment with payment
+- **Description**: Books an appointment and processes payment in one step
 - **Request Body**:
   ```json
   {
-    "date": "2023-05-15",
+    "date": "2025-05-15",
     "staff_id": "DOC456",
     "slot_id": 1,
     "reason": "Regular checkup",
-    "payment_method_id": 2
+    "payment_method_id": 2,
+    "transaction_reference": "PAY_12345678",
+    "payment_gateway_response": {
+      "gateway_id": "razorpay_12345",
+      "status": "success",
+      "payment_id": "pay_abc123def456"
+    }
   }
   ```
 - **Response**: 
@@ -682,7 +688,9 @@
   {
     "message": "Appointment booked and payment processed",
     "appointment_id": 124,
-    "transaction_id": 456
+    "transaction_id": 456,
+    "invoice_id": 78,
+    "invoice_number": "INV-20250515-0001"
   }
   ```
 
@@ -990,7 +998,13 @@
 - **Request Body**:
   ```json
   {
-    "payment_method_id": 2
+    "payment_method_id": 2,
+    "transaction_reference": "PAY_87654321",
+    "payment_gateway_response": {
+      "gateway_id": "razorpay_67890",
+      "status": "success",
+      "payment_id": "pay_xyz789uvw456"
+    }
   }
   ```
 - **Response**: 
@@ -998,7 +1012,9 @@
   {
     "message": "Payment for lab test processed successfully",
     "transaction_id": 457,
-    "amount": "500.00 $"
+    "amount": "500.00 ₹",
+    "invoice_id": 79,
+    "invoice_number": "INV-20250515-0002"
   }
   ```
 

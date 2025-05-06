@@ -1,3 +1,4 @@
+import decimal
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -12,7 +13,7 @@ from .models import (Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, R
 from .permissions import IsAdminStaff
 import uuid
 import datetime
-from transactions.models import Transaction, PaymentMethod, TransactionType, Unit
+from transactions.models import Transaction, PaymentMethod, TransactionType, Unit, InvoiceType, Invoice
 import json
 
 class DoctorListView(APIView):
@@ -166,6 +167,78 @@ class BookAppointmentView(APIView):
         }, status=201)
 
 ############## NEEDS FIXING ###########################
+# class BookAppointmentWithPaymentView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         patient = request.user
+#         data = request.data
+#         date = data.get("date")
+#         staff_id = data.get("staff_id")
+#         slot_id = data.get("slot_id")
+#         reason = data.get("reason")
+#         payment_method_id = data.get("payment_method_id")
+
+#         if not all([date, staff_id, slot_id, reason, payment_method_id]):
+#             return Response({"error": "Missing required fields"}, status=400)
+
+#         try:
+#             slot = Slot.objects.get(slot_id=slot_id)
+#             staff = Staff.objects.get(staff_id=staff_id)
+#             payment_method = PaymentMethod.objects.get(payment_method_id=payment_method_id)
+#             transaction_type = TransactionType.objects.get(transaction_type_name="payment")
+#             default_unit = Unit.objects.get(unit_name="INR")  # Adjust as needed
+#         except (Slot.DoesNotExist, Staff.DoesNotExist, PaymentMethod.DoesNotExist, 
+#                 TransactionType.DoesNotExist, Unit.DoesNotExist) as e:
+#             return Response({"error": f"Invalid reference: {str(e)}"}, status=400)
+
+#         # Check if slot is available
+#         try:
+#             appointment_date = datetime.strptime(date, "%Y-%m-%d").date()
+#         except ValueError:
+#             return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
+            
+#         if Appointment.objects.filter(
+#             staff=staff, slot=slot, created_at__date=appointment_date
+#         ).exists():
+#             return Response({"error": "Slot already booked"}, status=409)
+
+#         # Get appointment charge for this doctor
+#         try:
+#             charge = AppointmentCharge.objects.get(doctor=staff, is_active=True)
+#         except AppointmentCharge.DoesNotExist:
+#             return Response({"error": "No appointment charge set for this doctor"}, status=400)
+
+#         # Create transaction
+#         transaction = Transaction.objects.create(
+#             transaction_reference=f"APP-{uuid.uuid4().hex[:8].upper()}",
+#             transaction_type=transaction_type,
+#             payment_method=payment_method,
+#             transaction_amount=charge.charge_amount,
+#             transaction_unit=charge.charge_unit,
+#             transaction_status="completed",  # Assuming payment is successful
+#             patient=patient,
+#             transaction_details={"appointment_date": date, "doctor": staff.staff_name}
+#         )
+
+#         # Create appointment
+#         appointment = Appointment.objects.create(
+#             patient=patient,
+#             staff=staff,
+#             slot=slot,
+#             tran=transaction,
+#             charge=charge,
+#             reason=reason,
+#             status='upcoming'
+#         )
+        
+#         return Response({
+#             "message": "Appointment booked and payment processed", 
+#             "appointment_id": appointment.appointment_id,
+#             "transaction_id": transaction.transaction_id
+#         }, status=201)
+
 class BookAppointmentWithPaymentView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -178,16 +251,22 @@ class BookAppointmentWithPaymentView(APIView):
         slot_id = data.get("slot_id")
         reason = data.get("reason")
         payment_method_id = data.get("payment_method_id")
+        transaction_reference = data.get("transaction_reference")  # Get transaction reference from frontend
 
+        # Check required fields
         if not all([date, staff_id, slot_id, reason, payment_method_id]):
             return Response({"error": "Missing required fields"}, status=400)
+
+        # Transaction reference is required for payment
+        if not transaction_reference:
+            return Response({"error": "Transaction reference is required"}, status=400)
 
         try:
             slot = Slot.objects.get(slot_id=slot_id)
             staff = Staff.objects.get(staff_id=staff_id)
             payment_method = PaymentMethod.objects.get(payment_method_id=payment_method_id)
             transaction_type = TransactionType.objects.get(transaction_type_name="payment")
-            default_unit = Unit.objects.get(unit_name="USD")  # Adjust as needed
+            default_unit = Unit.objects.get(unit_name="INR")  # Adjust as needed
         except (Slot.DoesNotExist, Staff.DoesNotExist, PaymentMethod.DoesNotExist, 
                 TransactionType.DoesNotExist, Unit.DoesNotExist) as e:
             return Response({"error": f"Invalid reference: {str(e)}"}, status=400)
@@ -199,9 +278,13 @@ class BookAppointmentWithPaymentView(APIView):
             return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
             
         if Appointment.objects.filter(
-            staff=staff, slot=slot, created_at__date=appointment_date
+            staff=staff, slot=slot, appointment_date=appointment_date
         ).exists():
             return Response({"error": "Slot already booked"}, status=409)
+
+        # Check if transaction reference is already used
+        if Transaction.objects.filter(transaction_reference=transaction_reference).exists():
+            return Response({"error": "Transaction reference already used"}, status=400)
 
         # Get appointment charge for this doctor
         try:
@@ -209,16 +292,20 @@ class BookAppointmentWithPaymentView(APIView):
         except AppointmentCharge.DoesNotExist:
             return Response({"error": "No appointment charge set for this doctor"}, status=400)
 
-        # Create transaction
+        # Create transaction with the provided reference
         transaction = Transaction.objects.create(
-            transaction_reference=f"APP-{uuid.uuid4().hex[:8].upper()}",
+            transaction_reference=transaction_reference,
             transaction_type=transaction_type,
             payment_method=payment_method,
             transaction_amount=charge.charge_amount,
             transaction_unit=charge.charge_unit,
             transaction_status="completed",  # Assuming payment is successful
             patient=patient,
-            transaction_details={"appointment_date": date, "doctor": staff.staff_name}
+            transaction_details={
+                "appointment_date": date, 
+                "doctor": staff.staff_name,
+                "payment_gateway_response": data.get("payment_gateway_response", {})  # Optional additional payment details
+            }
         )
 
         # Create appointment
@@ -229,14 +316,50 @@ class BookAppointmentWithPaymentView(APIView):
             tran=transaction,
             charge=charge,
             reason=reason,
-            status='upcoming'
+            status='upcoming',
+            appointment_date=appointment_date  # Make sure to set the appointment date
         )
         
-        return Response({
-            "message": "Appointment booked and payment processed", 
-            "appointment_id": appointment.appointment_id,
-            "transaction_id": transaction.transaction_id
-        }, status=201)
+        # Generate invoice for the appointment
+        try:
+            invoice_type = InvoiceType.objects.get(invoice_type_name='appointment')
+            
+            # Calculate tax (assuming 5% tax)
+            tax_rate = decimal.Decimal('0.05')
+            subtotal = charge.charge_amount
+            tax = subtotal * tax_rate
+            total = subtotal + tax
+            
+            # Create invoice
+            invoice = Invoice.objects.create(
+                tran=transaction,
+                invoice_type=invoice_type,
+                patient=patient,
+                invoice_items=[appointment.appointment_id],
+                invoice_subtotal=subtotal,
+                invoice_tax=tax,
+                invoice_total=total,
+                invoice_unit=charge.charge_unit,
+                invoice_status='paid',
+                invoice_remark=f"Invoice for appointment on {appointment_date.isoformat()}"
+            )
+            
+            return Response({
+                "message": "Appointment booked and payment processed", 
+                "appointment_id": appointment.appointment_id,
+                "transaction_id": transaction.transaction_id,
+                "invoice_id": invoice.invoice_id,
+                "invoice_number": invoice.invoice_number
+            }, status=201)
+            
+        except Exception as e:
+            # If invoice creation fails, still return success for the appointment
+            return Response({
+                "message": "Appointment booked and payment processed, but invoice generation failed", 
+                "appointment_id": appointment.appointment_id,
+                "transaction_id": transaction.transaction_id,
+                "error": str(e)
+            }, status=201)
 
 class RescheduleAppointmentView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -1189,6 +1312,72 @@ class RecommendLabTestsView(APIView):
             "lab_tests": created_tests
         }, status=201)
 
+# class PayForLabTestsView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request, lab_test_id):
+#         # Check if user is a patient
+#         if not hasattr(request.user, 'patient_id'):
+#             return Response({"error": "Only patients can pay for lab tests"}, status=403)
+            
+#         patient = request.user
+        
+#         # Get the lab test
+#         lab_test = get_object_or_404(LabTest, lab_test_id=lab_test_id)
+        
+#         # Check if this patient is authorized to pay for this test
+#         if lab_test.appointment.patient.patient_id != patient.patient_id:
+#             return Response({"error": "You are not authorized to pay for this test"}, status=403)
+            
+#         # Check if test is already paid for
+#         if lab_test.tran:
+#             return Response({"error": "This lab test is already paid for"}, status=400)
+            
+#         # Get payment details
+#         payment_method_id = request.data.get("payment_method_id")
+        
+#         if not payment_method_id:
+#             return Response({"error": "Payment method is required"}, status=400)
+            
+#         try:
+#             payment_method = PaymentMethod.objects.get(payment_method_id=payment_method_id)
+#             transaction_type = TransactionType.objects.get(transaction_type_name="payment")
+#         except (PaymentMethod.DoesNotExist, TransactionType.DoesNotExist):
+#             return Response({"error": "Invalid payment method or transaction type"}, status=400)
+            
+#         # Get lab test charge
+#         try:
+#             charge = LabTestCharge.objects.get(test=lab_test.test_type, is_active=True)
+#         except LabTestCharge.DoesNotExist:
+#             return Response({"error": "No charge found for this lab test"}, status=400)
+            
+#         # Create transaction
+#         transaction = Transaction.objects.create(
+#             transaction_reference=f"LABTEST-{uuid.uuid4().hex[:8].upper()}",
+#             transaction_type=transaction_type,
+#             payment_method=payment_method,
+#             transaction_amount=charge.charge_amount,
+#             transaction_unit=charge.charge_unit,
+#             transaction_status="completed",  # Assuming payment is successful
+#             patient=patient,
+#             transaction_details={
+#                 "lab_test_id": lab_test.lab_test_id,
+#                 "test_type": lab_test.test_type.test_name,
+#                 "lab": lab_test.lab.lab_name
+#             }
+#         )
+        
+#         # Update lab test with transaction
+#         lab_test.tran = transaction
+#         lab_test.save()
+        
+#         return Response({
+#             "message": "Payment for lab test processed successfully",
+#             "transaction_id": transaction.transaction_id,
+#             "amount": f"{transaction.transaction_amount} {transaction.transaction_unit.unit_symbol}"
+#         }, status=201)
+
 class PayForLabTestsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1213,9 +1402,19 @@ class PayForLabTestsView(APIView):
             
         # Get payment details
         payment_method_id = request.data.get("payment_method_id")
+        transaction_reference = request.data.get("transaction_reference")
         
+        # Check required fields
         if not payment_method_id:
             return Response({"error": "Payment method is required"}, status=400)
+            
+        # Transaction reference is required for payment
+        if not transaction_reference:
+            return Response({"error": "Transaction reference is required"}, status=400)
+            
+        # Check if transaction reference is already used
+        if Transaction.objects.filter(transaction_reference=transaction_reference).exists():
+            return Response({"error": "Transaction reference already used"}, status=400)
             
         try:
             payment_method = PaymentMethod.objects.get(payment_method_id=payment_method_id)
@@ -1229,9 +1428,9 @@ class PayForLabTestsView(APIView):
         except LabTestCharge.DoesNotExist:
             return Response({"error": "No charge found for this lab test"}, status=400)
             
-        # Create transaction
+        # Create transaction with the provided reference
         transaction = Transaction.objects.create(
-            transaction_reference=f"LABTEST-{uuid.uuid4().hex[:8].upper()}",
+            transaction_reference=transaction_reference,
             transaction_type=transaction_type,
             payment_method=payment_method,
             transaction_amount=charge.charge_amount,
@@ -1241,7 +1440,8 @@ class PayForLabTestsView(APIView):
             transaction_details={
                 "lab_test_id": lab_test.lab_test_id,
                 "test_type": lab_test.test_type.test_name,
-                "lab": lab_test.lab.lab_name
+                "lab": lab_test.lab.lab_name,
+                "payment_gateway_response": request.data.get("payment_gateway_response", {})  # Optional additional payment details
             }
         )
         
@@ -1249,11 +1449,46 @@ class PayForLabTestsView(APIView):
         lab_test.tran = transaction
         lab_test.save()
         
-        return Response({
-            "message": "Payment for lab test processed successfully",
-            "transaction_id": transaction.transaction_id,
-            "amount": f"{transaction.transaction_amount} {transaction.transaction_unit.unit_symbol}"
-        }, status=201)
+        # Generate invoice for the lab test
+        try:
+            invoice_type = InvoiceType.objects.get(invoice_type_name='lab_test')
+            
+            # Calculate tax (assuming 5% tax)
+            tax_rate = decimal.Decimal('0.05')
+            subtotal = charge.charge_amount
+            tax = subtotal * tax_rate
+            total = subtotal + tax
+            
+            # Create invoice
+            invoice = Invoice.objects.create(
+                tran=transaction,
+                invoice_type=invoice_type,
+                patient=patient,
+                invoice_items=[lab_test.lab_test_id],
+                invoice_subtotal=subtotal,
+                invoice_tax=tax,
+                invoice_total=total,
+                invoice_unit=charge.charge_unit,
+                invoice_status='paid',
+                invoice_remark=f"Invoice for {lab_test.test_type.test_name} on {lab_test.test_datetime.strftime('%Y-%m-%d')}"
+            )
+            
+            return Response({
+                "message": "Payment for lab test processed successfully",
+                "transaction_id": transaction.transaction_id,
+                "amount": f"{transaction.transaction_amount} {transaction.transaction_unit.unit_symbol}",
+                "invoice_id": invoice.invoice_id,
+                "invoice_number": invoice.invoice_number
+            }, status=201)
+            
+        except Exception as e:
+            # If invoice creation fails, still return success for the payment
+            return Response({
+                "message": "Payment for lab test processed successfully, but invoice generation failed",
+                "transaction_id": transaction.transaction_id,
+                "amount": f"{transaction.transaction_amount} {transaction.transaction_unit.unit_symbol}",
+                "error": str(e)
+            }, status=201)
 
 class AddLabTestResultsView(APIView):
     authentication_classes = [JWTAuthentication]
