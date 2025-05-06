@@ -354,3 +354,12 @@ class LabTestCharge(models.Model):
     
     def __str__(self):
         return f"Charge for {self.test.test_name}: {self.charge_amount} {self.charge_unit.unit_symbol}"
+
+class AppointmentRating(models.Model):
+    rating_id = models.AutoField(primary_key=True)
+    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='ratings')
+    rating = models.IntegerField()
+    rating_comment = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Rating for Appointment {self.appointment_id}: {self.rating}"

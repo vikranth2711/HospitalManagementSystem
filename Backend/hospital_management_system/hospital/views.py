@@ -1,5 +1,5 @@
 # hospital/views.py (Create this file if it doesn't exist)
-
+from django.db.models import Avg
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -7,13 +7,14 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from accounts.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-from .models import Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType
+from .models import Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType, AppointmentRating
 from .permissions import IsAdminStaff
 import uuid
 import datetime
 from django.contrib.auth.hashers import make_password
 from .serializers import LabSerializer, LabTestTypeSerializer
-from .models import Lab, LabType, LabTestType
+from .models import Lab, LabType, LabTestType, Appointment
+from .serializers import AppointmentRatingSerializer
 class StaffProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -782,3 +783,220 @@ class LabTestTypeListView(APIView):
             
         serializer = LabTestTypeSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class AppointmentRatingView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, appointment_id):
+        """Create a rating for an appointment"""
+        # Check if appointment exists
+        appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+        # Check if user is authorized to rate this appointment
+        if hasattr(request.user, 'patient_id'):
+            if appointment.patient.patient_id != request.user.patient_id:
+                return Response({"error": "You can only rate your own appointments"}, status=403)
+        else:
+            return Response({"error": "Only patients can rate appointments"}, status=403)
+            
+        # Check if appointment is completed
+        if appointment.status != 'completed':
+            return Response({"error": "You can only rate completed appointments"}, status=400)
+            
+        # Check if rating already exists
+        if AppointmentRating.objects.filter(appointment=appointment).exists():
+            return Response({"error": "You have already rated this appointment"}, status=400)
+            
+        # Get rating data
+        rating = request.data.get('rating')
+        rating_comment = request.data.get('rating_comment', '')
+        
+        # Validate rating
+        try:
+            rating = int(rating)
+            if rating < 1 or rating > 5:
+                return Response({"error": "Rating must be between 1 and 5"}, status=400)
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid rating value"}, status=400)
+            
+        # Create rating
+        appointment_rating = AppointmentRating.objects.create(
+            appointment=appointment,
+            rating=rating,
+            rating_comment=rating_comment
+        )
+        
+        serializer = AppointmentRatingSerializer(appointment_rating)
+        return Response(serializer.data, status=201)
+    
+    def get(self, request, appointment_id):
+        """Get rating for an appointment"""
+        # Check if appointment exists
+        appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+        # Check permissions
+        if hasattr(request.user, 'patient_id'):
+            if appointment.patient.patient_id != request.user.patient_id:
+                return Response({"error": "You can only view ratings for your own appointments"}, status=403)
+        elif hasattr(request.user, 'staff_id'):
+            if appointment.staff.staff_id != request.user.staff_id:
+                # Check if admin
+                try:
+                    is_admin = request.user.role.role_permissions.get('is_admin', False)
+                    if not is_admin:
+                        return Response({"error": "You can only view ratings for your own appointments"}, status=403)
+                except:
+                    return Response({"error": "You can only view ratings for your own appointments"}, status=403)
+        else:
+            return Response({"error": "Invalid user"}, status=403)
+            
+        # Get rating
+        try:
+            rating = AppointmentRating.objects.get(appointment=appointment)
+            serializer = AppointmentRatingSerializer(rating)
+            return Response(serializer.data, status=200)
+        except AppointmentRating.DoesNotExist:
+            return Response({"error": "No rating found for this appointment"}, status=404)
+    
+    def put(self, request, appointment_id):
+        """Update rating for an appointment"""
+        # Check if appointment exists
+        appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+        # Check if user is authorized to update this rating
+        if hasattr(request.user, 'patient_id'):
+            if appointment.patient.patient_id != request.user.patient_id:
+                return Response({"error": "You can only update your own ratings"}, status=403)
+        else:
+            return Response({"error": "Only patients can update ratings"}, status=403)
+            
+        # Check if rating exists
+        try:
+            rating = AppointmentRating.objects.get(appointment=appointment)
+        except AppointmentRating.DoesNotExist:
+            return Response({"error": "No rating found for this appointment"}, status=404)
+            
+        # Get rating data
+        rating_value = request.data.get('rating')
+        rating_comment = request.data.get('rating_comment')
+        
+        # Validate rating
+        if rating_value is not None:
+            try:
+                rating_value = int(rating_value)
+                if rating_value < 1 or rating_value > 5:
+                    return Response({"error": "Rating must be between 1 and 5"}, status=400)
+                rating.rating = rating_value
+            except (ValueError, TypeError):
+                return Response({"error": "Invalid rating value"}, status=400)
+                
+        # Update comment if provided
+        if rating_comment is not None:
+            rating.rating_comment = rating_comment
+            
+        rating.save()
+        
+        serializer = AppointmentRatingSerializer(rating)
+        return Response(serializer.data, status=200)
+    
+    def delete(self, request, appointment_id):
+        """Delete rating for an appointment"""
+        # Check if appointment exists
+        appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+        # Check if user is authorized to delete this rating
+        if hasattr(request.user, 'patient_id'):
+            if appointment.patient.patient_id != request.user.patient_id:
+                return Response({"error": "You can only delete your own ratings"}, status=403)
+        else:
+            return Response({"error": "Only patients can delete ratings"}, status=403)
+            
+        # Check if rating exists
+        try:
+            rating = AppointmentRating.objects.get(appointment=appointment)
+        except AppointmentRating.DoesNotExist:
+            return Response({"error": "No rating found for this appointment"}, status=404)
+            
+        # Delete rating
+        rating.delete()
+        
+        return Response({"message": "Rating deleted successfully"}, status=204)
+    
+class DoctorRatingsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, staff_id):
+        """Get all ratings for a doctor"""
+        # Get page number for pagination
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        
+        # Get ratings
+        ratings = AppointmentRating.objects.filter(
+            appointment__staff__staff_id=staff_id,
+            appointment__status='completed'
+        ).order_by('-appointment__appointment_date')
+        
+        # Calculate average rating
+        avg_rating = ratings.aggregate(Avg('rating'))['rating__avg'] or 0
+        
+        # Paginate results
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_ratings = ratings[start:end]
+        
+        # Serialize data
+        serializer = AppointmentRatingSerializer(paginated_ratings, many=True)
+        
+        # Build response
+        response_data = {
+            'average_rating': round(avg_rating, 1),
+            'total_ratings': ratings.count(),
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (ratings.count() + page_size - 1) // page_size,
+            'ratings': serializer.data
+        }
+        
+        return Response(response_data, status=200)
+
+class PatientRatingsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all ratings by the authenticated patient"""
+        # Check if user is a patient
+        if not hasattr(request.user, 'patient_id'):
+            return Response({"error": "Only patients can access this endpoint"}, status=403)
+            
+        # Get page number for pagination
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        
+        # Get ratings
+        ratings = AppointmentRating.objects.filter(
+            appointment__patient=request.user,
+            appointment__status='completed'
+        ).order_by('-appointment__appointment_date')
+        
+        # Paginate results
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_ratings = ratings[start:end]
+        
+        # Serialize data
+        serializer = AppointmentRatingSerializer(paginated_ratings, many=True)
+        
+        # Build response
+        response_data = {
+            'total_ratings': ratings.count(),
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (ratings.count() + page_size - 1) // page_size,
+            'ratings': serializer.data
+        }
+        
+        return Response(response_data, status=200)

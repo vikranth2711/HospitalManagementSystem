@@ -60,4 +60,8 @@ urlpatterns = [
     # Lab Management
     path('admin/labs/', views.LabListCreateView.as_view(), name='lab-list-create'),
     path('admin/labs/<int:lab_id>/', views.LabDetailView.as_view(), name='lab-detail'),
+
+    path('general/appointments/<int:appointment_id>/rating/', views.AppointmentRatingView.as_view(), name='appointment-rating'),
+    path('general/doctors/<str:staff_id>/ratings/', views.DoctorRatingsView.as_view(), name='doctor-ratings'),
+    path('general/patient/ratings/', views.PatientRatingsView.as_view(), name='patient-ratings'),
 ]

@@ -1,6 +1,6 @@
 # hospital/serializers.py
 from rest_framework import serializers
-from .models import Lab, LabType, LabTestType, LabTestCategory, TargetOrgan
+from .models import Lab, LabType, LabTestType, LabTestCategory, TargetOrgan, AppointmentRating
 
 class LabTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,3 +35,16 @@ class LabTestTypeSerializer(serializers.ModelSerializer):
             'test_category', 'test_target_organ', 
             'image_required', 'test_remark'
         ]
+
+class AppointmentRatingSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='appointment.patient.patient_name', read_only=True)
+    doctor_name = serializers.CharField(source='appointment.staff.staff_name', read_only=True)
+    appointment_date = serializers.DateField(source='appointment.appointment_date', read_only=True)
+    
+    class Meta:
+        model = AppointmentRating
+        fields = [
+            'rating_id', 'appointment', 'rating', 'rating_comment',
+            'patient_name', 'doctor_name', 'appointment_date'
+        ]
+        read_only_fields = ['rating_id']

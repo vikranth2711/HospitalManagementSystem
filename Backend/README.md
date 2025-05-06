@@ -1728,3 +1728,170 @@ urlpatterns = [
     }
   ]
   ```
+
+# Appointment Rating API Reference
+
+## Rating Operations
+
+### Create Appointment Rating
+
+- **URL**: `/api/hospital/general/appointments//rating/`
+- **Method**: POST
+- **Authentication**: Required (Patient only)
+- **Description**: Creates a rating for a completed appointment
+- **Request Body**:
+  ```json
+  {
+    "rating": 5,
+    "rating_comment": "Excellent service and care"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "rating_id": 1,
+    "appointment": 123,
+    "rating": 5,
+    "rating_comment": "Excellent service and care",
+    "patient_name": "John Doe",
+    "doctor_name": "Dr. Smith",
+    "appointment_date": "2025-05-01"
+  }
+  ```
+
+### Get Appointment Rating
+
+- **URL**: `/api/hospital/general/appointments//rating/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves the rating for a specific appointment
+- **Response**: 
+  ```json
+  {
+    "rating_id": 1,
+    "appointment": 123,
+    "rating": 5,
+    "rating_comment": "Excellent service and care",
+    "patient_name": "John Doe",
+    "doctor_name": "Dr. Smith",
+    "appointment_date": "2025-05-01"
+  }
+  ```
+
+### Update Appointment Rating
+
+- **URL**: `/api/hospital/general/appointments//rating/`
+- **Method**: PUT
+- **Authentication**: Required (Patient only)
+- **Description**: Updates an existing rating
+- **Request Body**:
+  ```json
+  {
+    "rating": 4,
+    "rating_comment": "Very good service with minor improvements needed"
+  }
+  ```
+- **Response**: 
+  ```json
+  {
+    "rating_id": 1,
+    "appointment": 123,
+    "rating": 4,
+    "rating_comment": "Very good service with minor improvements needed",
+    "patient_name": "John Doe",
+    "doctor_name": "Dr. Smith",
+    "appointment_date": "2025-05-01"
+  }
+  ```
+
+### Delete Appointment Rating
+
+- **URL**: `/api/hospital/general/appointments//rating/`
+- **Method**: DELETE
+- **Authentication**: Required (Patient only)
+- **Description**: Deletes a rating
+- **Response**: 
+  ```json
+  {
+    "message": "Rating deleted successfully"
+  }
+  ```
+
+### Get Doctor Ratings
+
+- **URL**: `/api/hospital/general/doctors//ratings/`
+- **Method**: GET
+- **Authentication**: Required
+- **Description**: Retrieves all ratings for a specific doctor
+- **Query Parameters**:
+  - `page`: Page number (default: 1)
+  - `page_size`: Number of results per page (default: 10)
+- **Response**: 
+  ```json
+  {
+    "average_rating": 4.5,
+    "total_ratings": 25,
+    "page": 1,
+    "page_size": 10,
+    "total_pages": 3,
+    "ratings": [
+      {
+        "rating_id": 1,
+        "appointment": 123,
+        "rating": 5,
+        "rating_comment": "Excellent service and care",
+        "patient_name": "John Doe",
+        "doctor_name": "Dr. Smith",
+        "appointment_date": "2025-05-01"
+      },
+      {
+        "rating_id": 2,
+        "appointment": 124,
+        "rating": 4,
+        "rating_comment": "Very good experience",
+        "patient_name": "Jane Smith",
+        "doctor_name": "Dr. Smith",
+        "appointment_date": "2025-04-28"
+      }
+    ]
+  }
+  ```
+
+### Get Patient Ratings
+
+- **URL**: `/api/hospital/general/patient/ratings/`
+- **Method**: GET
+- **Authentication**: Required (Patient only)
+- **Description**: Retrieves all ratings submitted by the authenticated patient
+- **Query Parameters**:
+  - `page`: Page number (default: 1)
+  - `page_size`: Number of results per page (default: 10)
+- **Response**: 
+  ```json
+  {
+    "total_ratings": 5,
+    "page": 1,
+    "page_size": 10,
+    "total_pages": 1,
+    "ratings": [
+      {
+        "rating_id": 1,
+        "appointment": 123,
+        "rating": 5,
+        "rating_comment": "Excellent service and care",
+        "patient_name": "John Doe",
+        "doctor_name": "Dr. Smith",
+        "appointment_date": "2025-05-01"
+      },
+      {
+        "rating_id": 3,
+        "appointment": 125,
+        "rating": 3,
+        "rating_comment": "Average experience",
+        "patient_name": "John Doe",
+        "doctor_name": "Dr. Johnson",
+        "appointment_date": "2025-04-15"
+      }
+    ]
+  }
+  ```
