@@ -49,29 +49,31 @@ struct ColorSet {
 }
 
 // MARK: - Button Style
-struct CustomButtonStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(hex: "4A90E2"),
-                                Color(hex: "5E5CE6")
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-            )
-            .shadow(color: Color(hex: "4A90E2").opacity(0.3), radius: 5, x: 0, y: 3)
-    }
-}
+//struct CustomButtonStyle: ViewModifier {
+//    typealias Body = <#type#>
+//    
+//    func body(content: Content) -> some View {
+//        content
+//            .font(.system(size: 16, weight: .semibold, design: .rounded))
+//            .foregroundColor(.white)
+//            .frame(maxWidth: .infinity)
+//            .padding(.vertical, 14)
+//            .background(
+//                RoundedRectangle(cornerRadius: 12)
+//                    .fill(
+//                        LinearGradient(
+//                            gradient: Gradient(colors: [
+//                                Color(hex: "4A90E2"),
+//                                Color(hex: "5E5CE6")
+//                            ]),
+//                            startPoint: .leading,
+//                            endPoint: .trailing
+//                        )
+//                    )
+//            )
+//            .shadow(color: Color(hex: "4A90E2").opacity(0.3), radius: 5, x: 0, y: 3)
+//    }
+//}
 
 // MARK: - Main View
 struct LabTechnicianView: View {
@@ -250,7 +252,7 @@ struct ErrorViewLabTech: View {
                     await retryAction()
                 }
             }
-            .modifier(CustomButtonStyle())
+//            .modifier(CustomButtonStyle())
             .padding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

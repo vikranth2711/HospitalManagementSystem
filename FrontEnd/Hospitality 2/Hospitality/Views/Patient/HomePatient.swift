@@ -163,6 +163,7 @@ struct HomeContent: View {
                     .padding(.top, 16)
                     .padding(.horizontal)
                     
+                    // I will be working on this part
                     HStack {
                         Spacer()
                         NavigationLink(destination: PatientDoctorListView(onAppointmentBooked: {
@@ -173,15 +174,34 @@ struct HomeContent: View {
                                 title: "Schedule Appointment",
                                 color: colorScheme == .dark ? Color(hex: "1E88E5") : Color(hex: "2196F3")
                             )
-                            .frame(width: 300)
+                            .frame(width: 180)
+                        }
+                        .simultaneousGesture(TapGesture().onEnded {
+                            triggerHaptic()
+                        })
+                        Spacer()
+                        //Symtom Checker Button
+                        NavigationLink(destination:
+                            DoctorRecommender()
+                        ){
+                            SquareScheduleCard(
+                                icon: "questionmark.circle",
+                                title: "Symptom Checker",
+                                color: colorScheme == .dark ? Color(hex: "FF7043") : Color(hex: "FF5722")
+                            )
+                            .frame(width: 180)
                         }
                         .simultaneousGesture(TapGesture().onEnded {
                             triggerHaptic()
                         })
                         Spacer()
                     }
+                    
+                    
+                    
                     .padding(.vertical, 8)
                     
+                    // Dont Touch form here
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text("Recent Appointments")
@@ -563,4 +583,11 @@ extension PatientAppointHistoryListResponse {
         dateFormatter.dateStyle = .medium
         return dateFormatter.string(from: date)
     }
+}
+
+
+
+#Preview {
+    HomePatient()
+    
 }
