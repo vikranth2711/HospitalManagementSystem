@@ -9,12 +9,16 @@ import Foundation
 import SwiftUI
 
 struct PatientDoctorListView: View {
+    var searchQuery: String = ""
+    var onAppointmentBooked: (() -> Void)?
+    
     @State private var doctors: [PatientDoctorListResponse] = []
+    @State private var filteredDoctors: [PatientDoctorListResponse] = []
+    @State private var searchText: String = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var searchText = ""
+    @State private var selectedSpecialtyFilter: String = "All"
     @Environment(\.presentationMode) var presentationMode
-    var onAppointmentBooked: (() -> Void)?
     
     var body: some View {
         VStack {
@@ -27,8 +31,30 @@ struct PatientDoctorListView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         // Search bar
-                        SearchBar(text: $searchText)
-                            .padding(.horizontal)
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.gray)
+                            
+                            TextField("Search doctors", text: $searchText)
+                                .onChange(of: searchText) { _ in
+                                    filterDoctors()
+                                }
+                            
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                    filterDoctors()
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                        }
+                        .padding(10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
+                        .padding(.horizontal)
+                        .padding(.top, 10)
                         
                         // Recommended doctors section
                         if !recommendedDoctors.isEmpty {
@@ -46,6 +72,10 @@ struct PatientDoctorListView: View {
         }
         .navigationTitle("Find a Doctor")
         .onAppear {
+            // Set the search text from the recommendation
+            if !searchQuery.isEmpty {
+                searchText = searchQuery
+            }
             fetchDoctors()
         }
     }
@@ -55,14 +85,21 @@ struct PatientDoctorListView: View {
         doctors.filter { $0.specialization.lowercased().contains("recommended") }
     }
     
-    private var filteredDoctors: [PatientDoctorListResponse] {
-        if searchText.isEmpty {
-            return doctors
+    private func filterDoctors() {
+        if searchText.isEmpty && selectedSpecialtyFilter == "All" {
+            filteredDoctors = doctors
         } else {
-            return doctors.filter { doctor in
-                doctor.staff_name.lowercased().contains(searchText.lowercased()) ||
-                doctor.specialization.lowercased().contains(searchText.lowercased()) ||
-                doctor.doctor_type.lowercased().contains(searchText.lowercased())
+            filteredDoctors = doctors.filter { doctor in
+                let matchesSearch = searchText.isEmpty || 
+                                   doctor.staff_name.localizedCaseInsensitiveContains(searchText) ||
+                                   doctor.specialization.localizedCaseInsensitiveContains(searchText) ||
+                                   doctor.doctor_type.localizedCaseInsensitiveContains(searchText)
+                
+                let matchesFilter = selectedSpecialtyFilter == "All" || 
+                                   doctor.specialization == selectedSpecialtyFilter ||
+                                   doctor.doctor_type == selectedSpecialtyFilter
+                
+                return matchesSearch && matchesFilter
             }
         }
     }
@@ -78,6 +115,7 @@ struct PatientDoctorListView: View {
                 switch result {
                 case .success(let fetchedDoctors):
                     self.doctors = fetchedDoctors
+                    filterDoctors()
                 case .failure(let error):
                     errorMessage = error.localizedDescription
                 }

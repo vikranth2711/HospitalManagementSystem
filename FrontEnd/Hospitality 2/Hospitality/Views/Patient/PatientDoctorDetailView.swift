@@ -423,3 +423,8 @@ struct SlotButton: View {
         .disabled(isPassed)
     }
 }
+
+#Preview {
+    PatientDoctorDetailView(doctorId: "1") // You need to provide a doctorId
+        .previewDevice("iPhone 14")
+}

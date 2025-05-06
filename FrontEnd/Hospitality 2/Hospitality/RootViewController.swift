@@ -34,7 +34,7 @@ struct RootView: View {
                             if staffSubRole == "doctor" {
                                 DoctorDashboardView(doctorId: userId)
                             } else {
-                                LabTechnicianView() // Make sure this view is properly imported
+//                                LabTechnicianView() // Make sure this view is properly imported
                             }
                         case "patient":
                             HomePatient()
