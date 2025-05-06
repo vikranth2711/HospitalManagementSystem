@@ -11,10 +11,8 @@ struct PaymentSuccessView: View {
     @State private var showCheckmark = false
     @State private var showDetails = false
     @State private var showConfetti = false
-    @State private var showingSuccessView = false
     
     // Confetti properties
-    @State private var confettiCounter = 0
     let confettiColors: [Color] = [.blue, .red, .green, .yellow, .pink, .purple, .orange]
     
     // MARK: - Body
@@ -36,7 +34,7 @@ struct PaymentSuccessView: View {
                         size: CGFloat.random(in: 5...15),
                         position: CGPoint(
                             x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                            y: -20
+                            y: -20  // start off-screen at top
                         ),
                         isActive: $showConfetti
                     )
@@ -170,9 +168,6 @@ struct PaymentSuccessView: View {
                 showConfetti = true
             }
         }
-        .sheet(isPresented: $showingSuccessView) {
-            PaymentSuccessView(transactionId: transactionId, paymentAmount: paymentAmount)
-        }
     }
     
     // MARK: - Helper Methods
@@ -216,10 +211,11 @@ struct ConfettiPiece: View {
     
     private func startAnimation() {
         let randomX = CGFloat.random(in: -100...100)
-        let randomY = CGFloat.random(in: UIScreen.main.bounds.height / 2...UIScreen.main.bounds.height)
+        // Move beyond the bottom of the screen
+        let targetY = CGFloat.random(in: UIScreen.main.bounds.height + 50...UIScreen.main.bounds.height + 200)
         
         withAnimation(Animation.easeOut(duration: Double.random(in: 1.0...3.0))) {
-            offset = CGSize(width: randomX, height: randomY)
+            offset = CGSize(width: randomX, height: targetY)
             rotation = Double.random(in: 0...360)
         }
     }

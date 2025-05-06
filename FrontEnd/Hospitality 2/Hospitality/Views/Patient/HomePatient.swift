@@ -124,7 +124,7 @@ struct AppointmentHistoryCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                .stroke(Color.blue, lineWidth: 1)
         )
     }
 }
@@ -181,7 +181,7 @@ struct HomePatient: View {
                         }
                         .tag(1)
                     
-                    PatientAppointView(appointments: getSampleAppointments())
+                    DoctorAppointmentsView()
                         .tabItem {
                             Image(systemName: "calendar.badge.clock")
                             Text("Appointments")
@@ -200,38 +200,38 @@ struct HomePatient: View {
     
     private func getSampleAppointments() -> [AppointmentData] {
         return [
-            AppointmentData(
-                doctorName: "Dr. Sarah Johnson",
-                specialty: "Cardiologist",
-                date: "Apr 15, 2025",
-                time: "10:30 AM",
-                status: .completed,
-                notes: "Regular checkup, blood pressure normal. Follow-up in 6 months recommended."
-            ),
-            AppointmentData(
-                doctorName: "Dr. Michael Chen",
-                specialty: "Dermatologist",
-                date: "Mar 28, 2025",
-                time: "2:15 PM",
-                status: .completed,
-                notes: "Skin condition follow-up, prescribed new medication. Apply topical cream twice daily."
-            ),
-            AppointmentData(
-                doctorName: "Dr. Emily Wilson",
-                specialty: "Orthopedist",
-                date: "Apr 25, 2025",
-                time: "9:00 AM",
-                status: .upcoming,
-                notes: "Annual joint assessment. Bring previous X-ray reports if available."
-            ),
-            AppointmentData(
-                doctorName: "Dr. Robert Garcia",
-                specialty: "Neurologist",
-                date: "Feb 10, 2025",
-                time: "1:45 PM",
-                status: .completed,
-                notes: "Headache consultation, recommended lifestyle changes."
-            )
+//            AppointmentData(
+//                doctorName: "Dr. Sarah Johnson",
+//                specialty: "Cardiologist",
+//                date: "Apr 15, 2025",
+//                time: "10:30 AM",
+//                status: .completed,
+//                notes: "Regular checkup, blood pressure normal. Follow-up in 6 months recommended."
+//            ),
+//            AppointmentData(
+//                doctorName: "Dr. Michael Chen",
+//                specialty: "Dermatologist",
+//                date: "Mar 28, 2025",
+//                time: "2:15 PM",
+//                status: .completed,
+//                notes: "Skin condition follow-up, prescribed new medication. Apply topical cream twice daily."
+//            ),
+//            AppointmentData(
+//                doctorName: "Dr. Emily Wilson",
+//                specialty: "Orthopedist",
+//                date: "Apr 25, 2025",
+//                time: "9:00 AM",
+//                status: .upcoming,
+//                notes: "Annual joint assessment. Bring previous X-ray reports if available."
+//            ),
+//            AppointmentData(
+//                doctorName: "Dr. Robert Garcia",
+//                specialty: "Neurologist",
+//                date: "Feb 10, 2025",
+//                time: "1:45 PM",
+//                status: .completed,
+//                notes: "Headache consultation, recommended lifestyle changes."
+//            )
         ]
     }
 }
@@ -260,7 +260,7 @@ struct HomeContent: View {
                     appointment: appointment,
                     onManageAppointment: {
                         if let appointmentToReschedule = appointmentHistory.first(where: {
-                            appointment.status == .upcoming &&
+//                            appointment.status == .upcoming &&
                             $0.status == "upcoming" &&
                             $0.reason == appointment.notes
                         }) {
@@ -473,7 +473,7 @@ struct HomeContent: View {
                             specialty: appointment.reason ?? "Unknown",
                             date: appointment.date,
                             time: appointment.status ?? "Unknown",
-                            status: .upcoming,
+//                            status: .upcoming,
                             notes: appointment.reason ?? "No notes provided"
                         )
                     }
@@ -543,7 +543,17 @@ struct HomeContent: View {
     }
 }
 
+struct AppointmentData: Identifiable {
+    let id = UUID()
+    let doctorName: String
+    let specialty: String
+    let date: String
+    let time: String
+//    let status: AppointmentStatus
+    let notes: String
+}
 struct AppointmentDetailOverlay: View {
+//    let appointment: DoctorResponse.DocAppointment
     let appointment: AppointmentData
     let onManageAppointment: () -> Void
     let onDismiss: () -> Void
@@ -567,7 +577,7 @@ struct AppointmentDetailOverlay: View {
                     DetailRow(label: "Specialty", value: appointment.specialty)
                     DetailRow(label: "Date", value: appointment.date)
                     DetailRow(label: "Time", value: appointment.time)
-                    DetailRow(label: "Status", value: appointment.status.rawValue.capitalized)
+//                    DetailRow(label: "Status", value: appointment.status.rawValue.capitalized)
                     DetailRow(label: "Notes", value: appointment.notes)
                 }
                 .padding()
@@ -580,20 +590,20 @@ struct AppointmentDetailOverlay: View {
                         )
                 )
                 
-                if appointment.status == .upcoming {
-                    Button(action: {
-                        triggerHaptic()
-                        onManageAppointment()
-                    }) {
-                        Text("Reschedule Appointment")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue)
-                            .cornerRadius(10)
-                    }
-                }
+//                if appointment.status == .upcoming {
+//                    Button(action: {
+//                        triggerHaptic()
+//                        onManageAppointment()
+//                    }) {
+//                        Text("Reschedule Appointment")
+//                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+//                            .foregroundColor(.white)
+//                            .padding()
+//                            .frame(maxWidth: .infinity)
+//                            .background(Color.blue)
+//                            .cornerRadius(10)
+//                    }
+//                }
                 
                 Button(action: {
                     triggerHaptic()

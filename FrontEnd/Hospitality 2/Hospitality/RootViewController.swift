@@ -12,7 +12,7 @@ struct RootView: View {
     @AppStorage("isLoggedIn") private var isLoggedIn = false
     @AppStorage("userType") private var userType = ""
     @AppStorage("userId") private var userId = ""
-    @AppStorage("staffSubRole") private var staffSubRole = "doctor" // Add this line
+    @AppStorage("staffSubRole") private var staffSubRole = "doctor"
     @State private var showSplashScreen = true
     
     var body: some View {
@@ -24,34 +24,50 @@ struct RootView: View {
                     }
                 })
             } else {
-                Group {
-                    if isLoggedIn {
-                        switch userType {
-                        case "admin":
-                            AdminHomeView()
-                        case "staff":
-                            // Check staffSubRole to determine which view to show
-                            if staffSubRole == "doctor" {
-                                DoctorDashboardView(doctorId: userId)
-                            } else {
-                                LabTechnicianView() // Make sure this view is properly imported
-                            }
-                        case "patient":
-                            HomePatient()
-                        default:
-                            Login()
-                        }
-                    } else {
-                        Login()
-                    }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .logout)) { _ in
-                    print("Logout notification received")
-                    isLoggedIn = false
-                    UserDefaults.clearAuthData()
-                }
-                .transition(.opacity) // Add smooth transition
+                contentView
+                    .transition(.opacity)
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var contentView: some View {
+        if !isLoggedIn {
+            Login()
+        } else if !UserDefaults.hasCompletedOnboarding {
+            onboardingView
+        } else {
+            mainView
+        }
+    }
+    
+    @ViewBuilder
+    private var onboardingView: some View {
+        switch userType {
+        case "admin":
+            AdminOnboarding()
+        case "staff":
+            staffSubRole == "doctor" ? AnyView(DoctorOnboarding(doctorId: userId)) : AnyView(LabTechOnboarding())
+        case "patient":
+            PatientOnboarding()
+        default:
+            Text("Error: Unknown user type \(userType)")
+                .foregroundColor(.red)
+        }
+    }
+    
+    @ViewBuilder
+    private var mainView: some View {
+        switch userType {
+        case "admin":
+            AdminHomeView()
+        case "staff":
+            staffSubRole == "doctor" ? AnyView(DoctorDashboardView(doctorId: userId)) : AnyView(LabTechnicianView())
+        case "patient":
+            HomePatient()
+        default:
+            Text("Error: Unknown user type \(userType)")
+                .foregroundColor(.red)
         }
     }
 }

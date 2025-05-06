@@ -278,28 +278,28 @@ struct AppointmentCardView: View {
     }
 }
 
-struct StatusBadge: View {
-    let status: String
-    
-    var body: some View {
-        Text(status.capitalized)
-            .font(.caption2)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(statusBackgroundColor)
-            .foregroundColor(.white)
-            .cornerRadius(12)
-    }
-    
-    private var statusBackgroundColor: Color {
-        switch status.lowercased() {
-        case "completed": return .green
-        case "scheduled": return .blue
-        case "cancelled": return .red
-        default: return .gray
-        }
-    }
-}
+//struct StatusBadge: View {
+//    let status: String
+//    
+//    var body: some View {
+//        Text(status.capitalized)
+//            .font(.caption2)
+//            .padding(.horizontal, 8)
+//            .padding(.vertical, 4)
+//            .background(statusBackgroundColor)
+//            .foregroundColor(.white)
+//            .cornerRadius(12)
+//    }
+//    
+//    private var statusBackgroundColor: Color {
+//        switch status.lowercased() {
+//        case "completed": return .green
+//        case "scheduled": return .blue
+//        case "cancelled": return .red
+//        default: return .gray
+//        }
+//    }
+//}
 
 struct ErrorViewAppoint: View {
     let error: String

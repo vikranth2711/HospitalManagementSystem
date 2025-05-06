@@ -80,13 +80,14 @@ struct LabTechniciansListView: View {
             
             List(selection: $selectedTechnicians) {
                             ForEach(filteredTechnicians) { staff in
-                                NavigationLink(destination: LabTechnicianDetailView(staff: staff)) {
+                                NavigationLink(destination: LabTechnicianDetailView(staff: staff, dataStore: dataStore)) {
                                     LabTechnicianRow(staff: staff)
                                 }
                                 .tag(staff.id)
                             }
                             .onDelete(perform: deleteTechnician)
                         }
+            .listStyle(InsetListStyle())
         }
         .navigationTitle("Lab Technicians")
         .toolbar {
@@ -285,7 +286,7 @@ struct AddEditLabTechnicianView: View {
 
 struct LabTechnicianDetailView: View {
     let staff: LabStaff
-    @EnvironmentObject var dataStore: MockHospitalDataStore
+    @ObservedObject var dataStore: MockHospitalDataStore
     @StateObject private var labTechService = LabTechnicianService.shared
     @State private var specificLabTech: SpecificLabTechResponse?
     @State private var isLoading = true
@@ -413,12 +414,12 @@ struct LabTechnicianDetailView: View {
         .sheet(isPresented: $showingEditView) {
             EditLabTechnicianView(
                 labTech: specificLabTech!,
+                dataStore: dataStore,
                 onSave: { updatedTech in
                     specificLabTech = updatedTech
                     showingEditView = false
                 }
             )
-            .environmentObject(dataStore) // This is the critical fix
         }
         .onAppear {
             fetchSpecificLabTechnician()
@@ -445,7 +446,7 @@ struct LabTechnicianDetailView: View {
 
 struct EditLabTechnicianView: View {
     @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var dataStore: MockHospitalDataStore
+    @ObservedObject var dataStore: MockHospitalDataStore
     @StateObject private var labTechService = LabTechnicianService.shared
     @State private var showingAlert = false
     @State private var alertMessage = ""
@@ -466,8 +467,9 @@ struct EditLabTechnicianView: View {
     @State private var address: String
     @State private var qualification: String
     
-    init(labTech: SpecificLabTechResponse, onSave: @escaping (SpecificLabTechResponse) -> Void) {
+    init(labTech: SpecificLabTechResponse, dataStore: MockHospitalDataStore, onSave: @escaping (SpecificLabTechResponse) -> Void) {
         self.labTech = labTech
+        self.dataStore = dataStore
         self.onSave = onSave
         _name = State(initialValue: labTech.staff_name)
         _email = State(initialValue: labTech.staff_email)
@@ -492,7 +494,6 @@ struct EditLabTechnicianView: View {
                     TextField("Mobile", text: $mobile)
                         .keyboardType(.phonePad)
                     TextField("Date of Birth (YYYY-MM-DD)", text: $dob)
-                        .keyboardType(.numbersAndPunctuation)
                     TextField("Address", text: $address)
                 }
                 
@@ -526,6 +527,13 @@ struct EditLabTechnicianView: View {
                             .frame(height: 200)
                     }
                 }
+                
+                if !alertMessage.isEmpty {
+                    Section {
+                        Text(alertMessage)
+                            .foregroundColor(.red)
+                    }
+                }
             }
             .navigationTitle("Edit Lab Technician")
             .sheet(isPresented: $showImagePicker) {
@@ -551,37 +559,53 @@ struct EditLabTechnicianView: View {
     }
     
     private func updateLabTechnician() {
-        guard !name.isEmpty, !email.isEmpty, !certification.isEmpty, !assignedLab.isEmpty else {
-            alertMessage = "Please fill in all required fields"
-            showingAlert = true
-            return
-        }
-        
         guard let experienceYears = Int(experience) else {
             alertMessage = "Please enter valid experience years"
             showingAlert = true
             return
         }
         
-        if !isValidEmail(email) {
+        guard !name.isEmpty else {
+            alertMessage = "Name is required"
+            showingAlert = true
+            return
+        }
+        
+        guard email.contains("@") && email.contains(".") else {
             alertMessage = "Please enter a valid email address"
             showingAlert = true
             return
         }
         
+        guard !certification.isEmpty else {
+            alertMessage = "Certification is required"
+            showingAlert = true
+            return
+        }
+        
+        guard !assignedLab.isEmpty else {
+            alertMessage = "Please select an assigned lab"
+            showingAlert = true
+            return
+        }
+        
+        let request = UpdateLabTechRequest(
+            staff_name: name,
+            staff_email: email,
+            staff_mobile: mobile,
+            certification: certification,
+            lab_experience_years: experienceYears,
+            assigned_lab: assignedLab,
+            on_leave: onLeave,
+            staff_dob: dob.isEmpty ? nil : dob,
+            staff_address: address.isEmpty ? nil : address,
+            staff_qualification: qualification.isEmpty ? nil : qualification,
+            profile_photo: selectedImage?.jpegData(compressionQuality: 0.8)
+        )
+        
         labTechService.updateLabTechnician(
             staffId: labTech.staff_id,
-            name: name,
-            email: email,
-            mobile: mobile,
-            certification: certification,
-            experienceYears: experienceYears,
-            assignedLab: assignedLab,
-            onLeave: onLeave,
-            dob: dob,
-            address: address,
-            qualification: qualification,
-            photo: selectedImage
+            request: request
         ) { result in
             DispatchQueue.main.async {
                 switch result {
@@ -612,12 +636,6 @@ struct EditLabTechnicianView: View {
                 }
             }
         }
-    }
-    
-    private func isValidEmail(_ email: String) -> Bool {
-        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-        let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
-        return emailPred.evaluate(with: email)
     }
 }
 

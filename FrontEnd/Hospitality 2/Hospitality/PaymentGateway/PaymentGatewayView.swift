@@ -140,19 +140,13 @@ struct PaymentGatewayView: View {
                         HStack {
                             // Product/Service Image
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.black)
+                                .fill(Color(UIColor.systemBackground))
                                 .frame(width: 80, height: 80)
                                 .overlay(
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.blue, lineWidth: 1)
-                                            .frame(width: 40, height: 40)
-                                        
-                                        Text("?")
-                                            .font(.title)
-                                            .foregroundColor(.blue)
-                                    }
+                                    AppLogoView()
+                                        .padding(12)
                                 )
+
                             
                             // Amount
                             HStack {

@@ -284,6 +284,14 @@ struct UpdateLabTechResponse: Codable {
     let message: String
 }
 
+enum LabTechError: Error {
+    case invalidURL
+    case unauthorized
+    case serverError(String)
+    case decodingError
+    case unknownError
+}
+
 struct DeleteLabTechResponse: Codable {
     let message: String
 }
@@ -984,74 +992,63 @@ class LabTechnicianService: ObservableObject {
         
     func updateLabTechnician(
         staffId: String,
-        name: String,
-        email: String,
-        mobile: String,
-        certification: String,
-        experienceYears: Int,
-        assignedLab: String,
-        onLeave: Bool,
-        dob: String?,
-        address: String?,
-        qualification: String?,
-        photo: UIImage?,
-        completion: @escaping (Result<UpdateLabTechResponse, Error>) -> Void
+        request: UpdateLabTechRequest,
+        completion: @escaping (Result<UpdateLabTechResponse, LabTechError>) -> Void
     ) {
-        let endpoint = "\(baseURL)/hospital/admin/lab-technicians/\(staffId)/"
-        
-        guard let url = URL(string: endpoint) else {
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
+        guard let url = URL(string: "\(baseURL)/hospital/admin/lab-technicians/\(staffId)/") else {
+            print("Invalid URL: \(baseURL)/hospital/admin/lab-technicians/\(staffId)/")
+            completion(.failure(.invalidURL))
             return
         }
         
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
+        guard !UserDefaults.accessToken.isEmpty else {
+            print("Missing access token")
+            completion(.failure(.unauthorized))
+            return
+        }
         
-        // Create boundary for multipart form data
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PUT"
+        
+        // Set the Content-Type to multipart/form-data with a unique boundary
         let boundary = "Boundary-\(UUID().uuidString)"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        urlRequest.addValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        urlRequest.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
         
+        // Create the form data body
         var body = Data()
         
-        // Add required fields
-        let requiredParams: [String: Any] = [
-            "staff_name": name,
-            "staff_email": email,
-            "staff_mobile": mobile,
-            "certification": certification,
-            "lab_experience_years": experienceYears,
-            "assigned_lab": assignedLab,
-            "on_leave": onLeave
-        ]
-        
-        for (key, value) in requiredParams {
+        // Helper function to append form data fields
+        func appendFormField(name: String, value: String) {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
             body.append("\(value)\r\n".data(using: .utf8)!)
         }
         
-        // Add optional fields if they exist
-        if let dob = dob {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"staff_dob\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(dob)\r\n".data(using: .utf8)!)
+        // Append required fields from the request
+        appendFormField(name: "staff_name", value: request.staff_name)
+        appendFormField(name: "staff_email", value: request.staff_email)
+        appendFormField(name: "staff_mobile", value: request.staff_mobile)
+        appendFormField(name: "certification", value: request.certification)
+        appendFormField(name: "lab_experience_years", value: "\(request.lab_experience_years)")
+        appendFormField(name: "assigned_lab", value: request.assigned_lab)
+        appendFormField(name: "on_leave", value: request.on_leave.description)
+        
+        // Append optional fields if they exist
+        if let dob = request.staff_dob {
+            appendFormField(name: "staff_dob", value: dob)
         }
         
-        if let address = address {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"staff_address\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(address)\r\n".data(using: .utf8)!)
+        if let address = request.staff_address {
+            appendFormField(name: "staff_address", value: address)
         }
         
-        if let qualification = qualification {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"staff_qualification\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(qualification)\r\n".data(using: .utf8)!)
+        if let qualification = request.staff_qualification {
+            appendFormField(name: "staff_qualification", value: qualification)
         }
         
         // Add image data if available
-        if let image = photo, let imageData = image.jpegData(compressionQuality: 0.8) {
+        if let imageData = request.profile_photo {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"profile_photo\"; filename=\"profile.jpg\"\r\n".data(using: .utf8)!)
             body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
@@ -1059,31 +1056,63 @@ class LabTechnicianService: ObservableObject {
             body.append("\r\n".data(using: .utf8)!)
         }
         
+        // Close the form data
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        request.httpBody = body
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        urlRequest.httpBody = body
+        
+        print("Request URL: \(url)")
+        if let bodyString = String(data: body, encoding: .utf8) {
+            print("Request Body: \(bodyString)")
+        }
+        
+        URLSession.shared.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
-                completion(.failure(error))
+                print("Network error: \(error.localizedDescription)")
+                completion(.failure(.serverError(error.localizedDescription)))
                 return
             }
             
             guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NSError(domain: "", code: -2, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
+                print("Invalid response: No HTTP response")
+                completion(.failure(.unknownError))
                 return
             }
             
-            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+            print("Response Status: \(httpResponse.statusCode)")
+            if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                print("Response Data: \(responseString)")
+            }
+            
+            switch httpResponse.statusCode {
+            case 200...299:
+                guard let data = data else {
+                    print("No response data")
+                    completion(.failure(.serverError("No data received")))
+                    return
+                }
+                do {
+                    let response = try JSONDecoder().decode(UpdateLabTechResponse.self, from: data)
+                    print("Decoded Response: \(response)")
+                    completion(.success(response))
+                } catch {
+                    print("Decoding error: \(error)")
+                    completion(.failure(.decodingError))
+                }
+            case 401:
+                print("Unauthorized request")
+                completion(.failure(.unauthorized))
+            case 400:
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Bad request"
+                print("Bad request: \(errorMessage)")
+                completion(.failure(.serverError("Bad request: \(errorMessage)")))
+            case 403:
+                print("Forbidden request")
+                completion(.failure(.serverError("Forbidden")))
+            default:
                 let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
-                completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMessage])))
-                return
-            }
-            
-            do {
-                let response = try JSONDecoder().decode(UpdateLabTechResponse.self, from: data)
-                completion(.success(response))
-            } catch {
-                completion(.failure(error))
+                print("Unexpected status code: \(httpResponse.statusCode), message: \(errorMessage)")
+                completion(.failure(.serverError("Unexpected status code: \(httpResponse.statusCode), message: \(errorMessage)")))
             }
         }.resume()
     }
@@ -1201,5 +1230,10 @@ extension UserDefaults {
     static func clearAuthData() {
         let keys = [Keys.isLoggedIn, Keys.userId, Keys.userType, Keys.accessToken, Keys.refreshToken, Keys.email]
         keys.forEach { standard.removeObject(forKey: $0) }
+    }
+    
+    static var hasCompletedOnboarding: Bool {
+        get { standard.bool(forKey: "hasCompletedOnboarding") }
+        set { standard.set(newValue, forKey: "hasCompletedOnboarding") }
     }
 }

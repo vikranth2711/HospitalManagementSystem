@@ -23,8 +23,10 @@ struct Login: View {
 
     enum AppRoute: Hashable {
         case adminHome
-        case staffOnboarding
+        case adminOnboarding
+        case doctorOnboarding(staffId: String)
         case patientOnboarding
+        case labTechOnboarding
         case doctorDashboard(staffId: String)
         case patientHome
         case labTechnicianView
@@ -45,7 +47,7 @@ struct Login: View {
                         .zIndex(1)
 
                     ScrollView {
-                        VStack(spacing: 90) {
+                        VStack(spacing: 20) {
                             Spacer()
                                 .frame(height: 140)
 
@@ -73,13 +75,13 @@ struct Login: View {
                                 SignInButton(
                                     isLoading: $isLoading,
                                     scale: $scale,
-                                    isOTPRequested: isOTPRequested,
+                                    otpText: $otpCode,
                                     action: loginAction,
                                     authViewModel: authViewModel
                                 )
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.top, 20)
+                            .padding(.horizontal, 30)
+                            .padding(.top, 16)
                         }
                     }
                     .scrollDismissesKeyboard(.immediately)
@@ -91,11 +93,17 @@ struct Login: View {
                     case .adminHome:
                         AdminHomeView()
                             .navigationBarBackButtonHidden(true)
-                    case .staffOnboarding:
-                        StaffOnboarding()
+                    case .adminOnboarding:
+                        AdminOnboarding()
+                            .navigationBarBackButtonHidden(true)
+                    case .doctorOnboarding(let staffId):
+                        DoctorOnboarding(doctorId: staffId)
                             .navigationBarBackButtonHidden(true)
                     case .patientOnboarding:
-                        OnboardingPatient()
+                        PatientOnboarding()
+                            .navigationBarBackButtonHidden(true)
+                    case .labTechOnboarding:
+                        LabTechOnboarding()
                             .navigationBarBackButtonHidden(true)
                     case .doctorDashboard(let staffId):
                         DoctorDashboardView(doctorId: staffId)
@@ -192,24 +200,23 @@ struct Login: View {
             UserDefaults.accessToken = response.access_token
             UserDefaults.refreshToken = response.refresh_token
             UserDefaults.email = email
-            UserDefaults.staffSubRole = staffSubRole // Save the sub-role
+            UserDefaults.staffSubRole = staffSubRole
+            UserDefaults.hasCompletedOnboarding = false
+            UserDefaults.standard.synchronize()
             
             // Force synchronize
             UserDefaults.standard.synchronize()
-            
-            print("Login: UserDefaults updated - isLoggedIn: \(UserDefaults.isLoggedIn)")
             
             DispatchQueue.main.async {
                 navigationPath.removeLast(navigationPath.count) // Clear entire stack
                 switch response.user_type {
                 case "admin":
-                    navigationPath.append(AppRoute.adminHome)
+                    navigationPath.append(AppRoute.adminOnboarding)
                 case "staff":
-                    // Check the saved sub-role to determine navigation
                     if staffSubRole == "doctor" {
-                        navigationPath.append(AppRoute.doctorDashboard(staffId: response.user_id))
+                        navigationPath.append(AppRoute.doctorOnboarding(staffId: response.user_id))
                     } else {
-                        navigationPath.append(AppRoute.labTechnicianView)
+                        navigationPath.append(AppRoute.labTechOnboarding)
                     }
                 case "patient":
                     navigationPath.append(AppRoute.patientOnboarding)
@@ -280,37 +287,112 @@ struct Login: View {
 }
 
 // Custom Role Toggle Button
-struct RoleToggleButton: View {
-    let title: String
+struct RoleButton: View {
+    let role: String
     let isSelected: Bool
     let action: () -> Void
     @Environment(\.colorScheme) var colorScheme
-
+    @State private var isPressed = false
+    
+    private var displayName: String {
+        // Convert first letter to uppercase for display
+        let firstChar = role.prefix(1).uppercased()
+        let remainingChars = role.dropFirst()
+        return firstChar + remainingChars
+    }
+    
+    private var roleIcon: String {
+        switch role.lowercased() {
+        case "admin":
+            return "shield.fill"
+        case "staff":
+            return "person.3.fill"
+        case "patient":
+            return "heart.fill"
+        case "doctor":
+            return "stethoscope"
+        case "lab technician":
+            return "testtube.2"
+        default:
+            return "person.fill"
+        }
+    }
+    
+    private var roleColor: Color {
+        switch role.lowercased() {
+        case "admin":
+            return Color(hex: "6B46C1") // Purple
+        case "staff":
+            return Color(hex: "3182CE") // Blue
+        case "patient":
+            return Color(hex: "38A169") // Green
+        case "doctor":
+            return Color(hex: "3182CE") // Blue
+        case "lab technician":
+            return Color(hex: "DD6B20") // Orange
+        default:
+            return Color(hex: "4A90E2") // Default blue
+        }
+    }
+    
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 16, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : colorScheme == .dark ? .white.opacity(0.7) : Color(hex: "4A5568"))
-                .padding(.vertical, 10)
-                .padding(.horizontal, 20)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
+        Button(action: {
+            action()
+            withAnimation(.spring(response: 0.3)) {
+                isPressed = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    isPressed = false
+                }
+            }
+        }) {
+            VStack(spacing: 8) {
+                ZStack {
+                    // Outer glow when selected
+                    if isSelected {
+                        Circle()
+                            .fill(roleColor.opacity(0.2))
+                            .frame(width: 60, height: 60)
+                            .scaleEffect(isPressed ? 1.1 : 1.0)
+                    }
+                    
+                    Circle()
                         .fill(
-                            isSelected
-                                ? LinearGradient(
-                                    gradient: Gradient(colors: [Color(hex: "4A90E2"), Color(hex: "5E5CE6")]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                                : LinearGradient(
-                                    gradient: Gradient(colors: [Color(hex: "4A90E2"), Color(hex: "5E5CE6")]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    isSelected ? roleColor : Color.gray.opacity(0.1),
+                                    isSelected ? roleColor.opacity(0.8) : Color.gray.opacity(0.1)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                )
-                .shadow(color: isSelected ? Color(hex: "4A90E2").opacity(0.3) : Color.clear, radius: 8, x: 0, y: 2)
-        )}
-        .accessibilityLabel("\(title) role")
-        .accessibilityHint("Select \(title) role for login")
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Circle()
+                                .stroke(isSelected ? roleColor : Color.clear, lineWidth: 2)
+                                .opacity(isSelected ? 0.4 : 0.0)
+                        )
+                        .shadow(
+                            color: isSelected ? roleColor.opacity(0.5) : Color.clear,
+                            radius: 8,
+                            x: 0,
+                            y: 2
+                        )
+                    
+                    Image(systemName: roleIcon)
+                        .foregroundColor(isSelected ? .white : colorScheme == .dark ? .white.opacity(0.7) : Color(hex: "4A5568"))
+                        .font(.system(size: 22))
+                        .opacity(isPressed ? 0.8 : 1.0)
+                }
+                
+                Text(displayName)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? roleColor : colorScheme == .dark ? .white.opacity(0.7) : Color(hex: "4A5568"))
+            }
+            .padding(.vertical, 5)
+            .scaleEffect(isSelected ? (isPressed ? 1.08 : 1.05) : 1.0)
+            .animation(.spring(response: 0.3), value: isSelected)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }

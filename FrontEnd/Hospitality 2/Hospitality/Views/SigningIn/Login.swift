@@ -6,6 +6,7 @@ struct OTPTextField: View {
     @Binding var text: String
     @State private var individualDigits: [String] = Array(repeating: "", count: 6)
     @FocusState private var focusedField: Int?
+    var onComplete: (() -> Void)? // Callback for when all digits are entered
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -40,11 +41,14 @@ struct OTPTextField: View {
                                 if index < 5 {
                                     focusedField = index + 1
                                 } else {
-                                    focusedField = nil // Hide keyboard if last digit
+                                    focusedField = nil // Hide keyboard
+                                    DispatchQueue.main.async {
+                                        updateMainText() // Update the text binding first
+                                        checkIfComplete() // Then check if complete and notify
+                                    }
                                 }
                             }
                             
-                            // Update the main text binding
                             updateMainText()
                         }
                         .onReceive(Just(individualDigits[index])) { newValue in
@@ -64,15 +68,13 @@ struct OTPTextField: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     focusedField = 0
                 }
-                
-                // Initialize individualDigits from text if needed
+
                 if !text.isEmpty {
                     for (index, char) in text.prefix(6).enumerated() {
                         individualDigits[index] = String(char)
                     }
                 }
             }
-            // Handle backspace key to move to previous field when deleting
             .overlay(
                 TextField("", text: .constant(""))
                     .frame(width: 0, height: 0)
@@ -87,6 +89,16 @@ struct OTPTextField: View {
     
     private func updateMainText() {
         text = individualDigits.joined()
+    }
+    
+    private func checkIfComplete() {
+        // Check if all digits are filled
+        let allFilled = individualDigits.allSatisfy { !$0.isEmpty }
+        if allFilled && text.count == 6 {
+            // Only call completion handler when all 6 digits are entered
+            print("OTP complete: \(text)")
+            onComplete?()
+        }
     }
 }
 
@@ -104,7 +116,7 @@ struct InfoField : View {
                 .frame(height: 55)
                 .focused($isTyping)
                 .background(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 10)
                         .stroke(isTyping ? Color(hex: "4A90E2") : Color.gray.opacity(0.3), lineWidth: 1.5)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
@@ -201,17 +213,15 @@ struct InfoFieldPassword: View {
     }
 }
 
-
-
-// MARK: - New Sticky Logo Header
 struct StickyLogoHeaderView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var pulseScale = false
     @State private var rotationAngle = 0.0
+    @State private var glowOpacity: CGFloat = 1.0
     
     var body: some View {
         VStack(spacing: 0) {
-            // Gradient Top Bar
+          
             Rectangle()
                 .fill(
                     LinearGradient(
@@ -223,94 +233,84 @@ struct StickyLogoHeaderView: View {
                         endPoint: .top
                     )
                 )
-                .frame(height: 40)
-                .overlay(
-                    // Animated Sparkles
-                    ZStack {
-                        ForEach(0..<5) { i in
-                            Image(systemName: "sparkle")
-                                .font(.system(size: CGFloat.random(in: 8...12)))
-                                .foregroundColor(Color(hex: "4A90E2").opacity(0.6))
-                                .offset(x: CGFloat.random(in: -100...100), y: CGFloat.random(in: 5...15))
-                                .rotationEffect(.degrees(pulseScale ? Double.random(in: -30...30) : 0))
-                        }
-                    }
-                )
+                .frame(height: 75)
             
-            // Logo Content
-            HStack {
+            // Logo Content in a horizontal layout
+            HStack(spacing: 15) {
+                // Left padding
                 Spacer()
+                    .frame(width: 50)
+            
                 
-                VStack(spacing: 2) {
-                    ZStack {
-                        // Glowing outer circles for beautiful effect
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    gradient: Gradient(colors: [
-                                        Color(hex: "4A90E2").opacity(0.7),
-                                        Color(hex: "4A90E2").opacity(0.0)
-                                    ]),
-                                    center: .center,
-                                    startRadius: 25,
-                                    endRadius: 50
-                                )
+                // Medical logo with animations
+                ZStack {
+                    // Base gradient circle with glow
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color(hex: "4A90E2"), Color(hex: "2B6CB0")]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
-                            .frame(width: 100, height: 100)
-                            .scaleEffect(pulseScale ? 1.1 : 0.9)
-                        
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color(hex: "5E5CE6"),
-                                        Color(hex: "4A90E2")
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 70, height: 70)
-                            .shadow(color: Color(hex: "4A90E2").opacity(0.6), radius: pulseScale ? 8 : 5, x: 0, y: 0)
-                        
-                        // Rotating small circles around main logo
-                        ZStack {
-                            ForEach(0..<3) { i in
-                                Circle()
-                                    .fill(Color.white.opacity(0.7))
-                                    .frame(width: 12, height: 12)
-                                    .offset(x: 0, y: -40)
-                                    .rotationEffect(.degrees(Double(i) * 120 + rotationAngle))
-                            }
-                        }
-                        .rotationEffect(.degrees(rotationAngle))
-                        
-                        Image(systemName: "heart.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 35, height: 35)
-                            .foregroundColor(.white)
-                            .shadow(color: .white.opacity(0.5), radius: 2, x: 0, y: 0)
-                            .accessibilityLabel("Hospitality Logo")
-                            .scaleEffect(pulseScale ? 1.1 : 1.0)
-                    }
-                    .frame(width: 80, height: 80)
+                        )
+                        .frame(width: 60, height: 60) // Slightly smaller
+                        .shadow(color: Color.blue.opacity(glowOpacity * 0.5), radius: 8, x: 0, y: 0)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.blue.opacity(glowOpacity), lineWidth: 3)
+                                .blur(radius: 3)
+                        )
                     
-                    Text("Hospitality")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                    // Inner white circle for contrast
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 48, height: 48)
+                    
+                    // Medical cross with heartbeat
+                    ZStack {
+                        // Cross
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(hex: "4A90E2"))
+                            .frame(width: 20, height: 36)
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(hex: "4A90E2"))
+                            .frame(width: 36, height: 20)
+                        
+                        // Heartbeat line
+                        Path { path in
+                            path.move(to: CGPoint(x: -15, y: 0))
+                            path.addLine(to: CGPoint(x: -9, y: 0))
+                            path.addLine(to: CGPoint(x: -6, y: 6))
+                            path.addLine(to: CGPoint(x: 0, y: -9))
+                            path.addLine(to: CGPoint(x: 6, y: 6))
+                            path.addLine(to: CGPoint(x: 9, y: 0))
+                            path.addLine(to: CGPoint(x: 15, y: 0))
+                        }
+                        .stroke(Color.red, lineWidth: 2.5)
+                        .offset(y: -6)
+                    }
+                    .frame(width: 48, height: 48)
+                    .scaleEffect(pulseScale ? 1.08 : 1.0)
+                }
+                .frame(width: 60, height: 60)
+                
+                // App name and tagline
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("WeCare")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
                         .accessibilityAddTraits(.isHeader)
                         .shadow(color: colorScheme == .dark ? .clear : Color(hex: "4A90E2").opacity(0.3), radius: 2, x: 0, y: 1)
                     
-                    Text("Healthcare made simple")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                    Text("Health. Harmony. Hope.")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
                 }
                 
+                // Right spacing
                 Spacer()
             }
-            .padding(.top, 50) // Extra padding for status bar
-            .padding(.bottom, 10)
+            .padding(.vertical, 12)
             .background(
                 LinearGradient(
                     gradient: Gradient(colors: [
@@ -321,27 +321,23 @@ struct StickyLogoHeaderView: View {
                     endPoint: .bottom
                 )
             )
-            // Add frosted glass effect (blur) for a more premium look
             .background(
                 TransparentBlurView(style: colorScheme == .dark ? .dark : .light)
-                    .opacity(0.9)
+                    .opacity(0.6)
             )
-            .onAppear {
-                // Start animations
-                withAnimation(Animation.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                    pulseScale.toggle()
-                }
-                
-                // Continuous rotation animation
-                withAnimation(Animation.linear(duration: 12).repeatForever(autoreverses: false)) {
-                    rotationAngle = 360
-                }
+        }
+        .onAppear {
+            // Start animations
+            withAnimation(Animation.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+                pulseScale.toggle()
+            }
+            
+            withAnimation(Animation.easeOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                glowOpacity = 0.0
             }
         }
     }
 }
-
-// Transparent blur view for a frosted glass effect
 struct TransparentBlurView: UIViewRepresentable {
     var style: UIBlurEffect.Style
     
@@ -416,10 +412,14 @@ struct RegistrationLinkCard: View {
 struct SignInButton: View {
     @Binding var isLoading: Bool
     @Binding var scale: CGFloat
-    var isOTPRequested: Bool
+    @Binding var otpText: String // Add binding to the OTP text to track completion
     var action: () -> Void
     @State private var shimmerOffset: CGFloat = -0.25
     @ObservedObject var authViewModel: AuthViewModel
+    
+    private var isOTPComplete: Bool {
+        return otpText.count == 6 && authViewModel.isOTPSent
+    }
     
     var body: some View {
         Button(action: action) {
@@ -445,13 +445,13 @@ struct SignInButton: View {
                 } else {
                     // Button with shimmer effect
                     ZStack {
-                        // Base gradient
+                        // Base gradient - Use active colors when OTP is complete
                         RoundedRectangle(cornerRadius: 16)
                             .fill(
                                 LinearGradient(
                                     gradient: Gradient(colors: [
-                                        Color(hex: "B2BEB5"),
-                                        Color(hex: "808080")
+                                        isOTPComplete ? Color(hex: "4A90E2") : Color(hex: "B2BEB5"),
+                                        isOTPComplete ? Color(hex: "5E5CE6") : Color(hex: "808080")
                                     ]),
                                     startPoint: .leading,
                                     endPoint: .trailing
@@ -499,117 +499,25 @@ struct SignInButton: View {
                     .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
             )
         }
-        .disabled(authViewModel.isLoading || !authViewModel.isOTPSent)
-        .opacity(authViewModel.isOTPSent ? 1.0 : 0.7)
+        .disabled(authViewModel.isLoading || !isOTPComplete) // Button enabled only when OTP is complete
+        .opacity(isOTPComplete ? 1.0 : 0.7) // Visual feedback
         .scaleEffect(scale)
         .buttonStyle(BouncyButtonStyle())
         .padding(.top, 16)
         .padding(.bottom, 20)
+        // Add onChange to monitor the OTP text for completion
+        .onChange(of: otpText) { newValue in
+            // Print some debug info
+            print("OTP updated: \(newValue.count)/6 digits")
+        }
     }
 }
-
-// Custom button style for a subtle bounce effect
+                
 struct BouncyButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+//            .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
-    }
-}
-
-// RoleButton with enhanced styling
-struct RoleButton: View {
-    let role: String
-    let isSelected: Bool
-    let action: () -> Void
-    @Environment(\.colorScheme) var colorScheme
-    @State private var isPressed = false
-    
-    private var roleIcon: String {
-        switch role {
-        case "Admin":
-            return "shield.fill"
-        case "Staff":
-            return "person.2.fill"
-        case "Patient":
-            return "person.fill"
-        default:
-            return "person.fill"
-        }
-    }
-    
-    private var roleColor: Color {
-        switch role {
-        case "Admin":
-            return Color(hex: "6B46C1")
-        case "Staff":
-            return Color(hex: "3182CE")
-        case "Patient":
-            return Color(hex: "38A169")
-        default:
-            return Color(hex: "4A90E2")
-        }
-    }
-    
-    var body: some View {
-        Button(action: {
-            action()
-            withAnimation(.spring(response: 0.3)) {
-                isPressed = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    isPressed = false
-                }
-            }
-        }) {
-            VStack(spacing: 8) {
-                ZStack {
-                    // Outer glow when selected
-                    if isSelected {
-                        Circle()
-                            .fill(roleColor.opacity(0.2))
-                            .frame(width: 60, height: 60)
-                            .scaleEffect(isPressed ? 1.1 : 1.0)
-                    }
-                    
-                    Circle()
-                        .fill(
-                            // Fixed: Use LinearGradient for both cases to match types
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    isSelected ? roleColor : Color.gray.opacity(0.1),
-                                    isSelected ? roleColor.opacity(0.8) : Color.gray.opacity(0.1)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Circle()
-                                .stroke(isSelected ? roleColor : Color.clear, lineWidth: 2)
-                                .opacity(isSelected ? 0.4 : 0.0)
-                        )
-                        .shadow(
-                            color: isSelected ? roleColor.opacity(0.5) : Color.clear,
-                            radius: 8,
-                            x: 0,
-                            y: 2
-                        )
-                    
-                    Image(systemName: roleIcon)
-                        .foregroundColor(isSelected ? .white : colorScheme == .dark ? .white.opacity(0.7) : Color(hex: "4A5568"))
-                        .font(.system(size: 22))
-                        .opacity(isPressed ? 0.8 : 1.0)
-                }
-                
-                Text(role)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                    .foregroundColor(isSelected ? roleColor : colorScheme == .dark ? .white.opacity(0.7) : Color(hex: "4A5568"))
-            }
-            .padding(.vertical, 5)
-            .scaleEffect(isSelected ? (isPressed ? 1.08 : 1.05) : 1.0)
-            .animation(.spring(response: 0.3), value: isSelected)
-        }
     }
 }
 
