@@ -1,5 +1,6 @@
 import SwiftUI
 
+
 struct SplashScreen: View {
     @State private var opacity = 1.0
     @State private var scale: CGFloat = 1.0
@@ -22,7 +23,8 @@ struct SplashScreen: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-
+            
+            // Subtle background patterns (reduced to 4 for performance)
             ForEach(0..<4) { _ in
                 Circle()
                     .fill(colorScheme == .dark ? Color.blue.opacity(0.04) : Color.blue.opacity(0.02))
@@ -104,10 +106,13 @@ struct SplashScreen: View {
             }
             .opacity(opacity)
             .onAppear {
+                // Icon fade-in and pulse animation
                 withAnimation(.easeInOut(duration: 0.8)) {
                     iconOpacity = 1.0
                     crossScale = 1.0
                 }
+                
+                // Heartbeat fade-in with slight delay
                 withAnimation(.easeInOut(duration: 0.6).delay(0.4)) {
                     heartbeatOpacity = 1.0
                 }
