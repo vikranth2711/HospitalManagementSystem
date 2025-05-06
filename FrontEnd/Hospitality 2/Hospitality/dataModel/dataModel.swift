@@ -328,8 +328,20 @@ class MockHospitalDataStore: ObservableObject {
         // Mock Doctor Types
         doctorTypes = [
             DoctorType(id: 1, name: "General Practitioner"),
-            DoctorType(id: 2, name: "Specialist"),
-            DoctorType(id: 3, name: "Surgeon")
+            DoctorType(id: 2, name: "Pediatrician"),
+            DoctorType(id: 3, name: "Gynecologist/Obstetrician"),
+            DoctorType(id: 4, name: "Orthopedic Surgeon"),
+            DoctorType(id: 5, name: "General Surgeon"),
+            DoctorType(id: 6, name: "Anesthesiologist"),
+            DoctorType(id: 7, name: "Radiologist"),
+            DoctorType(id: 8, name: "Pathologist"),
+            DoctorType(id: 9, name: "Cardiologist"),
+            DoctorType(id: 10, name: "Dermatologist"),
+            DoctorType(id: 11, name: "ENT Specialist"),
+            DoctorType(id: 12, name: "Psychiatrist"),
+            DoctorType(id: 13, name: "Emergency Medicine Specialist"),
+            DoctorType(id: 14, name: "Urologist"),
+            DoctorType(id: 15, name: "Neurologist"),
         ]
         
         labTypes = [
