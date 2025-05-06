@@ -28,7 +28,7 @@ struct adminTabBarView : View {
                             Text("Staff")
                         }
                         .tag(1)
-                    BillsContent()
+                    InvoiceView()
                         .tabItem {
                             Image(systemName: "newspaper")
                             Text("Invoice")

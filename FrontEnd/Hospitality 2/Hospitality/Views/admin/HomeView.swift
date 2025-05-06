@@ -158,7 +158,7 @@ struct AdminHomeView: View {
                         .tag(1)
                     
                     // Bills Tab
-                    BillsContent()
+                    InvoiceView()
                         .tabItem {
                             Image(systemName: "newspaper")
                             Text("Invoice")

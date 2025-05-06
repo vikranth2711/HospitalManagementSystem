@@ -271,27 +271,9 @@ struct AddEditLabTechnicianView: View {
         ) { result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let response):
-                    let staff = LabStaff(
-                        id: response.staff_id,
-                        staffName: name,
-                        roleId: "lab_tech_role_id",
-                        createdAt: Date(),
-                        staffEmail: email,
-                        staffMobile: mobile
-                    )
-                    
-                    let techDetails = LabTechnicianDetails(
-                        id: UUID().uuidString,
-                        staffId: response.staff_id,
-                        certificationId: certification,
-                        labExperienceYears: experienceYears,
-                        assignedLabId: assignedLabName
-                    )
-                    
-                    self.onSave(staff, techDetails)
+                case .success:
+                    self.dataStore.fetchStaff() // Refresh the list
                     self.presentationMode.wrappedValue.dismiss()
-                    
                 case .failure(let error):
                     self.alertMessage = "Failed to create lab technician: \(error.localizedDescription)"
                     self.showingAlert = true

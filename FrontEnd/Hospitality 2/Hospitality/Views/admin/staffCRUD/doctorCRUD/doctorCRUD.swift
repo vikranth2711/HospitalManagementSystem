@@ -397,54 +397,11 @@ struct AddEditDoctorView: View {
         ) { result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let response):
-                    print("Doctor created successfully with ID: \(response.staff_id)")
-                    
-                    // Create local objects
-                    let staff = Staff(
-                        id: response.staff_id,
-                        staffName: self.name,
-                        roleId: "doctor_role_id",
-                        createdAt: self.joiningDate,
-                        staffEmail: self.email,
-                        staffMobile: self.mobile,
-                        onLeave: self.onLeave
-                    )
-                    
-                    let doctorDetails = DoctorDetails(
-                        id: UUID().uuidString,
-                        staffId: response.staff_id,
-                        doctorSpecialization: self.specialization,
-                        doctorLicense: self.license,
-                        doctorExperienceYears: experienceYears,
-                        doctorTypeId: self.doctorTypeId
-                    )
-                    
-                    let staffDetails = StaffDetails(
-                        id: UUID().uuidString,
-                        staffId: response.staff_id,
-                        staffDob: self.dob,
-                        staffAddress: self.address,
-                        staffQualifications: self.qualifications,
-                        staffPhoto: nil
-                    )
-                    
-                    // Save to local data store
-                    self.dataStore.createDoctor(
-                        staff: staff,
-                        doctorDetails: doctorDetails,
-                        staffDetails: staffDetails
-                    )
-                    
-                    // Call the completion handler
-                    self.onSave(staff, doctorDetails, staffDetails)
-                    
-                    // Dismiss the view
+                case .success:
+                    self.dataStore.fetchDoctors() // Refresh the list
                     self.presentationMode.wrappedValue.dismiss()
-                    
                 case .failure(let error):
                     print("Failed to create doctor: \(error)")
-                    // Handle error - show error message to user
                 }
             }
         }

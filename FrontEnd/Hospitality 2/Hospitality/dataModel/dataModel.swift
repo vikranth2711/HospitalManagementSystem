@@ -481,9 +481,10 @@ class MockHospitalDataStore: ObservableObject {
         }
     
     func createLabTechnician(staff: LabStaff, techDetails: LabTechnicianDetails) {
-        self.labStaff.append(staff)
-        self.labTechnicians.append(techDetails)
-        print("Created lab technician: \(staff) with details: \(techDetails)")
+        if !labStaff.contains(where: { $0.id == staff.id }) {
+            self.labStaff.append(staff)
+            self.labTechnicians.append(techDetails)
+        }
     }
     
     // Lab Test CRUD
