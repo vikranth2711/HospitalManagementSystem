@@ -8,6 +8,7 @@ xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcdebugger/
 *.xcbkptlist
+**/*.pbxproj
 
 # Build and derived data
 DerivedData/
