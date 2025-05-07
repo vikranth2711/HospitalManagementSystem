@@ -4,19 +4,30 @@ import Combine
 class DoctorViewModel: ObservableObject {
     
     // Published properties to bind data to the View
-    @Published var doctorShifts: [DoctorResponse.PatientDoctorSlotResponse] = []
-    @Published var doctorAppointments: [DoctorResponse.DocAppointment] = []
-    @Published var patientProfile: DoctorResponse.PatientProfile?
-    @Published var patientVitals: DoctorResponse.DocGetLatestPatientVitals?
-    @Published var enterVitalsMessage: String = ""
-    @Published var diagnosisMessage: String = ""
-    @Published var prescriptionMessage: String = ""
-    
-    // State for loading and error handling
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    
-    private var doctorService = DoctorServices()
+       @Published var doctorShifts: [DoctorResponse.PatientDoctorSlotResponse] = []
+       @Published var doctorAppointments: [DoctorResponse.DocAppointment] = []
+       @Published var patientProfile: DoctorResponse.PatientProfile?
+       @Published var patientVitals: DoctorResponse.DocGetLatestPatientVitals?
+       @Published var enterVitalsMessage: String = ""
+       @Published var diagnosisMessage: String = ""
+       @Published var prescriptionMessage: String = ""
+       @Published var medicineList: [DoctorResponse.Medicine] = []
+       @Published var targetOrgans: [DoctorResponse.TargetOrgan] = []
+       @Published var labTestTypes: [DoctorResponse.LabTestType] = []
+       @Published var labTestRecommendationMessage: String = ""
+       @Published var recommendedLabTests: [DoctorResponse.RecommendedLabTest] = []
+       @Published var labTestDateTime: Date = Date().addingTimeInterval(24 * 60 * 60)
+       
+       // Lab test recommendation form state
+       @Published var selectedTestIds: [Int] = []
+       @Published var testPriority: String = "normal"
+       @Published var testDateTime: Date = Date()
+       
+       // State for loading and error handling
+       @Published var isLoading = false
+       @Published var errorMessage: String?
+       
+       private var doctorService = DoctorServices()
     
     // Fetch Doctor Shifts
     func fetchDoctorShifts(doctorId: String) {
@@ -135,37 +146,102 @@ class DoctorViewModel: ObservableObject {
         }
     }
     
-    // Enter Diagnosis - FIXED: added missing function
-//    func enterDiagnosis(appointmentId: String, organ: String, notes: String, symptoms: [String], labTestRequired: Bool, followUpRequired: Bool) {
-//        self.isLoading = true
-//
-//        let diagnosisData = DiagnosisData(
-//            symptoms: symptoms, findings: notes,
-//            notes: notes
-//        )
-//
-//        let diagnosisRequest = EnterDiagnosisRequest(
-//            diagnosis_data: diagnosisData,
-//            lab_test_required: labTestRequired,
-//            follow_up_required: followUpRequired
-//        )
-//
-//        Task {
-//            do {
-//                let response = try await doctorService.enterDiagnosis(appointmentId: appointmentId, diagnosisData: diagnosisRequest)
-//                DispatchQueue.main.async {
-//                    self.diagnosisMessage = response.message
-//                    self.isLoading = false
-//                }
-//            } catch {
-//                DispatchQueue.main.async {
-//                    self.errorMessage = error.localizedDescription
-//                    self.isLoading = false
-//                    print("[SwatiSwapna] Error entering diagnosis: \(error.localizedDescription)")
-//                }
-//            }
-//        }
-//    }
+    // MARK: - Lab Test Recommendation
+       
+       // Recommend Lab Tests
+       func recommendLabTests(appointmentId: Int) {
+           guard !selectedTestIds.isEmpty else {
+               self.errorMessage = "Please select at least one test type"
+               return
+           }
+           
+           self.isLoading = true
+           self.errorMessage = nil
+           
+           // Format date to required string format
+           let formatter = DateFormatter()
+           formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+           let dateString = formatter.string(from: testDateTime)
+           
+           let request = RecommendLabTestRequest(
+               test_type_ids: selectedTestIds,
+               priority: testPriority,
+               dateTime: labTestDateTime)
+           
+           print("[SwatiSwapna] Recommending lab tests with priority: \(testPriority), datetime: \(dateString)")
+           
+           Task {
+               do {
+                   let response = try await doctorService.recommendLabTests(appointmentId: appointmentId, request: request)
+                   DispatchQueue.main.async {
+                       self.labTestRecommendationMessage = response.message
+                       self.recommendedLabTests = response.lab_tests
+                       self.isLoading = false
+                       print("[SwatiSwapna] Successfully recommended \(response.lab_tests.count) lab tests")
+                   }
+               } catch {
+                   DispatchQueue.main.async {
+                       self.errorMessage = error.localizedDescription
+                       self.isLoading = false
+                       print("[SwatiSwapna] Error recommending lab tests: \(error.localizedDescription)")
+                   }
+               }
+           }
+       }
+       
+       // Reset lab test form
+       func resetLabTestForm() {
+           self.selectedTestIds = []
+           self.testPriority = "normal"
+           self.testDateTime = Date()
+           self.labTestRecommendationMessage = ""
+           self.recommendedLabTests = []
+       }
+       
+       // Check if a test is selected
+    func isTestSelected(_ testId: Int) -> Bool {
+        return selectedTestIds.contains(testId)
+    }
+       
+       // Toggle test selection
+    func toggleTestSelection(_ testId: Int) {
+        if isTestSelected(testId) {
+            selectedTestIds.removeAll(where: { $0 == testId })
+        } else {
+            selectedTestIds.append(testId)
+        }
+    }
+    
+    // Enter Diagnosis with new model
+    func enterDiagnosis(appointmentId: Int, diagnosisItems: [DiagnosisItem], labTestRequired: Bool, followUpRequired: Bool) {
+        self.isLoading = true
+        
+        let diagnosisRequest = DiagnosisRequest(
+            diagnosisData: diagnosisItems,
+            labTestRequired: labTestRequired,
+            followUpRequired: followUpRequired
+        )
+        
+        Task {
+            do {
+                let response = try await doctorService.enterDiagnosis(appointmentId: appointmentId, diagnosisData: diagnosisRequest)
+                DispatchQueue.main.async {
+                    self.diagnosisMessage = response.message
+                    self.isLoading = false
+                    // If diagnosis was successful and diagnose ID is needed for further operations
+                    if labTestRequired {
+                        self.handleDiagnosis(diagnosisId: response.diagnosisId)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                    print("[SwatiSwapna] Error entering diagnosis: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
   
     func handleDiagnosis(diagnosisId: Int) {
         self.isLoading = true
@@ -186,13 +262,14 @@ class DoctorViewModel: ObservableObject {
         }
     }
     
-    // Enter Prescription - NEW: Added missing function
-    func enterPrescription(appointmentId: String, remarks: String, medicines: [PrescriptionRequest.Medicine]) {
+    // Enter Prescription
+    func enterPrescription(appointmentId: Int, remarks: String, medicines: [PrescriptionRequest.Medicine]) {
         self.isLoading = true
         
         let prescriptionRequest = PrescriptionRequest(
             remarks: remarks,
-            medicines: medicines, appointmentId: appointmentId
+            medicines: medicines,
+            appointmentId: appointmentId
         )
         
         Task {
@@ -207,6 +284,68 @@ class DoctorViewModel: ObservableObject {
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
                     print("[SwatiSwapna] Error entering prescription: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+
+    
+    // Fetch Medicine List
+    func fetchMedicineList() {
+        self.isLoading = true
+        Task {
+            do {
+                let medicines = try await doctorService.fetchMedicineList()
+                DispatchQueue.main.async {
+                    self.medicineList = medicines
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                    print("[SwatiSwapna] Error fetching medicine list: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    // Fetch Target Organs
+    func fetchTargetOrgans() {
+        self.isLoading = true
+        Task {
+            do {
+                let organs = try await doctorService.fetchTargetOrgans()
+                DispatchQueue.main.async {
+                    self.targetOrgans = organs
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                    print("[SwatiSwapna] Error fetching target organs: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    // Fetch Lab Test Types
+    func fetchLabTestTypes() {
+        self.isLoading = true
+        Task {
+            do {
+                let testTypes = try await doctorService.fetchLabTestTypes()
+                DispatchQueue.main.async {
+                    self.labTestTypes = testTypes
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                    print("[SwatiSwapna] Error fetching lab test types: \(error.localizedDescription)")
                 }
             }
         }
