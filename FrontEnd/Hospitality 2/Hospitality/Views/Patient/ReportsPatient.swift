@@ -1,13 +1,12 @@
 import SwiftUI
 import Combine
 
-// MARK: - Models
 struct LabRecord: Identifiable, Codable {
     let id: Int
     let lab: Int
     let labName: String
     let scheduledTime: Date
-    let testResult: TestResult?   // ⬅️ Change this line
+    let testResult: [String: TestResultValue]?
     let testType: Int
     let testTypeName: String
     let priority: String
@@ -26,19 +25,37 @@ struct LabRecord: Identifiable, Codable {
     }
 }
 
-struct TestResult: Codable {
-    let notes: String?
-    let platelets: Int?
-    let rbcCount: Double?
-    let wbcCount: Int?
-    let hemoglobin: Double?
+enum TestResultValue: Codable {
+    case number(Double)
+    case text(String)
+    case object([String: TestResultValue])  // Optional: For future complex types
 
-    enum CodingKeys: String, CodingKey {
-        case notes
-        case platelets
-        case rbcCount = "rbc_count"
-        case wbcCount = "wbc_count"
-        case hemoglobin
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let number = try? container.decode(Double.self) {
+            self = .number(number)
+        } else if let string = try? container.decode(String.self) {
+            self = .text(string)
+        } else if let object = try? container.decode([String: TestResultValue].self) {
+            self = .object(object)
+        } else {
+            throw DecodingError.typeMismatch(
+                TestResultValue.self,
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unknown type in TestResultValue")
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .number(let num):
+            try container.encode(num)
+        case .text(let str):
+            try container.encode(str)
+        case .object(let dict):
+            try container.encode(dict)
+        }
     }
 }
 
@@ -96,6 +113,8 @@ class LabRecordService {
         }.resume()
     }
 }
+
+
 
 // MARK: - View Model
 class LabRecordsViewModel: ObservableObject {
@@ -308,26 +327,60 @@ struct ReportsContent: View {
                             isPresented = false
                         }
                     }
-                
+
                 VStack(spacing: 20) {
                     // Header
                     Text("Lab Record Details")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-                    
+
                     // Details
                     VStack(alignment: .leading, spacing: 12) {
-                        DetailRow(label: "Test Type", value: record.testTypeName)
-                        DetailRow(label: "Priority", value: record.priority.capitalized)
-                        DetailRow(label: "Lab Name", value: record.labName)
-                        DetailRow(label: "Scheduled Time", value: record.scheduledTime, format: .dateTime.day().month().year().hour().minute())
-                        DetailRow(
-                            label: "Test Result",
-                            value: record.testResult?.notes ?? "Not Available"
-                        )
+//                        DetailRow(label: "Test Type", value: record.testTypeName)
+//                        DetailRow(label: "Priority", value: record.priority.capitalized)
+//                        DetailRow(label: "Lab Name", value: record.labName)
+//                        DetailRow(label: "Scheduled Time", value: record.scheduledTime, format: .dateTime.day().month().year().hour().minute())
+
+                        // Dynamic Test Results Section
+                        if let resultMap = record.testResult {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Test Results:")
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
+
+                                ForEach(resultMap.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                                    HStack {
+                                        Text(key.capitalized + ":")
+                                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
+
+                                        Spacer()
+
+                                        switch value {
+                                        case .number(let num):
+                                            Text(String(num))
+                                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                                .foregroundColor(.blue)
+
+                                        case .text(let str):
+                                            Text(str)
+                                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                                .foregroundColor(.gray)
+
+                                        @unknown default:
+                                            Text("Unsupported")
+                                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                                .foregroundColor(.red)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            DetailRow(label: "Test Results", value: "Not Available")
+                        }
                     }
                     .padding(.horizontal)
-                    
+
                     // Close Button
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.3)) {
@@ -358,29 +411,29 @@ struct ReportsContent: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        
+
         // Helper View for Detail Rows
         private struct DetailRow<Value>: View {
             let label: String
             let value: Value
             let format: Date.FormatStyle?
-            
+
             init(label: String, value: Value, format: Date.FormatStyle? = nil) {
                 self.label = label
                 self.value = value
                 self.format = format
             }
-            
+
             @Environment(\.colorScheme) var colorScheme
-            
+
             var body: some View {
                 HStack {
                     Text(label + ":")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
-                    
+
                     Spacer()
-                    
+
                     if let dateValue = value as? Date, let format = format {
                         Text(dateValue, format: format)
                             .font(.system(size: 14, weight: .regular, design: .rounded))
@@ -394,6 +447,7 @@ struct ReportsContent: View {
             }
         }
     }
+
 }
 
 // MARK: - Lab Record Card
@@ -476,4 +530,4 @@ struct ReportsContent_Previews: PreviewProvider {
         ReportsContent()
             .preferredColorScheme(.dark)
     }
-} 
+}
