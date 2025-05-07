@@ -7,7 +7,7 @@ struct AppointmentsListView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     
-    private let filterOptions = ["All", "Today", "Upcoming", "Past"]
+    private let filterOptions = ["Upcoming", "Completed", "Missed"]
     
     var body: some View {
         VStack {
@@ -35,7 +35,7 @@ struct AppointmentsListView: View {
                             EmptyStateView(
                                 icon: "calendar.badge.exclamationmark",
                                 title: "No Appointments",
-                                message: "You don't have any \(filterOption.lowercased()) appointments scheduled."
+                                message: "You don't have any \(filterOption.lowercased()) appointments."
                             )
                             .padding(.top, 40)
                         } else {
@@ -64,37 +64,37 @@ struct AppointmentsListView: View {
     }
     
     private func loadAppointments() {
-        isLoading = true
-        errorMessage = nil
-        
-        Task {
-            do {
-                let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
-                DispatchQueue.main.async {
-                    self.appointments = fetchedAppointments
-                    self.isLoading = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                }
-            }
-        }
-    }
+         isLoading = true
+         errorMessage = nil
+         
+         Task {
+             do {
+                 let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
+                 DispatchQueue.main.async {
+                     self.appointments = fetchedAppointments
+                     self.isLoading = false
+                 }
+             } catch {
+                 DispatchQueue.main.async {
+                     self.errorMessage = error.localizedDescription
+                     self.isLoading = false
+                 }
+             }
+         }
+     }
     
     private var filteredAppointments: [DoctorResponse.DocAppointment] {
-        switch filterOption {
-        case "Today":
-            return appointments.filter { isToday($0.date) }
-        case "Upcoming":
-            return appointments.filter { isFuture($0.date) }
-        case "Past":
-            return appointments.filter { isPast($0.date) }
-        default:
-            return appointments
-        }
-    }
+           switch filterOption {
+           case "Upcoming":
+               return appointments.filter { $0.status.lowercased() == "upcoming" }
+           case "Completed":
+               return appointments.filter { $0.status.lowercased() == "completed" }
+           case "Missed":
+               return appointments.filter { $0.status.lowercased() == "missed" || $0.status.lowercased() == "cancelled" }
+           default:
+               return appointments
+           }
+       }
     
     // Helper functions for date filtering (unchanged from your original code)
     private func isToday(_ dateString: String) -> Bool {
