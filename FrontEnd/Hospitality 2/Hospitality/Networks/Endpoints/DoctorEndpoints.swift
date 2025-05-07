@@ -1,7 +1,12 @@
-
+//
+//  DocResponseModel.swift
+//  Hospitality
+//
+//  Created by admin44 on 27/04/25.
+//
 
 import Foundation
-
+// endpoints
 struct DoctorEndpoints {
     struct DoctorShift {
         static func shifts(doctorId: String) -> String {
@@ -18,13 +23,17 @@ struct DoctorEndpoints {
             return "api/hospital/general/appointments/\(appointmentId)/vitals/"
         }
         
-        static func diagnosis(appointmentId: String) -> String {
+        static func diagnosis(appointmentId: Int) -> String {
             return "api/hospital/general/appointments/\(appointmentId)/diagnosis/"
         }
         
-        static func prescription(appointmentId: String) -> String {
+        static func prescription(appointmentId:Int) -> String {
             return "api/hospital/general/appointments/\(appointmentId)/prescription/"
         }
+        
+        static func recommendLabTests(appointmentId: Int) -> String {
+               return "api/hospital/general/appointments/\(appointmentId)/recommend-lab-tests/"
+           }
     }
     
     struct Patient {
@@ -41,5 +50,17 @@ struct DoctorEndpoints {
         static func slots(doctorId: String, date: String) -> String {
             return "api/hospital/general/doctors/\(doctorId)/slots/?date=\(date)"
         }
+    }
+    
+    struct Medicine {
+        static let list = "api/hospital/general/medicines/"
+    }
+    
+    struct TargetOrgans {
+        static let list = "api/hospital/general/target-organs/"
+    }
+    
+    struct LabTest {
+        static let types = "api/hospital/general/lab-test-types/"
     }
 }
