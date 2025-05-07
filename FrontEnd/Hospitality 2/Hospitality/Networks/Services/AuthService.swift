@@ -310,6 +310,52 @@ struct CreateLabResponse: Codable {
     let functional: Bool
 }
 
+struct AppointmentListResponse: Codable, Identifiable {
+    let id: Int // Conform to Identifiable
+    let patient: Int
+    let patient_name: String
+    let staff: String
+    let staff_name: String
+    let slot: Int
+    let slot_start_time: String
+    let created_at: String
+    let status: String
+    let reason: String
+    let lab_tests: [LabTestResponse]
+    
+    // Custom CodingKeys to map 'id' to 'appointment_id' in JSON
+    enum CodingKeys: String, CodingKey {
+        case id = "appointment_id"
+        case patient
+        case patient_name
+        case staff
+        case staff_name
+        case slot
+        case slot_start_time
+        case created_at
+        case status
+        case reason
+        case lab_tests
+    }
+}
+
+struct LabTestResponse: Codable {
+    let lab_test_id: Int
+    let test_type: String
+    let test_datetime: String
+    let priority: String
+    let test_result: TestResultResponse?
+    let is_paid: Bool
+}
+
+struct TestResultResponse: Codable {
+    let notes: String?
+    let platelets: Int?
+    let rbc_count: Double?
+    let wbc_count: Int?
+    let hemoglobin: Double?
+}
+
 class AuthService {
     static let shared = AuthService()
     static let baseURL = Constants.baseURL
