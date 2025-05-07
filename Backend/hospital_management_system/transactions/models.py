@@ -91,7 +91,7 @@ class Invoice(models.Model):
         # Generate invoice number if not provided
         if not self.invoice_number:
             # Format: INV-YYYYMMDD-XXXX where XXXX is a sequential number
-            today = self.invoice_datetime.strftime('%Y%m%d')
+            today = timezone.now().strftime('%Y%m%d')
             last_invoice = Invoice.objects.filter(invoice_number__startswith=f'INV-{today}').order_by('invoice_number').last()
             
             if last_invoice:

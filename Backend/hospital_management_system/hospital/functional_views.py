@@ -6,7 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from accounts.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-from .models import (Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType, 
+from .models import (LabType, Staff, StaffDetails, DoctorDetails, LabTechnicianDetails, Role, DoctorType, 
                      Schedule, Appointment, Slot, PatientDetails, Patient, PatientVitals,
                      PrescribedMedicine, Prescription, Shift, Diagnosis, Medicine,
                      TargetOrgan, AppointmentCharge, LabTestType, LabTest, Lab, LabTestCharge)
@@ -16,6 +16,7 @@ import datetime
 from django.utils.dateparse import parse_datetime
 from transactions.models import Transaction, PaymentMethod, TransactionType, Unit, InvoiceType, Invoice
 import json
+import traceback
 from .serializers import LabTestSerializer, LabSerializer, RecommendedLabTestSerializer, AssignedPatientSerializer
 class DoctorListView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -1243,6 +1244,198 @@ class SetStaffSlotsView(APIView):
             "slots": created_slots
         }, status=201)
 
+# class RecommendLabTestsView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request, appointment_id):
+#         # Check if user is a doctor
+#         if not hasattr(request.user, 'staff_id'):
+#             return Response({"error": "Only staff can recommend lab tests"}, status=403)
+            
+#         try:
+#             doctor = request.user.doctor_details
+#         except (AttributeError, DoctorDetails.DoesNotExist):
+#             return Response({"error": "Only doctors can recommend lab tests"}, status=403)
+            
+#         # Get the appointment
+#         appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+#         # Check if this doctor is assigned to this appointment
+#         if appointment.staff.staff_id != request.user.staff_id:
+#             return Response({"error": "You are not authorized to recommend tests for this appointment"}, status=403)
+            
+#         # Get lab tests data
+#         lab_id = request.data.get("lab_id")
+#         test_type_ids = request.data.get("test_type_ids", [])
+#         priority = request.data.get("priority", "medium")
+#         test_datetime_str = request.data.get("test_datetime")
+        
+#         if not all([lab_id, test_type_ids, test_datetime_str]):
+#             return Response({"error": "Missing required fields"}, status=400)
+            
+#         try:
+#             lab = Lab.objects.get(lab_id=lab_id)
+#             test_datetime = datetime.strptime(test_datetime_str, "%Y-%m-%d %H:%M:%S")
+#         except (Lab.DoesNotExist, ValueError):
+#             return Response({"error": "Invalid lab or datetime format"}, status=400)
+            
+#         # Create lab tests
+#         created_tests = []
+#         for test_type_id in test_type_ids:
+#             try:
+#                 test_type = LabTestType.objects.get(test_type_id=test_type_id)
+                
+#                 lab_test = LabTest.objects.create(
+#                     lab=lab,
+#                     test_datetime=test_datetime,
+#                     test_result=None,  # Will be filled by lab technician
+#                     test_type=test_type,
+#                     appointment=appointment,
+#                     priority=priority
+#                 )
+                
+#                 created_tests.append({
+#                     "lab_test_id": lab_test.lab_test_id,
+#                     "test_type": test_type.test_name
+#                 })
+                
+#             except LabTestType.DoesNotExist:
+#                 return Response({"error": f"Invalid test type ID: {test_type_id}"}, status=400)
+        
+#         # Update diagnosis to indicate lab tests are required
+#         diagnosis = appointment.diagnoses.first()
+#         if diagnosis:
+#             diagnosis.lab_test_required = True
+#             diagnosis.save()
+        
+#         return Response({
+#             "message": f"Recommended {len(created_tests)} lab tests",
+#             "lab_tests": created_tests
+#         }, status=201)
+
+# class RecommendLabTestsView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request, appointment_id):
+#         # Check if user is a doctor
+#         if not hasattr(request.user, 'staff_id'):
+#             return Response({"error": "Only staff can recommend lab tests"}, status=403)
+            
+#         try:
+#             doctor = request.user.doctor_details
+#         except (AttributeError, DoctorDetails.DoesNotExist):
+#             return Response({"error": "Only doctors can recommend lab tests"}, status=403)
+            
+#         # Get the appointment
+#         appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
+        
+#         # Check if this doctor is assigned to this appointment
+#         if appointment.staff.staff_id != request.user.staff_id:
+#             return Response({"error": "You are not authorized to recommend tests for this appointment"}, status=403)
+            
+#         # Get lab tests data
+#         lab_type_id = request.data.get("lab_type_id")  # Now requiring lab_type instead of lab_id
+#         test_type_ids = request.data.get("test_type_ids", [])
+#         priority = request.data.get("priority", "medium")
+#         test_datetime_str = request.data.get("test_datetime")
+        
+#         if not all([lab_type_id, test_type_ids, test_datetime_str]):
+#             return Response({"error": "Missing required fields"}, status=400)
+            
+#         try:
+#             # Get the lab type
+#             lab_type = LabType.objects.get(lab_type_id=lab_type_id)
+            
+#             # Parse the datetime
+#             test_datetime = datetime.strptime(test_datetime_str, "%Y-%m-%d %H:%M:%S")
+            
+#             # Check if datetime is in the future
+#             if test_datetime < datetime.now():
+#                 return Response({"error": "Test datetime must be in the future"}, status=400)
+                
+#         except LabType.DoesNotExist:
+#             return Response({"error": "Invalid lab type"}, status=400)
+#         except ValueError:
+#             return Response({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}, status=400)
+            
+#         # Find an available lab of the specified type
+#         available_labs = Lab.objects.filter(lab_type=lab_type, functional=True)
+        
+#         if not available_labs.exists():
+#             return Response({"error": f"No functional labs available for type: {lab_type.lab_type_name}"}, status=400)
+            
+#         # Simple load balancing - get the lab with the fewest tests scheduled for that time
+#         # This is a basic implementation - in a real system, you might want more sophisticated scheduling
+#         lab_loads = {}
+#         for lab in available_labs:
+#             # Count tests scheduled within 1 hour of the requested time
+#             time_window_start = test_datetime - timedelta(hours=1)
+#             time_window_end = test_datetime + timedelta(hours=1)
+            
+#             test_count = LabTest.objects.filter(
+#                 lab=lab,
+#                 test_datetime__gte=time_window_start,
+#                 test_datetime__lte=time_window_end
+#             ).count()
+            
+#             lab_loads[lab.lab_id] = test_count
+            
+#         # Find the lab with the minimum load
+#         if lab_loads:
+#             min_load_lab_id = min(lab_loads, key=lab_loads.get)
+#             selected_lab = Lab.objects.get(lab_id=min_load_lab_id)
+#         else:
+#             # If no load data, just pick the first available lab
+#             selected_lab = available_labs.first()
+            
+#         # Create lab tests
+#         created_tests = []
+#         for test_type_id in test_type_ids:
+#             try:
+#                 test_type = LabTestType.objects.get(test_type_id=test_type_id)
+                
+#                 # Check if this test type is compatible with the selected lab type
+#                 if test_type.test_category.lab_type != lab_type:
+#                     return Response({
+#                         "error": f"Test type '{test_type.test_name}' is not compatible with lab type '{lab_type.lab_type_name}'"
+#                     }, status=400)
+                
+#                 lab_test = LabTest.objects.create(
+#                     lab=selected_lab,
+#                     test_datetime=test_datetime,
+#                     test_result=None,  # Will be filled by lab technician
+#                     test_type=test_type,
+#                     appointment=appointment,
+#                     priority=priority
+#                 )
+                
+#                 created_tests.append({
+#                     "lab_test_id": lab_test.lab_test_id,
+#                     "test_type": test_type.test_name,
+#                     "lab_name": selected_lab.lab_name
+#                 })
+                
+#             except LabTestType.DoesNotExist:
+#                 return Response({"error": f"Invalid test type ID: {test_type_id}"}, status=400)
+        
+#         # Update diagnosis to indicate lab tests are required
+#         diagnosis = appointment.diagnoses.first()
+#         if diagnosis:
+#             diagnosis.lab_test_required = True
+#             diagnosis.save()
+        
+#         return Response({
+#             "message": f"Recommended {len(created_tests)} lab tests",
+#             "lab_tests": created_tests,
+#             "selected_lab": {
+#                 "lab_id": selected_lab.lab_id,
+#                 "lab_name": selected_lab.lab_name,
+#                 "lab_type": lab_type.lab_type_name
+#             }
+#         }, status=201)
+
 class RecommendLabTestsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1265,28 +1458,107 @@ class RecommendLabTestsView(APIView):
             return Response({"error": "You are not authorized to recommend tests for this appointment"}, status=403)
             
         # Get lab tests data
-        lab_id = request.data.get("lab_id")
         test_type_ids = request.data.get("test_type_ids", [])
         priority = request.data.get("priority", "medium")
         test_datetime_str = request.data.get("test_datetime")
         
-        if not all([lab_id, test_type_ids, test_datetime_str]):
+        if not test_type_ids or not test_datetime_str:
             return Response({"error": "Missing required fields"}, status=400)
             
         try:
-            lab = Lab.objects.get(lab_id=lab_id)
+            # Parse the datetime
             test_datetime = datetime.strptime(test_datetime_str, "%Y-%m-%d %H:%M:%S")
-        except (Lab.DoesNotExist, ValueError):
-            return Response({"error": "Invalid lab or datetime format"}, status=400)
             
-        # Create lab tests
-        created_tests = []
+            # Check if datetime is in the future
+            if test_datetime < datetime.now():
+                return Response({"error": "Test datetime must be in the future"}, status=400)
+                
+        except ValueError:
+            return Response({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}, status=400)
+        
+        # Get test types and verify they exist
+        test_types = []
         for test_type_id in test_type_ids:
             try:
                 test_type = LabTestType.objects.get(test_type_id=test_type_id)
+                test_types.append(test_type)
+            except LabTestType.DoesNotExist:
+                return Response({"error": f"Invalid test type ID: {test_type_id}"}, status=400)
+        
+        # Find lab types that support these tests
+        # Get all lab types
+        lab_types = LabType.objects.all()
+        
+        # Map test types to lab types that support them
+        test_to_lab_types = {}
+        for test_type in test_types:
+            supporting_lab_types = []
+            for lab_type in lab_types:
+                # Check if this test_type_id is in the supported_tests JSON field
+                supported_tests = lab_type.supported_tests
+                if str(test_type.test_type_id) in supported_tests or test_type.test_type_id in supported_tests:
+                    supporting_lab_types.append(lab_type)
+            
+            if not supporting_lab_types:
+                return Response({"error": f"No lab type supports test: {test_type.test_name}"}, status=400)
                 
-                lab_test = LabTest.objects.create(
+            test_to_lab_types[test_type.test_type_id] = supporting_lab_types
+        
+        # Group tests by lab type (prefer to keep tests together when possible)
+        lab_type_to_tests = {}
+        
+        # First, try to find common lab types that support multiple tests
+        for test_type in test_types:
+            assigned = False
+            for lab_type in test_to_lab_types[test_type.test_type_id]:
+                # Check if this lab type already has tests assigned
+                if lab_type in lab_type_to_tests:
+                    lab_type_to_tests[lab_type].append(test_type)
+                    assigned = True
+                    break
+            
+            # If not assigned to an existing lab type, create a new entry
+            if not assigned:
+                lab_type = test_to_lab_types[test_type.test_type_id][0]  # Take the first supporting lab type
+                lab_type_to_tests[lab_type] = [test_type]
+        
+        created_tests = []
+        
+        # Process each lab type separately
+        for lab_type, tests_for_lab_type in lab_type_to_tests.items():
+            # Find an available lab of this type
+            available_labs = Lab.objects.filter(lab_type=lab_type, functional=True)
+            
+            if not available_labs.exists():
+                return Response({"error": f"No functional labs available for type: {lab_type.lab_type_name}"}, status=400)
+                
+            # Simple load balancing - get the lab with the fewest tests scheduled for that time
+            lab_loads = {}
+            for lab in available_labs:
+                # Count tests scheduled within 1 hour of the requested time
+                time_window_start = test_datetime - timedelta(hours=1)
+                time_window_end = test_datetime + timedelta(hours=1)
+                
+                test_count = LabTest.objects.filter(
                     lab=lab,
+                    test_datetime__gte=time_window_start,
+                    test_datetime__lte=time_window_end
+                ).count()
+                
+                lab_loads[lab.lab_id] = test_count
+                
+            # Find the lab with the minimum load
+            if lab_loads:
+                min_load_lab_id = min(lab_loads, key=lab_loads.get)
+                selected_lab = Lab.objects.get(lab_id=min_load_lab_id)
+            else:
+                # If no load data, just pick the first available lab
+                selected_lab = available_labs.first()
+                
+            # Create lab tests for this lab type
+            for test_type in tests_for_lab_type:
+                lab_test = LabTest.objects.create(
+                    lab=selected_lab,
                     test_datetime=test_datetime,
                     test_result=None,  # Will be filled by lab technician
                     test_type=test_type,
@@ -1296,11 +1568,10 @@ class RecommendLabTestsView(APIView):
                 
                 created_tests.append({
                     "lab_test_id": lab_test.lab_test_id,
-                    "test_type": test_type.test_name
+                    "test_type": test_type.test_name,
+                    "lab_name": selected_lab.lab_name,
+                    "lab_type": lab_type.lab_type_name
                 })
-                
-            except LabTestType.DoesNotExist:
-                return Response({"error": f"Invalid test type ID: {test_type_id}"}, status=400)
         
         # Update diagnosis to indicate lab tests are required
         diagnosis = appointment.diagnoses.first()
@@ -1312,6 +1583,7 @@ class RecommendLabTestsView(APIView):
             "message": f"Recommended {len(created_tests)} lab tests",
             "lab_tests": created_tests
         }, status=201)
+
 
 # class PayForLabTestsView(APIView):
 #     authentication_classes = [JWTAuthentication]
@@ -1419,7 +1691,7 @@ class PayForLabTestsView(APIView):
             
         try:
             payment_method = PaymentMethod.objects.get(payment_method_id=payment_method_id)
-            transaction_type = TransactionType.objects.get(transaction_type_name="payment")
+            transaction_type = TransactionType.objects.get(transaction_type_name="Payment")
         except (PaymentMethod.DoesNotExist, TransactionType.DoesNotExist):
             return Response({"error": "Invalid payment method or transaction type"}, status=400)
             
@@ -1459,8 +1731,29 @@ class PayForLabTestsView(APIView):
             subtotal = charge.charge_amount
             tax = subtotal * tax_rate
             total = subtotal + tax
-            
+            print(lab_test.test_datetime)
             # Create invoice
+            # if lab_test.test_datetime:
+            #     # Convert to string and fix timezone format if needed
+            #     dt_str = str(lab_test.test_datetime)
+            #     if '+00' in dt_str:
+            #         dt_str = dt_str.replace('+00', '+0000')
+                
+            #     try:
+            #         from datetime import datetime
+            #         dt_obj = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S%z')
+            #         date_str = dt_obj.strftime('%Y-%m-%d')
+            #     except Exception:
+            #         # Fallback if parsing fails
+            #         date_str = 'Unknown Date'
+            # else:
+            #     date_str = 'Unknown Date'
+
+            # invoice_remark = f"Invoice for {lab_test.test_type.test_name} on {date_str}"
+            #invoice_remark = "Invoice for Lab Test"
+
+            # Then use invoice_remark in your Invoice.objects.create()
+
             invoice = Invoice.objects.create(
                 tran=transaction,
                 invoice_type=invoice_type,
@@ -1471,7 +1764,7 @@ class PayForLabTestsView(APIView):
                 invoice_total=total,
                 invoice_unit=charge.charge_unit,
                 invoice_status='paid',
-                invoice_remark=f"Invoice for {lab_test.test_type.test_name} on {lab_test.test_datetime.strftime('%Y-%m-%d')}"
+                invoice_remark="Invoice for {lab_test.test_type.test_name} on {lab_test.test_datetime.strftime('%Y-%m-%d') if lab_test.test_datetime else 'Unknown Date'}"
             )
             
             return Response({
@@ -1484,6 +1777,8 @@ class PayForLabTestsView(APIView):
             
         except Exception as e:
             # If invoice creation fails, still return success for the payment
+            print(e)
+            print(traceback.format_exc())
             return Response({
                 "message": "Payment for lab test processed successfully, but invoice generation failed",
                 "transaction_id": transaction.transaction_id,
@@ -1494,7 +1789,7 @@ class PayForLabTestsView(APIView):
 class AddLabTestResultsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def put(self, request, lab_test_id):
         # Check if user is a lab technician
@@ -1575,6 +1870,46 @@ class PatientRecommendedLabTestsView(APIView):
         serializer = RecommendedLabTestSerializer(lab_tests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
+# class LabTechnicianAssignedPatientsView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         if not hasattr(user, 'staff_id'):
+#             return Response({"error": "Only staff can access this endpoint"}, status=403)
+
+#         # Get lab assigned to this lab technician
+#         try:
+#             lab_technician_details = user.lab_tech_details
+#             assigned_lab = lab_technician_details.assigned_lab
+#         except AttributeError:
+#             return Response({"error": "Lab technician details not found"}, status=404)
+
+#         # Filters
+#         start_datetime_str = request.query_params.get('start_datetime')
+#         end_datetime_str = request.query_params.get('end_datetime')
+
+#         # Get lab tests for the assigned lab
+#         lab_tests = LabTest.objects.filter(lab__lab_name=assigned_lab)
+
+#         if start_datetime_str:
+#             start_datetime = parse_datetime(start_datetime_str)
+#             if start_datetime:
+#                 lab_tests = lab_tests.filter(test_datetime__gte=start_datetime)
+
+#         if end_datetime_str:
+#             end_datetime = parse_datetime(end_datetime_str)
+#             if end_datetime:
+#                 lab_tests = lab_tests.filter(test_datetime__lte=end_datetime)
+
+#         # Get distinct appointments from lab tests
+#         appointment_ids = lab_tests.values_list('appointment_id', flat=True).distinct()
+#         appointments = Appointment.objects.filter(appointment_id__in=appointment_ids)
+
+#         serializer = AssignedPatientSerializer(appointments, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
 class LabTechnicianAssignedPatientsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1584,21 +1919,53 @@ class LabTechnicianAssignedPatientsView(APIView):
         if not hasattr(user, 'staff_id'):
             return Response({"error": "Only staff can access this endpoint"}, status=403)
 
+        # Get lab assigned to this lab technician
+        try:
+            lab_technician_details = user.lab_tech_details
+            assigned_lab = lab_technician_details.assigned_lab
+        except AttributeError:
+            return Response({"error": "Lab technician details not found"}, status=404)
+
         # Filters
         start_datetime_str = request.query_params.get('start_datetime')
         end_datetime_str = request.query_params.get('end_datetime')
 
-        queryset = Appointment.objects.filter(staff=user)
+        # Get lab tests for the assigned lab
+        lab_tests = LabTest.objects.filter(lab__lab_name=assigned_lab)
 
         if start_datetime_str:
             start_datetime = parse_datetime(start_datetime_str)
             if start_datetime:
-                queryset = queryset.filter(created_at__gte=start_datetime)
+                lab_tests = lab_tests.filter(test_datetime__gte=start_datetime)
 
         if end_datetime_str:
             end_datetime = parse_datetime(end_datetime_str)
             if end_datetime:
-                queryset = queryset.filter(created_at__lte=end_datetime)
+                lab_tests = lab_tests.filter(test_datetime__lte=end_datetime)
 
-        serializer = AssignedPatientSerializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Get distinct appointments from lab tests
+        appointment_ids = lab_tests.values_list('appointment_id', flat=True).distinct()
+        appointments = Appointment.objects.filter(appointment_id__in=appointment_ids)
+
+        # Create a map of appointment_id to lab tests
+        from collections import defaultdict
+        lab_tests_map = defaultdict(list)
+        
+        for lab_test in lab_tests:
+            lab_tests_map[lab_test.appointment_id].append({
+                "lab_test_id": lab_test.lab_test_id,
+                "test_type": lab_test.test_type.test_name,
+                "test_datetime": lab_test.test_datetime.isoformat() if lab_test.test_datetime else None,
+                "priority": lab_test.priority,
+                "test_result": lab_test.test_result,
+                "is_paid": lab_test.tran is not None
+            })
+
+        # Serialize appointments
+        appointment_data = AssignedPatientSerializer(appointments, many=True).data
+        
+        # Add lab tests to each appointment
+        for appointment in appointment_data:
+            appointment['lab_tests'] = lab_tests_map.get(appointment['appointment_id'], [])
+            
+        return Response(appointment_data, status=status.HTTP_200_OK)
