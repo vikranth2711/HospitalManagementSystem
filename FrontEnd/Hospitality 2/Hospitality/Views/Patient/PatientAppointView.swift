@@ -290,8 +290,8 @@ struct DoctorAppointmentsView: View {
     private var backgroundGradient: some View {
         LinearGradient(
             gradient: Gradient(colors: [
-                Color(UIColor(hex: "1E293B") ?? .black),
-                Color(UIColor(hex: "0F172A") ?? .black)
+                Color(UIColor(named: "1E293B") ?? .black),
+                Color(UIColor(named: "0F172A") ?? .black)
             ]),
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -526,7 +526,7 @@ struct AppointmentRow: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor(hex: "1E2533") ?? .darkGray))
+                .fill(Color(UIColor(named: "1E2533") ?? .darkGray))
                 .shadow(
                     color: Color.black.opacity(0.4),
                     radius: 5, x: 0, y: 2
