@@ -1,16 +1,15 @@
-
 import Foundation
 
 class DoctorServices {
     private let baseURL = Constants.baseURL2
     
     // Use the secure session for all requests
-    private var session: URLSession {
+     var session: URLSession {
         URLSession.ngrokSession
     }
     
     // Helper method to build URLs properly
-    private func buildURL(endpoint: String) -> URL? {
+    func buildURL(endpoint: String) -> URL? {
         // Ensure baseURL ends with a slash and endpoint doesn't begin with one
         let base = baseURL.hasSuffix("/") ? baseURL : baseURL + "/"
         let path = endpoint.hasPrefix("/") ? String(endpoint.dropFirst()) : endpoint
@@ -292,49 +291,49 @@ class DoctorServices {
     }
     
     // MARK: - Enter Diagnosis
-//    func enterDiagnosis(appointmentId: String, diagnosisData: EnterDiagnosisRequest) async throws -> DoctorResponse.DiagnosisResponse {
-//        guard let url = buildURL(endpoint: DoctorEndpoints.Appointment.diagnosis(appointmentId: appointmentId)) else {
-//            print("[SwatiSwapna] Invalid URL for entering diagnosis")
-//            throw NetworkError.invalidURL
-//        }
-//
-//        var request = URLRequest(url: url)
-//        request.httpMethod = "POST"
-//        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-//        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
-//
-//        // Use the EnterDiagnosisRequest struct directly
-//        let encoder = JSONEncoder()
-//        request.httpBody = try encoder.encode(diagnosisData)
-//
-//        print("[SwatiSwapna] Posting diagnosis to: \(url.absoluteString)")
-//        let (data, response) = try await session.data(for: request)
-//
-//        guard let httpResponse = response as? HTTPURLResponse else {
-//            throw NetworkError.invalidResponse
-//        }
-//
-//        print("[SwatiSwapna] Enter diagnosis status: \(httpResponse.statusCode)")
-//        switch httpResponse.statusCode {
-//        case 200...299:
-//            do {
-//                let decoder = JSONDecoder()
-//                let result = try decoder.decode(DoctorResponse.DiagnosisResponse.self, from: data)
-//                print("[SwatiSwapna] Successfully entered diagnosis with ID: \(result.diagnosisId)")
-//                return result
-//            } catch {
-//                print("[SwatiSwapna] Decoding error when entering diagnosis: \(error)")
-//                throw NetworkError.decodingError
-//            }
-//        case 401:
-//            throw NetworkError.unauthorized
-//        default:
-//            throw NetworkError.serverError("Status code: \(httpResponse.statusCode)")
-//        }
-//    }
+    func enterDiagnosis(appointmentId: Int, diagnosisData: DiagnosisRequest) async throws -> DoctorResponse.DiagnosisResponse {
+        guard let url = buildURL(endpoint: DoctorEndpoints.Appointment.diagnosis(appointmentId: appointmentId)) else {
+            print("[SwatiSwapna] Invalid URL for entering diagnosis")
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        // Encode the diagnosis request
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(diagnosisData)
+        
+        print("[SwatiSwapna] Posting diagnosis to: \(url.absoluteString)")
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        print("[SwatiSwapna] Enter diagnosis status: \(httpResponse.statusCode)")
+        switch httpResponse.statusCode {
+        case 200...299:
+            do {
+                let decoder = JSONDecoder()
+                let result = try decoder.decode(DoctorResponse.DiagnosisResponse.self, from: data)
+                print("[SwatiSwapna] Successfully entered diagnosis: \(result.message)")
+                return result
+            } catch {
+                print("[SwatiSwapna] Decoding error when entering diagnosis: \(error)")
+                throw NetworkError.decodingError
+            }
+        case 401:
+            throw NetworkError.unauthorized
+        default:
+            throw NetworkError.serverError("Status code: \(httpResponse.statusCode)")
+        }
+    }
     
     // MARK: - Enter Prescription
-    func enterPrescription(appointmentId: String, prescription: PrescriptionRequest) async throws -> DoctorResponse.PrescriptionResponse {
+    func enterPrescription(appointmentId: Int, prescription: PrescriptionRequest) async throws -> DoctorResponse.PrescriptionResponse {
         guard let url = buildURL(endpoint: DoctorEndpoints.Appointment.prescription(appointmentId: appointmentId)) else {
             print("[SwatiSwapna] Invalid URL for entering prescription")
             throw NetworkError.invalidURL
@@ -407,66 +406,217 @@ class DoctorServices {
             throw NetworkError.serverError("Status code: \(httpResponse.statusCode)")
         }
     }
-
-        
-        // Function to submit prescription
-        func submitPrescription(_ prescription: PrescriptionRequest) async throws -> ApiResponse {
-            let url = URL(string: "\(baseURL)/api/prescriptions/")!
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            
-            // Add authentication token if needed
-            // request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            
-            let encoder = JSONEncoder()
-            request.httpBody = try encoder.encode(prescription)
-            
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw ApiError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw ApiError.serverError(statusCode: httpResponse.statusCode)
-            }
-            
-            return try JSONDecoder().decode(ApiResponse.self, from: data)
+    
+    // MARK: - Recommend Lab Tests
+    func recommendLabTests(appointmentId: Int, request: RecommendLabTestRequest) async throws -> DoctorResponse.RecommendLabTestResponse {
+        guard let url = buildURL(endpoint: "api/hospital/general/appointments/\(appointmentId)/recommend-lab-tests/") else {
+            print("[SwatiSwapna] Invalid URL for recommending lab tests")
+            throw NetworkError.invalidURL
         }
         
-        // Function to submit diagnosis
-//        func submitDiagnosis(_ diagnosis: DiagnosisRequest) async throws -> ApiResponse {
-//            let url = URL(string: "\(baseURL)/api/diagnoses/")!
-//            var request = URLRequest(url: url)
-//            request.httpMethod = "POST"
-//            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-//
-//            let encoder = JSONEncoder()
-//            request.httpBody = try encoder.encode(diagnosis)
-//
-//            let (data, response) = try await URLSession.shared.data(for: request)
-//
-//            guard let httpResponse = response as? HTTPURLResponse else {
-//                throw ApiError.invalidResponse
-//            }
-//
-//            guard httpResponse.statusCode == 200 else {
-//                throw ApiError.serverError(statusCode: httpResponse.statusCode)
-//            }
-//
-//            return try JSONDecoder().decode(ApiResponse.self, from: data)
-//        }
-//
-
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        // Modified to include lab_id
+        let requestDict: [String: Any] = [
+            "test_type_ids": request.test_type_ids,
+            "priority": request.priority,
+            "test_datetime": request.test_datetime,
+            "lab_id": request.lab_id
+        ]
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: requestDict)
+        urlRequest.httpBody = jsonData
+        
+        // Log request body
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("[SwatiSwapna] Lab test request JSON: \(jsonString)")
+        }
+        
+        print("[SwatiSwapna] Recommending lab tests at: \(url.absoluteString)")
+        let (data, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        print("[SwatiSwapna] Recommend lab tests status: \(httpResponse.statusCode)")
+        
+        // Log response
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("[SwatiSwapna] Lab test response: \(responseString)")
+        }
+        
+        // Process response
+        if (200...299).contains(httpResponse.statusCode) {
+            do {
+                let decoder = JSONDecoder()
+                return try decoder.decode(DoctorResponse.RecommendLabTestResponse.self, from: data)
+            } catch {
+                print("[SwatiSwapna] Failed to decode lab test response: \(error)")
+                
+                // Create simple success response
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = json["message"] as? String {
+                    return DoctorResponse.RecommendLabTestResponse(
+                        message: message,
+                        lab_tests: []
+                    )
+                }
+                
+                throw NetworkError.decodingError
+            }
+        } else {
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorMsg = errorJson["error"] as? String {
+                throw NetworkError.serverError(errorMsg)
+            }
+            
+            throw NetworkError.serverError("HTTP error \(httpResponse.statusCode)")
+        }
+    }
+    // MARK: - Fetch Medicine List
+    func fetchMedicineList() async throws -> [DoctorResponse.Medicine] {
+        guard let url = buildURL(endpoint: DoctorEndpoints.Medicine.list) else {
+            print("[SwatiSwapna] Invalid URL for medicine list")
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        print("[SwatiSwapna] Fetching medicine list from: \(url.absoluteString)")
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        print("[SwatiSwapna] Medicine list status: \(httpResponse.statusCode)")
+        switch httpResponse.statusCode {
+        case 200...299:
+            do {
+                let decoder = JSONDecoder()
+                let medicines = try decoder.decode([DoctorResponse.Medicine].self, from: data)
+                print("[SwatiSwapna] Successfully decoded \(medicines.count) medicines")
+                return medicines
+            } catch {
+                print("[SwatiSwapna] Decoding error: \(error)")
+                throw NetworkError.decodingError
+            }
+        case 401:
+            throw NetworkError.unauthorized
+        default:
+            throw NetworkError.serverError("Status code: \(httpResponse.statusCode)")
+        }
+    }
+    
+    // MARK: - Fetch Target Organs
+    func fetchTargetOrgans() async throws -> [DoctorResponse.TargetOrgan] {
+        guard let url = buildURL(endpoint: DoctorEndpoints.TargetOrgans.list) else {
+            print("[SwatiSwapna] Invalid URL for target organs")
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        print("[SwatiSwapna] Fetching target organs from: \(url.absoluteString)")
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        print("[SwatiSwapna] Target organs status: \(httpResponse.statusCode)")
+        switch httpResponse.statusCode {
+        case 200...299:
+            do {
+                let decoder = JSONDecoder()
+                let organs = try decoder.decode([DoctorResponse.TargetOrgan].self, from: data)
+                print("[SwatiSwapna] Successfully decoded \(organs.count) target organs")
+                return organs
+            } catch {
+                print("[SwatiSwapna] Decoding error: \(error)")
+                throw NetworkError.decodingError
+            }
+        case 401:
+            throw NetworkError.unauthorized
+        default:
+            throw NetworkError.serverError("Status code: \(httpResponse.statusCode)")
+        }
+    }
+    
+    // MARK: - Fetch Lab Test Types
+    func fetchLabTestTypes() async throws -> [DoctorResponse.LabTestType] {
+        guard let url = buildURL(endpoint: "api/hospital/general/lab-test-types/") else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[SwatiSwapna] Failed to fetch lab test types: \(httpResponse.statusCode)")
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("[SwatiSwapna] Error response: \(responseString)")
+                }
+            }
+            throw NetworkError.invalidResponse
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode([DoctorResponse.LabTestType].self, from: data)
+        } catch {
+            print("[SwatiSwapna] Failed to decode lab test types: \(error)")
+            throw NetworkError.decodingError
+        }
+    }
+    
+    // Function to submit prescription
+    func submitPrescription(_ prescription: PrescriptionRequest) async throws -> ApiResponse {
+        let url = URL(string: "\(baseURL)/api/prescriptions/")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(prescription)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ApiError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            throw ApiError.serverError(statusCode: httpResponse.statusCode)
+        }
+        
+        return try JSONDecoder().decode(ApiResponse.self, from: data)
+    }
+    
     struct ApiResponse: Codable {
         let success: Bool
         let message: String
     }
-
+    
     enum ApiError: Error {
         case invalidResponse
         case serverError(statusCode: Int)
         case decodingError
     }
+    
 }

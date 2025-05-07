@@ -178,7 +178,7 @@ struct ActionButtonsSection: View {
                 )
             }
             
-            NavigationLink(destination:  PrescriptionFormView()) {
+            NavigationLink(destination:  DoctorConsultationView(appointmentId: appointmentId)){
                 ActionButtonContent(
                     icon: "stethoscope",
                     title: "Diagnosis",
@@ -244,34 +244,6 @@ struct ActionButtonContent: View {
     }
 }
 
-// MARK: - Supporting Components
-
-//struct StatusBadge: View {
-//    let status: String
-//    
-//    var body: some View {
-//        Text(status)
-//            .font(.caption)
-//            .padding(.horizontal, 8)
-//            .padding(.vertical, 4)
-//            .background(getStatusColor(status))
-//            .foregroundColor(.white)
-//            .cornerRadius(8)
-//    }
-//    
-//    private func getStatusColor(_ status: String) -> Color {
-//        switch status.lowercased() {
-//        case "completed":
-//            return .green
-//        case "scheduled":
-//            return .blue
-//        case "cancelled":
-//            return .red
-//        default:
-//            return .gray
-//        }
-//    }
-//}
 
 // MARK: - Vitals Form
 
