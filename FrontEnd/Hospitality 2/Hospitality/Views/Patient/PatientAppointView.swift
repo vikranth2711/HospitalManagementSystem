@@ -286,9 +286,9 @@ struct DoctorAppointmentsView: View {
     
     private var backgroundGradient: some View {
         LinearGradient(
-            gradient: Gradient(colors: 
+            gradient: Gradient(colors:[
              Color(.systemBackground),
-                Color(.systemGroupedBackground)
+                               Color(.systemGroupedBackground),
 
             
             ]),
@@ -365,7 +365,7 @@ struct DoctorAppointmentsView: View {
         if isBeforeToday(appointment.date) {
             return "Completed"
         } else {
-            return
+            return "nill"
         }
     }
     
