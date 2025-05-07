@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		213DE07D2DBB8026009D115F /* KeychainSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 213DE07C2DBB8026009D115F /* KeychainSwift */; };
+		21450A1B2DCB53E0003BB944 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 21450A1A2DCB53E0003BB944 /* .gitignore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		21450A1A2DCB53E0003BB944 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		336E5D242DAF5C4C00983DA5 /* Hospitality.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hospitality.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		336E5D342DAF5C4D00983DA5 /* HospitalityTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HospitalityTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		336E5D3E2DAF5C4D00983DA5 /* HospitalityUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HospitalityUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -98,6 +100,7 @@
 		336E5D1B2DAF5C4C00983DA5 = {
 			isa = PBXGroup;
 			children = (
+				21450A1A2DCB53E0003BB944 /* .gitignore */,
 				336E5D262DAF5C4C00983DA5 /* Hospitality */,
 				336E5D372DAF5C4D00983DA5 /* HospitalityTests */,
 				336E5D412DAF5C4D00983DA5 /* HospitalityUITests */,
@@ -241,6 +244,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				21450A1B2DCB53E0003BB944 /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
