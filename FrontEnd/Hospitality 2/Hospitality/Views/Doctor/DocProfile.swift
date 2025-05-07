@@ -38,7 +38,6 @@ struct DocProfile: View {
             ScrollView {
                 VStack(spacing: 20) {
                     profileHeader
-                    shiftSelectionSection
                     accountSection
                     settingsSection
                     logoutButton
