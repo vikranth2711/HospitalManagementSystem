@@ -1,39 +1,144 @@
 import SwiftUI
+import Combine
 
-struct Report: Identifiable {
-    let id = UUID()
-    let title: String
-    let date: Date
-    let type: String
+// MARK: - Models
+struct LabRecord: Identifiable, Codable {
+    let id: Int
+    let lab: Int
+    let labName: String
+    let scheduledTime: Date
+    let testResult: TestResult?   // ⬅️ Change this line
+    let testType: Int
+    let testTypeName: String
+    let priority: String
+    let appointment: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id = "lab_test_id"
+        case lab
+        case labName = "lab_name"
+        case scheduledTime = "test_datetime"
+        case testResult = "test_result"
+        case testType = "test_type"
+        case testTypeName = "test_type_name"
+        case priority
+        case appointment
+    }
 }
 
+struct TestResult: Codable {
+    let notes: String?
+    let platelets: Int?
+    let rbcCount: Double?
+    let wbcCount: Int?
+    let hemoglobin: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case notes
+        case platelets
+        case rbcCount = "rbc_count"
+        case wbcCount = "wbc_count"
+        case hemoglobin
+    }
+}
+
+
+// MARK: - Service
+class LabRecordService {
+    static let shared = LabRecordService()
+    private let baseURL = Constants.baseURL
+    
+    func fetchUpcomingLabRecords(completion: @escaping (Result<[LabRecord], DoctorCreationError>) -> Void) {
+        guard let url = URL(string: "\(baseURL)/hospital/general/patient/recommended-lab-tests/") ??
+                URL(string: "http://ec2-13-127-223-203.ap-south-1.compute.amazonaws.com/api/hospital/general/patient/recommended-lab-tests/")
+        else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        print(url)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("Bearer \(UserDefaults.standard.string(forKey: "accessToken") ?? "")", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(.unknownError))
+                return
+            }
+            
+            if httpResponse.statusCode == 401 {
+                completion(.failure(.unauthorized))
+                return
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode), let data = data else {
+                let errorMessage = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            do {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let response = try decoder.decode([LabRecord].self, from: data)
+                completion(.success(response))
+            } catch {
+                print("Decoding error: \(error)")
+                completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+}
+
+// MARK: - View Model
+class LabRecordsViewModel: ObservableObject {
+    @Published var records: [LabRecord] = []
+    @Published var isLoading: Bool = false
+    private var cancellables = Set<AnyCancellable>()
+    
+    func fetchLabRecords() {
+        isLoading = true
+        LabRecordService.shared.fetchUpcomingLabRecords { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success(let records):
+                    self?.records = records
+                case .failure(let error):
+                    print("Failed to fetch lab records: \(error)")
+                    self?.records = []
+                }
+            }
+        }
+    }
+}
+
+// MARK: - View
 struct ReportsContent: View {
     @Environment(\.colorScheme) var colorScheme
+    @StateObject private var viewModel = LabRecordsViewModel()
     @State private var opacity: Double = 0.0
     @State private var searchText: String = ""
     @State private var selectedDate: Date = Date()
-    @State private var selectedFilter: String = "All"
+    @State private var selectedFilter: String = "Upcoming" // Default to Upcoming
     @State private var iconScale: CGFloat = 0.8
-    @State private var isDateFilterActive: Bool = false // Track if date filter is active
+    @State private var isDateFilterActive: Bool = false
+    @State private var selectedRecord: LabRecord? // For overlay
     
-    // Sample reports data with dates including today and recent past
-    @State private var reports: [Report] = [
-        Report(title: "Blood Test Results", date: Date(), type: "Lab"), // Today
-        Report(title: "X-Ray Report", date: Date().addingTimeInterval(-86400 * 1), type: "Imaging"), // Yesterday
-        Report(title: "Cardiology Consultation", date: Date().addingTimeInterval(-86400 * 2), type: "Consultation"), // 2 days ago
-        Report(title: "MRI Scan Results", date: Date().addingTimeInterval(-86400 * 3), type: "Imaging") // 3 days ago
-    ]
-    
-    private var filteredReports: [Report] {
-        reports.filter { report in
-            // Search text filter
-            let matchesSearch = searchText.isEmpty || report.title.lowercased().contains(searchText.lowercased())
-            // Type filter
-            let matchesType = selectedFilter == "All" || report.type == selectedFilter
-            // Date filter (only applied if isDateFilterActive is true)
-            let matchesDate = !isDateFilterActive || Calendar.current.isDate(report.date, inSameDayAs: selectedDate)
-            
-            return matchesSearch && matchesType && matchesDate
+    private var filteredRecords: [LabRecord] {
+        viewModel.records.filter { record in
+            let isUpcoming = record.scheduledTime >= Date()
+            let matchesSegment = selectedFilter == "Upcoming" ? isUpcoming : !isUpcoming
+            let matchesSearch = searchText.isEmpty || record.labName.lowercased().contains(searchText.lowercased())
+            let matchesDate = !isDateFilterActive || Calendar.current.isDate(record.scheduledTime, inSameDayAs: selectedDate)
+            return matchesSegment && matchesSearch && matchesDate
         }
     }
     
@@ -67,11 +172,11 @@ struct ReportsContent: View {
                     // Header
                     HStack {
                         VStack(alignment: .leading) {
-                            Text("Medical Reports")
+                            Text("Lab Records")
                                 .font(.system(size: 24, weight: .bold, design: .rounded))
                                 .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
                             
-                            Text("View and manage your medical reports")
+                            Text("View your scheduled and completed lab tests")
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
                                 .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
                         }
@@ -98,11 +203,19 @@ struct ReportsContent: View {
                     .padding(.top, 16)
                     .padding(.horizontal)
                     
+                    // Segmented Picker for Upcoming/Completed
+                    Picker("Report Type", selection: $selectedFilter) {
+                        Text("Upcoming").tag("Upcoming")
+                        Text("Completed").tag("Completed")
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    
                     // Search Bar
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
-                        TextField("Search reports...", text: $searchText)
+                        TextField("Search tests...", text: $searchText)
                             .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     .padding()
@@ -117,27 +230,8 @@ struct ReportsContent: View {
                     )
                     .padding(.horizontal)
                     
-                    // Filter and Date Picker
+                    // Date Picker
                     HStack(spacing: 12) {
-                        Picker("Filter", selection: $selectedFilter) {
-                            Text("All").tag("All")
-                            Text("Lab").tag("Lab")
-                            Text("Imaging").tag("Imaging")
-                            Text("Consultation").tag("Consultation")
-                        }
-                        .pickerStyle(MenuPickerStyle())
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                                .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
-                        )
-                        
                         DatePicker(
                             "",
                             selection: $selectedDate,
@@ -149,17 +243,21 @@ struct ReportsContent: View {
                     }
                     .padding(.horizontal)
                     
-                    // Reports List
+                    // Records List
                     LazyVStack(spacing: 12) {
-                        if filteredReports.isEmpty {
-                            Text("No reports found")
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .padding(.vertical, 20)
+                                .frame(maxWidth: .infinity)
+                        } else if filteredRecords.isEmpty {
+                            Text("No \(selectedFilter.lowercased()) lab records found")
                                 .font(.system(size: 16, weight: .medium, design: .rounded))
                                 .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
                                 .padding(.vertical, 20)
                                 .frame(maxWidth: .infinity)
                         } else {
-                            ForEach(filteredReports) { report in
-                                ReportCard(report: report)
+                            ForEach(filteredRecords) { record in
+                                LabRecordCard(record: record, onTap: { selectedRecord = record })
                                     .padding(.horizontal)
                             }
                         }
@@ -170,12 +268,21 @@ struct ReportsContent: View {
             }
             .opacity(opacity)
             .onAppear {
+                viewModel.fetchLabRecords()
                 withAnimation(.easeInOut(duration: 0.8)) {
                     opacity = 1.0
                 }
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.1)) {
                     iconScale = 1.0
                 }
+            }
+            
+            // Overlay
+            if let record = selectedRecord {
+                LabRecordDetailOverlay(record: record, isPresented: Binding(
+                    get: { selectedRecord != nil },
+                    set: { if !$0 { selectedRecord = nil } }
+                ))
             }
         }
     }
@@ -185,59 +292,169 @@ struct ReportsContent: View {
         generator.prepare()
         generator.impactOccurred()
     }
-}
-
-// Report Card Component
-struct ReportCard: View {
-    let report: Report
-    @Environment(\.colorScheme) var colorScheme
-    @State private var isPressed = false
     
-    var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                isPressed = true
+    // MARK: - Overlay View
+    private struct LabRecordDetailOverlay: View {
+        let record: LabRecord
+        @Binding var isPresented: Bool
+        @Environment(\.colorScheme) var colorScheme
+
+        var body: some View {
+            ZStack {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }
+                
+                VStack(spacing: 20) {
+                    // Header
+                    Text("Lab Record Details")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                    
+                    // Details
+                    VStack(alignment: .leading, spacing: 12) {
+                        DetailRow(label: "Test Type", value: record.testTypeName)
+                        DetailRow(label: "Priority", value: record.priority.capitalized)
+                        DetailRow(label: "Lab Name", value: record.labName)
+                        DetailRow(label: "Scheduled Time", value: record.scheduledTime, format: .dateTime.day().month().year().hour().minute())
+                        DetailRow(
+                            label: "Test Result",
+                            value: record.testResult?.notes ?? "Not Available"
+                        )
+                    }
+                    .padding(.horizontal)
+                    
+                    // Close Button
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        Text("Close")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(hex: "4A90E2"))
+                            )
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+                .padding(.vertical, 20)
+                .frame(maxWidth: 320)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
+                        .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
+                )
+                .padding(.horizontal, 20)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        
+        // Helper View for Detail Rows
+        private struct DetailRow<Value>: View {
+            let label: String
+            let value: Value
+            let format: Date.FormatStyle?
+            
+            init(label: String, value: Value, format: Date.FormatStyle? = nil) {
+                self.label = label
+                self.value = value
+                self.format = format
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isPressed = false
-                }
-                // Add navigation to report details
-            }
-        }) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Icon with colored background
-                ZStack {
-                    Circle()
-                        .fill(getReportColor().opacity(0.15))
-                        .frame(width: 56, height: 56)
-                    
-                    Image(systemName: getReportIcon())
-                        .font(.system(size: 24))
-                        .foregroundColor(getReportColor())
-                }
-                .padding(.bottom, 4)
-                
-                // Title
-                Text(report.title)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
-                
-                // Type and Date
+            @Environment(\.colorScheme) var colorScheme
+            
+            var body: some View {
                 HStack {
-                    Text(report.type)
+                    Text(label + ":")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
                     
                     Spacer()
                     
-                    Text(report.date, style: .date)
+                    if let dateValue = value as? Date, let format = format {
+                        Text(dateValue, format: format)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
+                    } else {
+                        Text(String(describing: value))
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Lab Record Card
+struct LabRecordCard: View {
+    let record: LabRecord
+    let onTap: () -> Void
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        Button(action: {
+            onTap()
+        }) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Icon with colored background
+                ZStack {
+                    Circle()
+                        .fill(colorScheme == .dark ? Color.blue.opacity(0.2) : Color(hex: "4A90E2").opacity(0.2))
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: "doc.text.fill")
+                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
+                        .font(.system(size: 20))
+                }
+                
+                // Title and Label
+                HStack {
+                    Text(record.labName)
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
+                    
+                    if record.scheduledTime >= Date() {
+                        Text("Recommended")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.15))
+                            .foregroundColor(colorScheme == .dark ? Color.blue : Color(hex: "4A90E2"))
+                            .clipShape(Capsule())
+                    } else {
+                        Text("Completed")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.green.opacity(0.15))
+                            .foregroundColor(colorScheme == .dark ? Color.green : Color(hex: "2ECC71"))
+                            .clipShape(Capsule())
+                    }
+                }
+                
+                // Type and Scheduled Time
+                HStack {
+                    Text(record.testTypeName)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
+                    
+                    Spacer()
+                    
+                    Text(record.scheduledTime, format: .dateTime.day().month().hour().minute())
                         .font(.system(size: 14, weight: .regular, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
                 }
-                
-                Spacer()
             }
             .padding(20)
             .frame(maxWidth: .infinity, minHeight: 140)
@@ -246,44 +463,12 @@ struct ReportCard: View {
                     .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
                     .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(getReportColor().opacity(0.3), lineWidth: 1.5)
-            )
-            .scaleEffect(isPressed ? 0.96 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
-    private func getReportIcon() -> String {
-        switch report.type {
-        case "Lab":
-            return "testtube.2"
-        case "Imaging":
-            // Use "lungs" for X-Ray and "waveform.path.ecg" for MRI/CT
-            return report.title.contains("X-Ray") ? "lungs" : "waveform.path.ecg"
-        case "Consultation":
-            return "stethoscope"
-        default:
-            return "doc.text"
-        }
-    }
-    
-    private func getReportColor() -> Color {
-        switch report.type {
-        case "Lab":
-            return colorScheme == .dark ? Color(hex: "1E88E5") : Color(hex: "2196F3")
-        case "Imaging":
-            return colorScheme == .dark ? Color(hex: "26A69A") : Color(hex: "009688")
-        case "Consultation":
-            return colorScheme == .dark ? Color(hex: "EF5350") : Color(hex: "F44336")
-        default:
-            return colorScheme == .dark ? .blue : Color(hex: "4A90E2")
-        }
-    }
 }
 
-
+// MARK: - Previews
 struct ReportsContent_Previews: PreviewProvider {
     static var previews: some View {
         ReportsContent()
@@ -291,4 +476,4 @@ struct ReportsContent_Previews: PreviewProvider {
         ReportsContent()
             .preferredColorScheme(.dark)
     }
-}
+} 
