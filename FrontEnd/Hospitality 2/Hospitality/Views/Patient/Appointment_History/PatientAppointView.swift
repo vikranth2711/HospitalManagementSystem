@@ -7,6 +7,7 @@ struct DoctorAppointmentsView: View {
     @State private var selectedAppointment: DoctorResponse.DocAppointment? = nil
     @State private var appointmentToReschedule: DoctorResponse.DocAppointment? = nil
     @State private var showRescheduleView = false
+    @State private var showDetailView = false
     @State private var opacity: Double = 0.0
     @State private var iconScale: CGFloat = 0.8
     
@@ -172,12 +173,13 @@ struct DoctorAppointmentsView: View {
                         ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(filteredAppointments) { appointment in
-                                    AppointmentRow(appointment: appointment)
-                                        .onTapGesture {
-                                            withAnimation(.spring()) {
-                                                selectedAppointment = appointment
-                                            }
-                                        }
+                                    Button(action: {
+                                        selectedAppointment = appointment
+                                        showDetailView = true
+                                    }) {
+                                        AppointmentRow(appointment: appointment)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -234,39 +236,12 @@ struct DoctorAppointmentsView: View {
                 }
                 viewModel.loadAppointments()
             }
-        }
-        .overlay(
-            ZStack {
+            .sheet(isPresented: $showDetailView) {
                 if let appointment = selectedAppointment {
-                    let appointmentData = AppointmentData(
-                        doctorName: "Dr. Staff ID: \(appointment.staffId)",
-                        specialty: "Primary Care",
-                        date: appointment.date,
-                        time: "Slot \(appointment.slotId)",
-                        notes: ""
-                    )
-                    
-                    AppointmentDetailOverlay(
-                        appointment: appointmentData,
-                        onManageAppointment: {
-                            if !isBeforeToday(appointment.date) && appointment.status.lowercased() != "cancelled" {
-                                self.appointmentToReschedule = appointment
-                                withAnimation {
-                                    selectedAppointment = nil
-                                    showRescheduleView = true
-                                }
-                            }
-                        },
-                        onDismiss: {
-                            withAnimation {
-                                selectedAppointment = nil
-                            }
-                        }
-                    )
-                    .transition(.opacity.combined(with: .scale))
+                    AppointmentDetailView(appointment: appointment)
                 }
             }
-        )
+        }
         .sheet(isPresented: $showRescheduleView) {
             if let appointment = appointmentToReschedule {
                 AppointmentRescheduleView(
@@ -287,29 +262,30 @@ struct DoctorAppointmentsView: View {
     private var backgroundGradient: some View {
         LinearGradient(
             gradient: Gradient(colors:[
-             Color(.systemBackground),
-                               Color(.systemGroupedBackground),
-
-            
+              Color(.systemBackground),
+              Color(.systemGroupedBackground),
             ]),
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
     
-    private var filteredAppointments: [DoctorResponse.DocAppointment] {
+    var filteredAppointments: [DoctorResponse.DocAppointment] {
         var filtered = viewModel.appointments
         
+        // Filter by appointment status
         switch selectedFilter {
         case .all:
             break
         case .upcoming:
             filtered = filtered.filter { appointment in
-                !isBeforeToday(appointment.date) && appointment.status.lowercased() != "cancelled"
+                appointment.status.lowercased() == "upcoming" ||
+                (appointment.status.lowercased() == "scheduled" && !isBeforeToday(appointment.date))
             }
         case .completed:
             filtered = filtered.filter { appointment in
-                isBeforeToday(appointment.date) && appointment.status.lowercased() != "cancelled"
+                appointment.status.lowercased() == "completed" ||
+                (appointment.status.lowercased() == "scheduled" && isBeforeToday(appointment.date))
             }
         case .cancelled:
             filtered = filtered.filter { appointment in
@@ -317,17 +293,19 @@ struct DoctorAppointmentsView: View {
             }
         }
         
+        // Apply search filter
         if !searchText.isEmpty {
             filtered = filtered.filter { appointment in
                 let appointmentIdMatch = String(appointment.appointmentId).contains(searchText)
                 let dateMatch = appointment.date.contains(searchText)
                 let staffIdMatch = appointment.staffId.contains(searchText)
-                let statusMatch = getDisplayStatus(appointment).lowercased().contains(searchText.lowercased())
+                let statusMatch = appointment.status.lowercased().contains(searchText.lowercased())
                 
                 return appointmentIdMatch || dateMatch || staffIdMatch || statusMatch
             }
         }
         
+        // Apply sorting
         switch viewModel.sortBy {
         case .dateAscending:
             filtered.sort { appt1, appt2 in
@@ -339,8 +317,8 @@ struct DoctorAppointmentsView: View {
             }
         case .statusOrder:
             filtered.sort { appt1, appt2 in
-                let order1 = statusSortOrder(getDisplayStatus(appt1))
-                let order2 = statusSortOrder(getDisplayStatus(appt2))
+                let order1 = statusSortOrder(appt1.status)
+                let order2 = statusSortOrder(appt2.status)
                 return order1 < order2
             }
         }
@@ -350,22 +328,18 @@ struct DoctorAppointmentsView: View {
     
     private func statusSortOrder(_ status: String) -> Int {
         switch status.lowercased() {
-        case "upcoming": return 0
-        case "completed": return 1
-        case "cancelled": return 2
-        default: return 3
-        }
-    }
-    
-    private func getDisplayStatus(_ appointment: DoctorResponse.DocAppointment) -> String {
-        if appointment.status.lowercased() == "cancelled" {
-            return "Cancelled"
-        }
-        
-        if isBeforeToday(appointment.date) {
-            return "Completed"
-        } else {
-            return "nill"
+        case "upcoming", "scheduled":
+            if status.lowercased() == "scheduled" {
+                return 0
+            } else {
+                return 1
+            }
+        case "completed":
+            return 2
+        case "cancelled":
+            return 3
+        default:
+            return 4
         }
     }
     
@@ -383,6 +357,111 @@ struct DoctorAppointmentsView: View {
     }
 }
 
+// MARK: - AppointmentsViewModel
+class AppointmentsViewModel: ObservableObject {
+    @Published var appointments: [DoctorResponse.DocAppointment] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var sortBy: AppointmentSortOrder = .dateDescending
+    
+    private let doctorServices = DoctorServices()
+    
+    func loadAppointments() {
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                let fetchedAppointments = try await doctorServices.fetchDoctorAppointmentHistory()
+                
+                // Create a new array with updated appointment status based on date
+                let updatedAppointments = fetchedAppointments.map { appointment -> DoctorResponse.DocAppointment in
+                    var updatedStatus = appointment.status
+                    
+                    if appointment.status.lowercased() == "scheduled" {
+                        let isBeforeToday = self.isBeforeToday(appointment.date)
+                        if isBeforeToday {
+                            updatedStatus = "Completed"
+                        } else {
+                            updatedStatus = "Upcoming"
+                        }
+                    }
+                    
+                    return DoctorResponse.DocAppointment(
+                        appointmentId: appointment.appointmentId,
+                        date: appointment.date,
+                        slotId: appointment.slotId,
+                        staffId: appointment.staffId,
+                        patientId: appointment.patientId,
+                        status: updatedStatus
+                    )
+                }
+                
+                DispatchQueue.main.async {
+                    self.appointments = updatedAppointments
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    func refreshAppointments() async {
+        do {
+            let fetchedAppointments = try await doctorServices.fetchDoctorAppointmentHistory()
+            
+            // Create a new array with updated appointment status based on date
+            let updatedAppointments = fetchedAppointments.map { appointment -> DoctorResponse.DocAppointment in
+                var updatedStatus = appointment.status
+                
+                if appointment.status.lowercased() == "scheduled" {
+                    let isBeforeToday = self.isBeforeToday(appointment.date)
+                    if isBeforeToday {
+                        updatedStatus = "Completed"
+                    } else {
+                        updatedStatus = "Upcoming"
+                    }
+                }
+                
+                return DoctorResponse.DocAppointment(
+                    appointmentId: appointment.appointmentId,
+                    date: appointment.date,
+                    slotId: appointment.slotId,
+                    staffId: appointment.staffId,
+                    patientId: appointment.patientId,
+                    status: updatedStatus
+                )
+            }
+            
+            DispatchQueue.main.async {
+                self.appointments = updatedAppointments
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.errorMessage = error.localizedDescription
+            }
+        }
+    }
+    
+    private func isBeforeToday(_ dateString: String) -> Bool {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        guard let appointmentDate = dateFormatter.date(from: dateString) else {
+            return false
+        }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return appointmentDate < today
+    }
+}
+
+// MARK: - AppointmentFilter
 enum AppointmentFilter: String, CaseIterable {
     case all
     case upcoming
@@ -408,12 +487,7 @@ enum AppointmentFilter: String, CaseIterable {
     }
 }
 
-enum AppointmentSortOrder {
-    case dateAscending
-    case dateDescending
-    case statusOrder
-}
-
+// MARK: - AppointmentRow
 struct FilterPill1: View {
     let title: String
     let isSelected: Bool
@@ -437,6 +511,7 @@ struct FilterPill1: View {
     }
 }
 
+
 struct AppointmentRow: View {
     let appointment: DoctorResponse.DocAppointment
     
@@ -454,7 +529,7 @@ struct AppointmentRow: View {
                 
                 Spacer()
                 
-                StatusBadge(status: displayStatus)
+                StatusBadge(status: appointment.status)
             }
             
             Divider()
@@ -484,36 +559,10 @@ struct AppointmentRow: View {
         .padding()
         .background(Color(.systemBackground))
         .cornerRadius(12)
-
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
         )
-    }
-    
-    private var displayStatus: String {
-        if appointment.status.lowercased() == "cancelled" {
-            return "Cancelled"
-        }
-        
-        if isBeforeToday(appointment.date) {
-            return "Completed"
-        } else {
-            return "Upcoming"
-        }
-    }
-    
-    private func isBeforeToday(_ dateString: String) -> Bool {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        guard let appointmentDate = dateFormatter.date(from: dateString) else {
-            return false
-        }
-        
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        return appointmentDate < today
     }
     
     private func formatDate(_ dateString: String) -> String {
@@ -529,11 +578,12 @@ struct AppointmentRow: View {
     }
 }
 
+// MARK: - StatusBadge
 struct StatusBadge: View {
     let status: String
     
     var body: some View {
-        Text(status)
+        Text(getDisplayStatus())
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
@@ -544,6 +594,25 @@ struct StatusBadge: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(statusColor.opacity(0.3), lineWidth: 1)
             )
+    }
+    
+    private func getDisplayStatus() -> String {
+        switch status.lowercased() {
+        case "cancelled":
+            return "Cancelled"
+        case "completed":
+            return "Completed"
+        case "upcoming":
+            return "Upcoming"
+        case "scheduled":
+            return "Scheduled"
+        case "confirmed":
+            return "Confirmed"
+        case "pending":
+            return "Pending"
+        default:
+            return status.capitalized
+        }
     }
     
     private var statusColor: Color {
@@ -562,44 +631,9 @@ struct StatusBadge: View {
     }
 }
 
-
-
-class AppointmentsViewModel: ObservableObject {
-    @Published var appointments: [DoctorResponse.DocAppointment] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    @Published var sortBy: AppointmentSortOrder = .dateDescending
-    
-    func loadAppointments() {
-        isLoading = true
-        errorMessage = nil
-        
-        Task {
-            do {
-                let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
-                DispatchQueue.main.async {
-                    self.appointments = fetchedAppointments
-                    self.isLoading = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                }
-            }
-        }
-    }
-    
-    func refreshAppointments() async {
-        do {
-            let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
-            DispatchQueue.main.async {
-                self.appointments = fetchedAppointments
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.errorMessage = error.localizedDescription
-            }
-        }
-    }
+// MARK: - AppointmentSortOrder
+enum AppointmentSortOrder {
+    case dateAscending
+    case dateDescending
+    case statusOrder
 }
