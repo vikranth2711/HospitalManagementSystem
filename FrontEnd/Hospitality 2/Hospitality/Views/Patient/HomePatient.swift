@@ -236,6 +236,7 @@ struct HomePatient: View {
     }
 }
 
+
 struct HomeContent: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var showProfile: Bool
@@ -260,7 +261,6 @@ struct HomeContent: View {
                     appointment: appointment,
                     onManageAppointment: {
                         if let appointmentToReschedule = appointmentHistory.first(where: {
-//                            appointment.status == .upcoming &&
                             $0.status == "upcoming" &&
                             $0.reason == appointment.notes
                         }) {
@@ -362,13 +362,9 @@ struct HomeContent: View {
             Spacer()
             
             HStack(spacing: 16) {
-                Button(action: {
-                    withAnimation {
-                        refreshAppointments()
-                    }
-                }) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 20))
+                NavigationLink(destination: FAQsView()) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 25))
                         .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
                 }
                 
@@ -413,8 +409,8 @@ struct HomeContent: View {
             Spacer()
             NavigationLink(destination: DoctorRecommender()) {
                 SquareScheduleCard(
-                    icon: "questionmark.circle",
-                    title: "Symptom Checker",
+                    icon: "brain.head.profile",
+                    title: "Physician Referral",
                     color: colorScheme == .dark ? Color(hex: "FF7043") : Color(hex: "FF5722")
                 )
                 .frame(width: 180)
@@ -473,7 +469,6 @@ struct HomeContent: View {
                             specialty: appointment.reason ?? "Unknown",
                             date: appointment.date,
                             time: appointment.status ?? "Unknown",
-//                            status: .upcoming,
                             notes: appointment.reason ?? "No notes provided"
                         )
                     }
