@@ -936,20 +936,52 @@ class UpdatePatientPhotoView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
+    # def put(self, request, *args, **kwargs):
+    #     # Check if authenticated user is a patient
+    #     if not hasattr(request.user, 'patient_id'):
+    #         return Response({"error": "Not a patient account"}, 
+    #                       status=status.HTTP_403_FORBIDDEN)
+        
+    #     patient = request.user
+        
+    #     # Check if image is provided
+    #     if 'profile_photo' not in request.FILES:
+    #         return Response({"error": "No profile photo provided"}, 
+    #                       status=status.HTTP_400_BAD_REQUEST)
+        
+    #     profile_photo = request.FILES['profile_photo']
+        
+    #     # Update or create patient details
+    #     patient_details, created = PatientDetails.objects.update_or_create(
+    #         patient=patient,
+    #         defaults={'profile_photo': profile_photo}
+    #     )
+        
+    #     return Response({
+    #         "message": "Profile photo updated successfully",
+    #         "photo_url": request.build_absolute_uri(patient_details.profile_photo.url)
+    #     }, status=status.HTTP_200_OK)
+    
     def put(self, request, *args, **kwargs):
         # Check if authenticated user is a patient
         if not hasattr(request.user, 'patient_id'):
             return Response({"error": "Not a patient account"}, 
-                          status=status.HTTP_403_FORBIDDEN)
+                        status=status.HTTP_403_FORBIDDEN)
         
         patient = request.user
         
         # Check if image is provided
         if 'profile_photo' not in request.FILES:
             return Response({"error": "No profile photo provided"}, 
-                          status=status.HTTP_400_BAD_REQUEST)
+                        status=status.HTTP_400_BAD_REQUEST)
         
         profile_photo = request.FILES['profile_photo']
+        
+        # Generate a unique filename
+        original_name = profile_photo.name
+        file_extension = os.path.splitext(original_name)[1]
+        unique_filename = f"patient_{patient.patient_id}_{uuid.uuid4().hex}{file_extension}"
+        profile_photo.name = unique_filename
         
         # Update or create patient details
         patient_details, created = PatientDetails.objects.update_or_create(
@@ -957,11 +989,14 @@ class UpdatePatientPhotoView(APIView):
             defaults={'profile_photo': profile_photo}
         )
         
+        # Force refresh the URL by accessing it after save
+        patient_details.refresh_from_db()
+        
         return Response({
             "message": "Profile photo updated successfully",
             "photo_url": request.build_absolute_uri(patient_details.profile_photo.url)
         }, status=status.HTTP_200_OK)
-    
+
 class VerifyEmailExists(APIView):
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
