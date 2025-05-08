@@ -2340,7 +2340,7 @@ urlpatterns = [
 ## Patient APIs
 
 ### Patient Recommended Lab Tests
-
+> ⚠️ **Deprecated**: This API is no longer recommended. Please use `/new-api-endpoint` instead.
 - **URL**: `/api/hospital/general/patient/recommended-lab-tests/`
 - **Method**: GET
 - **Authentication**: Required (Patient)
@@ -2365,7 +2365,7 @@ urlpatterns = [
 ## Patient Recommended Lab Tests API Reference
 
 ### Get Patient Recommended Lab Tests
-> ⚠️ **Deprecated**: This API is no longer recommended. Please use `/new-api-endpoint` instead.
+
 - **URL**: `/api/hospital/general/patient/recommended-lab-tests/`
 - **Method**: GET
 - **Authentication**: Required (Patient only)
