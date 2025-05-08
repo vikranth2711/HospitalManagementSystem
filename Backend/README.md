@@ -2605,3 +2605,124 @@ status = models.CharField(
 - **Lab tech completes test:** `status = completed`
 - **Lab tech marks as missed/failed:** `status = missed` or `failed`
 - **Lab tech views:** Only `paid` or `completed` tests are visible
+
+# Analytics API Reference
+
+## Revenue Analytics
+
+- **URL**: `/api/hospital/admin/analytics/revenue/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves revenue analytics data with historical trends
+- **Query Parameters**:
+  - `period`: Time period for analysis (week, month, year). Default: month
+- **Response**: 
+  ```json
+  {
+    "total_revenue": 25000.00,
+    "period": "month",
+    "historical_data": [
+      {
+        "period": "2025-04-10 to 2025-04-16",
+        "revenue": 5000.00
+      },
+      {
+        "period": "2025-04-17 to 2025-04-23",
+        "revenue": 6500.00
+      }
+    ]
+  }
+  ```
+
+## Rating Analytics
+
+- **URL**: `/api/hospital/admin/analytics/ratings/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves patient rating analytics with distribution and top doctors
+- **Query Parameters**:
+  - `period`: Time period for analysis (week, month, year). Default: month
+- **Response**: 
+  ```json
+  {
+    "average_rating": 4.2,
+    "total_ratings": 120,
+    "rating_distribution": {
+      "5": 50,
+      "4": 40,
+      "3": 20,
+      "2": 7,
+      "1": 3
+    },
+    "top_rated_doctors": [
+      {
+        "staff_id": "DOC123",
+        "staff_name": "Dr. Smith",
+        "avg_rating": 4.8,
+        "rating_count": 25
+      }
+    ],
+    "historical_data": [
+      {
+        "period": "2025-04-10 to 2025-04-16",
+        "avg_rating": 4.3,
+        "count": 30
+      }
+    ]
+  }
+  ```
+
+## Appointment Analytics
+
+- **URL**: `/api/hospital/admin/analytics/appointments/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves appointment statistics and trends
+- **Query Parameters**:
+  - `period`: Time period for analysis (week, month, year). Default: month
+- **Response**: 
+  ```json
+  {
+    "total_appointments": 150,
+    "status_distribution": {
+      "upcoming": 50,
+      "completed": 80,
+      "missed": 20
+    },
+    "historical_data": [
+      {
+        "period": "2025-04-10 to 2025-04-16",
+        "count": 35
+      }
+    ]
+  }
+  ```
+
+## Doctor Specialization Analytics
+
+- **URL**: `/api/hospital/admin/analytics/doctor-specializations/`
+- **Method**: GET
+- **Authentication**: Required (Admin)
+- **Description**: Retrieves analytics on doctor specializations and appointment distribution
+- **Response**: 
+  ```json
+  {
+    "total_doctors": 25,
+    "specialization_distribution": [
+      {
+        "specialization": "Cardiology",
+        "count": 5
+      },
+      {
+        "specialization": "Neurology",
+        "count": 3
+      }
+    ],
+    "appointment_distribution": [
+      {
+        "specialization": "Cardiology",
+        "appointment_count": 120
+      }
+    ]
+  }
+  ```
