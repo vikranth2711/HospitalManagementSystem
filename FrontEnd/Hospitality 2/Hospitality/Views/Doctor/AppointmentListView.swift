@@ -63,25 +63,48 @@ struct AppointmentsListView: View {
         }
     }
     
+    // Add this to your AppointmentsListView
+    private func saveAppointmentsToCache(_ appointments: [DoctorResponse.DocAppointment]) {
+        if let encoded = try? JSONEncoder().encode(appointments) {
+            UserDefaults.standard.set(encoded, forKey: "cachedAppointments")
+        }
+    }
+
+    private func loadCachedAppointments() -> [DoctorResponse.DocAppointment]? {
+        if let data = UserDefaults.standard.data(forKey: "cachedAppointments") {
+            return try? JSONDecoder().decode([DoctorResponse.DocAppointment].self, from: data)
+        }
+        return nil
+    }
+
+    // Modify your loadAppointments function:
     private func loadAppointments() {
-         isLoading = true
-         errorMessage = nil
-         
-         Task {
-             do {
-                 let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
-                 DispatchQueue.main.async {
-                     self.appointments = fetchedAppointments
-                     self.isLoading = false
-                 }
-             } catch {
-                 DispatchQueue.main.async {
-                     self.errorMessage = error.localizedDescription
-                     self.isLoading = false
-                 }
-             }
-         }
-     }
+        isLoading = true
+        errorMessage = nil
+        
+        // Load cached appointments first
+        if let cached = loadCachedAppointments() {
+            self.appointments = cached
+        }
+        
+        Task {
+            do {
+                let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
+                DispatchQueue.main.async {
+                    self.appointments = fetchedAppointments
+                    self.saveAppointmentsToCache(fetchedAppointments)
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    if self.appointments.isEmpty { // Only show error if no cached data
+                        self.errorMessage = error.localizedDescription
+                    }
+                    self.isLoading = false
+                }
+            }
+        }
+    }
     
     private var filteredAppointments: [DoctorResponse.DocAppointment] {
            switch filterOption {
