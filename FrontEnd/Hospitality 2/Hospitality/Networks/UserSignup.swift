@@ -63,14 +63,14 @@ struct PatientProfileResponse: Codable {
     let profile_photo: String?
 }
 
-// MARK: - Error Handling
 enum NetworkError: Error {
     case invalidURL
     case invalidResponse
     case decodingError
+    case unauthorized
+    case notFound(String)
     case serverError(String)
     case unknownError
-    case unauthorized
 }
 
 // MARK: - Authentication Service
