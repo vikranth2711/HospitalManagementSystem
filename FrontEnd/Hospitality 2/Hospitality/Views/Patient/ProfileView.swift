@@ -128,21 +128,25 @@ struct ProfileView: View {
     }
     
     // MARK: - Profile UI Components
-    
     private var profileHeader: some View {
         Button(action: {
             showImagePicker = true
         }) {
             ZStack(alignment: .bottomTrailing) {
-                if let photo = patientData?.profile_photo,
+                // Always show the profile placeholder
+                profilePlaceholder
+                
+                // Show the photo if available
+                if let photo = patientData?.profile_photo, !photo.isEmpty,
                    let urlString = photo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                   let url = URL(string: urlString),
-                   !photo.isEmpty {
+                   let url = URL(string: urlString) {
                     
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
-                            profilePlaceholder
+                            // Show progress view while loading over the placeholder
+                            ProgressView()
+                                .frame(width: 120, height: 120)
                         case .success(let image):
                             image
                                 .resizable()
@@ -155,13 +159,19 @@ struct ProfileView: View {
                                         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                                 )
                         case .failure:
-                            profilePlaceholder
+                            // Optionally show an error indicator, placeholder remains underneath
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundColor(.red)
+                                .frame(width: 120, height: 120)
+                                .background(Color.white.opacity(0.7))
+                                .clipShape(Circle())
                         @unknown default:
-                            profilePlaceholder
+                            EmptyView()
                         }
                     }
                 }
                 
+                // Upload progress overlay
                 if isUploadingImage {
                     ProgressView()
                         .tint(.white)
@@ -289,30 +299,6 @@ struct ProfileView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
                 .padding(.bottom, 16)
-                
-                // Metrics Cards
-                VStack(spacing: 16) {
-                    HStack(spacing: 16) {
-                        MetricCard(
-                            icon: "heart.fill",
-                            title: "Heart Rate",
-                            value: "72",
-                            unit: "BPM",
-                            trend: "↑ 3%",
-                            trendUp: true
-                        )
-                        
-                        MetricCard(
-                            icon: "lungs.fill",
-                            title: "Oxygen",
-                            value: "98",
-                            unit: "%",
-                            trend: "↑ 1%",
-                            trendUp: true
-                        )
-                    }
-                }
-                .padding(16)
             }
             .background(
                 LinearGradient(
@@ -538,7 +524,7 @@ struct ProfileView: View {
         
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
-        request.httpMethod = "PUT" // Changed from "PUT" to "POST"
+        request.httpMethod = "PUT"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         
         if !UserDefaults.accessToken.isEmpty {
