@@ -277,7 +277,7 @@ struct VitalsFormView: View {
     )
     
     @State private var temperatureInput = ValidatedInput(
-        range: 90...110,
+        range: 90...108,
         placeholder: "Temperature (°F)",
         icon: "thermometer",
         iconColor: Color(hex: "F5A623")

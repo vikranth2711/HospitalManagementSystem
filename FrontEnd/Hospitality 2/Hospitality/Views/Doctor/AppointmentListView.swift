@@ -280,7 +280,7 @@ struct AppointmentCardView: View {
 
 //struct StatusBadge: View {
 //    let status: String
-//    
+//
 //    var body: some View {
 //        Text(status.capitalized)
 //            .font(.caption2)
@@ -290,7 +290,7 @@ struct AppointmentCardView: View {
 //            .foregroundColor(.white)
 //            .cornerRadius(12)
 //    }
-//    
+//
 //    private var statusBackgroundColor: Color {
 //        switch status.lowercased() {
 //        case "completed": return .green
