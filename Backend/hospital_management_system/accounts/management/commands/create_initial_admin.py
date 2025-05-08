@@ -4,7 +4,7 @@ from hospital.models import Role, Staff
 from datetime import date
 import uuid
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django.contrib.auth.hashers import make_password
 class Command(BaseCommand):
     help = 'Creates the initial admin user and role'
 
@@ -36,11 +36,12 @@ class Command(BaseCommand):
             
             admin = Staff.objects.create(
                 staff_id=staff_id,
-                staff_name="System Admin",
+                staff_name="Akshat Kaushik",
                 role=admin_role,
-                staff_joining_date=date.today(),
-                staff_email="ra6857@srmist.edu.in",
-                staff_mobile="8778850830"
+                created_at=date.today(),
+                staff_email="ak4425@srmist.edu.in",
+                staff_mobile="9455276501",
+                password=make_password("admin123")
             )
             
             # Generate token

@@ -1,5 +1,3 @@
-Below is a complete example of a Django project that implements REST APIs for the tables you provided (patients, staff, lab technicians, doctors, etc.) as well as an OTP‐based signup/login system. You can follow these steps to create, configure, and run the project.
-
 ──────────────────────────────
 Step 1. Set Up Your Environment
 ──────────────────────────────
@@ -597,20 +595,3 @@ You should now be able to access:
  -  Hospital API endpoints prefixed with http://127.0.0.1:8000/api/hospital/
 
 ──────────────────────────────
-Step 7. Testing the APIs
-──────────────────────────────
-You can test the APIs using tools such as Postman or cURL. For example, to request an OTP send a POST request with a JSON body:
-  {
-   "email": "user@example.com"
-  }
-Then verify the OTP similarly.
-
-──────────────────────────────
-Final Notes
-──────────────────────────────
--  This example uses SQLite but you can configure any database in settings.py.
--  The Email OTP sending currently uses the console backend so email content will be printed to the console. For production, configure a real SMTP server.
--  You can extend the serializers and viewsets to include nested relationships or custom querysets as needed.
--  Since this is a backend API for a Swift app, you can now consume these endpoints from your mobile app.
-
-This complete code and guide sets up the Django backend with REST APIs for your hospital system and an OTP signup/login system. Enjoy coding!

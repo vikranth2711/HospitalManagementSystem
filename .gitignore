@@ -1,2 +1,8 @@
 venv
 *.env
+*/codepaster.py
+*/migrations/*
+*/__pycache__/*
+*/__pycache__
+*/test.md
+*.pyc
