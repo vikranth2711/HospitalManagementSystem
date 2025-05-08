@@ -1914,23 +1914,23 @@ class PatientRecommendedLabTestsView(APIView):
             lab_tests = lab_tests.filter(status=status_filter)
             
         # Group by status for summary
-        status_counts = {
-            'recommended': lab_tests.filter(status='recommended').count(),
-            'paid': lab_tests.filter(status='paid').count(),
-            'completed': lab_tests.filter(status='completed').count(),
-            'missed': lab_tests.filter(status='missed').count(),
-            'failed': lab_tests.filter(status='failed').count(),
-            'total': lab_tests.count()
-        }
+        # status_counts = {
+        #     'recommended': lab_tests.filter(status='recommended').count(),
+        #     'paid': lab_tests.filter(status='paid').count(),
+        #     'completed': lab_tests.filter(status='completed').count(),
+        #     'missed': lab_tests.filter(status='missed').count(),
+        #     'failed': lab_tests.filter(status='failed').count(),
+        #     'total': lab_tests.count()
+        # }
         
         serializer = RecommendedLabTestSerializer(lab_tests, many=True)
         
-        response_data = {
-            'status_summary': status_counts,
-            'lab_tests': serializer.data
-        }
+        # response_data = {
+        #     'status_summary': status_counts,
+        #     'lab_tests': serializer.data
+        # }
         
-        return Response(response_data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 # class LabTechnicianAssignedPatientsView(APIView):
 #     authentication_classes = [JWTAuthentication]
