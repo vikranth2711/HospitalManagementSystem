@@ -88,15 +88,19 @@ struct SquareScheduleCard: View {
 struct AppointmentHistoryCard: View {
     let appointment: PatientAppointHistoryListResponse
     @Environment(\.colorScheme) var colorScheme
+    @State private var slotStartTime: String = "Loading..."
+    @State private var isSlotLoading: Bool = false
+    @State private var staffName: String = "Loading..."
+    @State private var isStaffNameLoading: Bool = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Appointment #\(appointment.appointment_id)")
+                    Text(staffName)
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                     
-                    Text("\(formatDate(appointment.date)) • Slot \(appointment.slot_id)")
+                    Text("\(formatDate(appointment.date)) • \(slotStartTime)")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .gray)
                 }
@@ -114,7 +118,7 @@ struct AppointmentHistoryCard: View {
                         .font(.caption)
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .gray.opacity(0.7))
                     
-                    Text(appointment.staff_id ?? "Unknown Doctor")
+                    Text(staffName)
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black)
                 }
@@ -126,7 +130,7 @@ struct AppointmentHistoryCard: View {
                         .font(.caption)
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .gray.opacity(0.7))
                     
-                    Text(getTimeForSlot(appointment.slot_id))
+                    Text(slotStartTime)
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.9) : .black)
                 }
@@ -158,6 +162,10 @@ struct AppointmentHistoryCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.blue, lineWidth: 1)
         )
+        .onAppear {
+            loadSlotTime()
+            loadStaffName()
+        }
     }
     
     private func formatDate(_ dateString: String) -> String {
@@ -172,19 +180,86 @@ struct AppointmentHistoryCard: View {
         return dateFormatter.string(from: date)
     }
     
-    private func getTimeForSlot(_ slotId: Int) -> String {
-        switch slotId {
-        case 1: return "9:00 AM - 9:30 AM"
-        case 2: return "9:30 AM - 10:00 AM"
-        case 3: return "10:00 AM - 10:30 AM"
-        case 4: return "10:30 AM - 11:00 AM"
-        case 5: return "11:00 AM - 11:30 AM"
-        case 6: return "11:30 AM - 12:00 PM"
-        case 7: return "2:00 PM - 2:30 PM"
-        case 8: return "2:30 PM - 3:00 PM"
-        case 9: return "3:00 PM - 3:30 PM"
-        case 10: return "3:30 PM - 4:00 PM"
-        default: return "Slot \(slotId)"
+    private func loadSlotTime() {
+        guard !isSlotLoading else { return }
+        
+        isSlotLoading = true
+        
+        Task {
+            do {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                guard let appointmentDate = dateFormatter.date(from: String(appointment.date.prefix(10))) else {
+                    throw NetworkError.unknownError
+                }
+                
+                let dateString = dateFormatter.string(from: appointmentDate)
+                let slots = try await DoctorServices().fetchDoctorSlots(doctorId: appointment.staff_id ?? "", date: dateString)
+                
+                if let slot = slots.first(where: { $0.slot_id == appointment.slot_id }) {
+                    let timeFormatter = DateFormatter()
+                    timeFormatter.dateFormat = "HH:mm:ss"
+                    if let timeDate = timeFormatter.date(from: slot.slot_start_time) {
+                        timeFormatter.dateFormat = "HH:mm"
+                        DispatchQueue.main.async {
+                            slotStartTime = timeFormatter.string(from: timeDate)
+                            isSlotLoading = false
+                        }
+                    } else {
+                        DispatchQueue.main.async {
+                            slotStartTime = "N/A"
+                            isSlotLoading = false
+                        }
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        slotStartTime = "N/A"
+                        isSlotLoading = false
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    slotStartTime = "N/A"
+                    isSlotLoading = false
+                }
+            }
+        }
+    }
+    
+    private func loadStaffName() {
+        guard !isStaffNameLoading else { return }
+        
+        isStaffNameLoading = true
+        
+        Task {
+            do {
+                guard let url = URL(string: "\(Constants.baseURL)/hospital/general/doctors/\(appointment.staff_id ?? "")/") else {
+                    throw NetworkError.invalidURL
+                }
+                
+                var request = URLRequest(url: url)
+                request.httpMethod = "GET"
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+                
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                let doctor = try JSONDecoder().decode(PatientSpecificDoctorResponse.self, from: data)
+                
+                DispatchQueue.main.async {
+                    staffName = doctor.staff_name
+                    isStaffNameLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    staffName = "Unknown Doctor"
+                    isStaffNameLoading = false
+                }
+            }
         }
     }
 }
