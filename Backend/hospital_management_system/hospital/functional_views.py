@@ -717,7 +717,7 @@ class AppointmentDetailView(APIView):
         appointment = get_object_or_404(Appointment, appointment_id=appointment_id)
         
         # Check if status needs updating (if it's 'upcoming' but date has passed)
-        if appointment.status == 'upcoming' and appointment.created_at < timezone.now():
+        if appointment.status == 'upcoming' and appointment.appointment_date < timezone.now().date():
             appointment.status = 'missed'
             appointment.save()
             

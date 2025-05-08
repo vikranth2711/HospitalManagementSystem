@@ -1,0 +1,29 @@
+digraph HospitalManagementSystem {
+	rankdir=LR size="8,5"
+	SwiftUI [label="iOS App (SwiftUI)" fillcolor=lightblue shape=mobilephone style=filled]
+	CloudFront [label="AWS CloudFront" fillcolor=lightgray shape=box style=filled]
+	S3 [label="AWS S3 Bucket
+(Media/Static)" fillcolor=lightyellow shape=cylinder style=filled]
+	Nginx [label=Nginx shape=component]
+	Gunicorn [label=Gunicorn shape=component]
+	Django [label="Django + Django REST" fillcolor=lightgreen shape=component style=filled]
+	EC2 [label="AWS EC2" fillcolor=orange shape=box3d style=filled]
+	RDS [label="AWS RDS
+(PostgreSQL)" fillcolor=lightpink shape=cylinder style=filled]
+	SwiftUI -> CloudFront
+	CloudFront -> S3
+	SwiftUI -> Nginx
+	Nginx -> Gunicorn
+	Gunicorn -> Django
+	Django -> RDS
+	Django -> S3
+	Nginx -> EC2
+	Gunicorn -> EC2
+	Django -> EC2
+	subgraph cluster_ec2 {
+		label="AWS EC2 Instance" style=dashed
+		Nginx
+		Gunicorn
+		Django
+	}
+}
