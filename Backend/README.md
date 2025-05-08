@@ -2684,6 +2684,7 @@ status = models.CharField(
   ```json
   {
     "total_appointments": 150,
+    "total_patients": 100,
     "status_distribution": {
       "upcoming": 50,
       "completed": 80,

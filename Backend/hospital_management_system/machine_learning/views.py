@@ -8,7 +8,7 @@ from datetime import timedelta
 from django.db.models import Sum
 from hospital.permissions import IsAdminStaff
 from transactions.models import Transaction
-from hospital.models import Appointment, AppointmentRating, Staff
+from hospital.models import Appointment, AppointmentRating, Staff, Patient
 from django.db.models import Avg, Count
 # Create your views here.
 class RevenueAnalyticsView(APIView):
@@ -288,6 +288,9 @@ class AppointmentAnalyticsView(APIView):
         # Total appointments
         total_appointments = appointments.count()
         
+        # Get total number of patients in the database
+        total_patients = Patient.objects.count()
+
         # Appointments by status
         status_distribution = {
             'upcoming': appointments.filter(status='upcoming').count(),
@@ -340,6 +343,7 @@ class AppointmentAnalyticsView(APIView):
         
         return Response({
             'total_appointments': total_appointments,
+            'total_patients': total_patients,
             'status_distribution': status_distribution,
             'historical_data': historical_data
         }, status=200)
