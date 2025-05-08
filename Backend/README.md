@@ -2610,7 +2610,7 @@ status = models.CharField(
 
 ## Revenue Analytics
 
-- **URL**: `/api/hospital/admin/analytics/revenue/`
+- **URL**: `/api/machine-learning/admin/analytics/revenue/`
 - **Method**: GET
 - **Authentication**: Required (Admin)
 - **Description**: Retrieves revenue analytics data with historical trends
@@ -2636,7 +2636,7 @@ status = models.CharField(
 
 ## Rating Analytics
 
-- **URL**: `/api/hospital/admin/analytics/ratings/`
+- **URL**: `/api/machine-learning/admin/analytics/ratings/`
 - **Method**: GET
 - **Authentication**: Required (Admin)
 - **Description**: Retrieves patient rating analytics with distribution and top doctors
@@ -2674,7 +2674,7 @@ status = models.CharField(
 
 ## Appointment Analytics
 
-- **URL**: `/api/hospital/admin/analytics/appointments/`
+- **URL**: `/api/machine-learning/admin/analytics/appointments/`
 - **Method**: GET
 - **Authentication**: Required (Admin)
 - **Description**: Retrieves appointment statistics and trends
@@ -2700,7 +2700,7 @@ status = models.CharField(
 
 ## Doctor Specialization Analytics
 
-- **URL**: `/api/hospital/admin/analytics/doctor-specializations/`
+- **URL**: `/api/machine-learning/admin/analytics/doctor-specializations/`
 - **Method**: GET
 - **Authentication**: Required (Admin)
 - **Description**: Retrieves analytics on doctor specializations and appointment distribution
