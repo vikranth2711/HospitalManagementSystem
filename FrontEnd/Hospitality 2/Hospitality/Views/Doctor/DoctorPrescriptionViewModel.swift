@@ -41,7 +41,9 @@ class DoctorPrescriptionViewModel: ObservableObject {
     @Published var labTestTypes: [DoctorResponse.LabTestType] = []
     @Published var selectedLabTests: [Int] = []
     @Published var labPriority: String = "normal"
-    @Published var labTestDateTime: Date = Date().addingTimeInterval(24 * 60 * 60) // Tomorrow by default
+    @Published var labTestDateTime: Date = {
+            Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        }()
     
     // MARK: - Init
     init(appointmentId: Int ) {
@@ -237,7 +239,7 @@ class DoctorPrescriptionViewModel: ObservableObject {
                     
                     // Add 24 hours to current time
                     let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-                    let dateString = formatter.string(from: tomorrow)
+                    let dateString = formatter.string(from: labTestDateTime)
                     
                     print("[SwatiSwapna] Lab test submission - Test IDs: \(selectedLabTests)")
                     print("[SwatiSwapna] Lab test submission - Priority: \(labPriority)")

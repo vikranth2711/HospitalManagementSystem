@@ -1,4 +1,5 @@
 import SwiftUI
+
 struct ConsultationView: View {
     let appointmentId: Int
     let patientId: Int
@@ -152,4 +153,3 @@ struct ConsultationSectionView: View {
         }
     }
 }
-

@@ -21,6 +21,13 @@ struct DoctorConsultationView: View {
     private let cardColor = Color(hex: "FFFFFF")
     private let darkCardColor = Color(hex: "1A2234")
     
+    private var shouldDisableSubmitButton: Bool {
+        viewModel.isLoading ||
+        viewModel.selectedOrgans.isEmpty ||
+        viewModel.prescriptionMedicines.isEmpty ||
+        (viewModel.labTestRequired && viewModel.selectedLabTests.isEmpty)
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -56,6 +63,32 @@ struct DoctorConsultationView: View {
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     
                     // Submit button
+//                    Button(action: {
+//                        viewModel.submitAll()
+//                    }) {
+//                        HStack {
+//                            Text("Submit All")
+//                                .fontWeight(.semibold)
+//                            
+//                            if viewModel.isLoading {
+//                                ProgressView()
+//                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+//                                    .padding(.leading, 5)
+//                            }
+//                        }
+//                        .frame(maxWidth: .infinity)
+//                        .padding(.vertical, 14)
+//                        .background(
+//                            RoundedRectangle(cornerRadius: 10)
+//                                .fill(primaryColor)
+//                                .shadow(color: primaryColor.opacity(0.3), radius: 4, y: 2)
+//                        )
+//                        .foregroundColor(.white)
+//                    }
+//                    .padding(16)
+//                    .disabled(viewModel.isLoading)
+                    //MARK: Submit button
+                    // Submit button
                     Button(action: {
                         viewModel.submitAll()
                     }) {
@@ -73,13 +106,13 @@ struct DoctorConsultationView: View {
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(primaryColor)
-                                .shadow(color: primaryColor.opacity(0.3), radius: 4, y: 2)
+                                .fill(shouldDisableSubmitButton ? Color.gray : primaryColor)
+                                .shadow(color: shouldDisableSubmitButton ? Color.gray.opacity(0.3) : primaryColor.opacity(0.3), radius: 4, y: 2)
                         )
                         .foregroundColor(.white)
                     }
                     .padding(16)
-                    .disabled(viewModel.isLoading)
+                    .disabled(shouldDisableSubmitButton)
                 }
             }
             .navigationTitle("Patient Consultation")
@@ -479,8 +512,8 @@ struct DoctorConsultationView: View {
                                     
                                     if medicine.fastingRequired {
                                         HStack(spacing: 6) {
-                                            Image(systemName: "exclamationmark.triangle.fill")
-                                                .foregroundColor(Color(hex: "F5A623"))
+//                                            Image(systemName: "exclamationmark.triangle.fill")
+//                                                .foregroundColor(Color(hex: "F5A623"))
                                             Text("Take on empty stomach")
                                                 .font(.caption)
                                                 .foregroundColor(.primary)
@@ -572,8 +605,8 @@ struct DoctorConsultationView: View {
                         // Fasting toggle
                         Toggle(isOn: $viewModel.newMedicine.fastingRequired) {
                             HStack {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(accentColor)
+//                                Image(systemName: "exclamationmark.triangle.fill")
+//                                    .foregroundColor(accentColor)
                                 Text("Fasting Required")
                                     .foregroundColor(.primary)
                             }
@@ -620,168 +653,176 @@ struct DoctorConsultationView: View {
             .padding(16)
         }
     }
-    
+
     // MARK: - Lab Tests Form
-    private var labTestsFormView: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                // Simple search bar for lab tests
-                ConsultationCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Search Lab Tests")
-                            .font(.headline)
-                            .foregroundColor(primaryColor)
-                        
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondary)
-                            
-                            TextField("Search by test name", text: $labTestSearchText)
-                                .autocapitalization(.none)
-                            
-                            if !labTestSearchText.isEmpty {
-                                Button(action: {
-                                    labTestSearchText = ""
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(colorScheme == .dark ? Color(UIColor.tertiarySystemBackground) : Color(UIColor.secondarySystemBackground))
-                        )
-                    }
-                }
-                
-                // Selected tests
-                ConsultationCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Lab Tests")
+        private var labTestsFormView: some View {
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Simple search bar for lab tests
+                    ConsultationCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Search Lab Tests")
                                 .font(.headline)
                                 .foregroundColor(primaryColor)
                             
-                            Spacer()
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("Search by test name", text: $labTestSearchText)
+                                    .autocapitalization(.none)
+                                
+                                if !labTestSearchText.isEmpty {
+                                    Button(action: {
+                                        labTestSearchText = ""
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(colorScheme == .dark ? Color(UIColor.tertiarySystemBackground) : Color(UIColor.secondarySystemBackground))
+                            )
+                        }
+                    }
+                    
+                    // Selected tests
+                    ConsultationCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Lab Tests")
+                                    .font(.headline)
+                                    .foregroundColor(primaryColor)
+                                
+                                Spacer()
+                                
+                                Text("\(viewModel.selectedLabTests.count) selected")
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .fill(primaryColor.opacity(0.15))
+                                    )
+                                    .foregroundColor(primaryColor)
+                            }
                             
-                            Text("\(viewModel.selectedLabTests.count) selected")
-                                .font(.subheadline)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(primaryColor.opacity(0.15))
-                                )
+                            VStack(spacing: 0) {
+                                ForEach(viewModel.labTestTypes.filter {
+                                    labTestSearchText.isEmpty ? true :
+                                    $0.testName.localizedCaseInsensitiveContains(labTestSearchText)
+                                }, id: \.id) { testType in
+                                    Button(action: {
+                                        let testId = testType.testTypeId
+                                        if viewModel.selectedLabTests.contains(testId) {
+                                            viewModel.selectedLabTests.removeAll { $0 == testId }
+                                        } else {
+                                            viewModel.selectedLabTests.append(testId)
+                                        }
+                                    }) {
+                                        HStack {
+                                            Image(systemName: viewModel.selectedLabTests.contains(testType.testTypeId) ? "checkmark.square.fill" : "square")
+                                                .foregroundColor(viewModel.selectedLabTests.contains(testType.testTypeId) ? primaryColor : .gray)
+                                                .font(.system(size: 20))
+                                            
+                                            Text(testType.testName)
+                                                .foregroundColor(.primary)
+                                            
+                                            Spacer()
+                                        }
+                                        .contentShape(Rectangle())
+                                        .padding(.vertical, 12)
+                                        .padding(.horizontal, 8)
+                                    }
+                                    
+                                    if testType.id != viewModel.labTestTypes.last?.id {
+                                        Divider().padding(.leading, 36)
+                                    }
+                                }
+                            }
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(colorScheme == .dark ? Color(UIColor.secondarySystemBackground) : Color(UIColor.tertiarySystemBackground))
+                            )
+                        }
+                    }
+                    
+                    // Improved Lab test details
+                    ConsultationCard {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Lab Test Details")
+                                .font(.headline)
                                 .foregroundColor(primaryColor)
-                        }
-                        
-                        // Test selection list - fixed to work with your model
-                        VStack(spacing: 0) {
-                            ForEach(viewModel.labTestTypes.filter {
-                                labTestSearchText.isEmpty ? true :
-                                $0.testName.localizedCaseInsensitiveContains(labTestSearchText)
-                            }, id: \.id) { testType in
-                                Button(action: {
-                                    let testId = testType.testTypeId
-                                    if viewModel.selectedLabTests.contains(testId) {
-                                        viewModel.selectedLabTests.removeAll { $0 == testId }
-                                    } else {
-                                        viewModel.selectedLabTests.append(testId)
-                                    }
-                                }) {
+                            
+                            // Priority selector
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Priority")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                HStack(spacing: 12) {
+                                    priorityButton(title: "Low", value: "low", selectedValue: viewModel.labPriority)
+                                    priorityButton(title: "Medium", value: "medium", selectedValue: viewModel.labPriority)
+                                    priorityButton(title: "High", value: "high", selectedValue: viewModel.labPriority)
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Date & Time")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                VStack(spacing: 8) {
                                     HStack {
-                                        Image(systemName: viewModel.selectedLabTests.contains(testType.testTypeId) ? "checkmark.square.fill" : "square")
-                                            .foregroundColor(viewModel.selectedLabTests.contains(testType.testTypeId) ? primaryColor : .gray)
-                                            .font(.system(size: 20))
+                                        Image(systemName: "calendar")
+                                            .foregroundColor(primaryColor)
                                         
-                                        Text(testType.testName)
-                                            .foregroundColor(.primary)
-                                        
-                                        Spacer()
+                                        // Restrict past dates
+                                        DatePicker(
+                                            "Test Date",
+                                            selection: $viewModel.labTestDateTime,
+                                            in: Date()..., // Restrict past dates
+                                            displayedComponents: .date
+                                        )
+                                        .labelsHidden()
+                                        .datePickerStyle(.compact)
                                     }
-                                    .contentShape(Rectangle())
-                                    .padding(.vertical, 12)
-                                    .padding(.horizontal, 8)
-                                }
-                                
-                                if testType.id != viewModel.labTestTypes.last?.id {
-                                    Divider().padding(.leading, 36)
-                                }
-                            }
-                        }
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(colorScheme == .dark ? Color(UIColor.secondarySystemBackground) : Color(UIColor.tertiarySystemBackground))
-                        )
-                    }
-                }
-                
-                // Improved Lab test details
-                ConsultationCard {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Lab Test Details")
-                            .font(.headline)
-                            .foregroundColor(primaryColor)
-                        
-                        // Priority selector
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Priority")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            HStack(spacing: 12) {
-                                priorityButton(title: "Low", value: "low", selectedValue: viewModel.labPriority)
-                                priorityButton(title: "Medium", value: "medium", selectedValue: viewModel.labPriority)
-                                priorityButton(title: "High", value: "high", selectedValue: viewModel.labPriority)
-                            }
-                        }
-                        
-                        Divider()
-                        
-                        // Improved Date & Time picker
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Date & Time")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            VStack(spacing: 8) {
-                                HStack {
-                                    Image(systemName: "calendar")
-                                        .foregroundColor(primaryColor)
+                                    .padding(10)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(colorScheme == .dark ? Color(UIColor.tertiarySystemBackground) : Color(UIColor.secondarySystemBackground))
+                                    )
                                     
-                                    DatePicker("Test Date", selection: $viewModel.labTestDateTime, displayedComponents: .date)
+                                    HStack {
+                                        Image(systemName: "clock")
+                                            .foregroundColor(primaryColor)
+                                        
+                                        DatePicker(
+                                            "Test Time",
+                                            selection: $viewModel.labTestDateTime,
+                                            displayedComponents: .hourAndMinute
+                                        )
                                         .labelsHidden()
                                         .datePickerStyle(.compact)
+                                    }
+                                    .padding(10)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(colorScheme == .dark ? Color(UIColor.tertiarySystemBackground) : Color(UIColor.secondarySystemBackground))
+                                    )
                                 }
-                                .padding(10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(colorScheme == .dark ? Color(UIColor.tertiarySystemBackground) : Color(UIColor.secondarySystemBackground))
-                                )
-                                
-                                HStack {
-                                    Image(systemName: "clock")
-                                        .foregroundColor(primaryColor)
-                                    
-                                    DatePicker("Test Time", selection: $viewModel.labTestDateTime, displayedComponents: .hourAndMinute)
-                                        .labelsHidden()
-                                        .datePickerStyle(.compact)
-                                }
-                                .padding(10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(colorScheme == .dark ? Color(UIColor.tertiarySystemBackground) : Color(UIColor.secondarySystemBackground))
-                                )
                             }
                         }
                     }
                 }
+                .padding(16)
             }
-            .padding(16)
         }
-    }
     
     // MARK: - Helper Views
     
