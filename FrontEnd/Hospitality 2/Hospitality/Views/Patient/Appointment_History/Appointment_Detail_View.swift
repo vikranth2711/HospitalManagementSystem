@@ -7,7 +7,7 @@ struct AppointmentDetailView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var activeTab: DetailTab = .overview
     @State private var showingRescheduleView = false
-    
+    @State private var showingFeedbackView = false
     
     enum DetailTab {
         case overview, diagnosis, prescription, vitals, profile
@@ -87,6 +87,26 @@ struct AppointmentDetailView: View {
                         }
                         .padding(.vertical)
                     }
+                    
+                    // Feedback button (only shown for completed appointments)
+                    if appointment.status.lowercased() == "completed" {
+                        Button(action: {
+                            showingFeedbackView = true
+                        }) {
+                            HStack {
+                                Image(systemName: "star.fill")
+                                Text("Leave Feedback")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                            .padding(.horizontal)
+                            .padding(.bottom, 8)
+                        }
+                    }
                 }
             }
             .navigationTitle("Appointment Details")
@@ -143,6 +163,9 @@ struct AppointmentDetailView: View {
                         showingRescheduleView = false
                     }
                 )
+            }
+            .sheet(isPresented: $showingFeedbackView) {
+                FeedbackView(appointmentId: appointment.appointmentId)
             }
         }
     }

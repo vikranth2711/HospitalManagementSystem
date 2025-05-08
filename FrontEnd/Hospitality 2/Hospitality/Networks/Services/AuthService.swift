@@ -356,6 +356,15 @@ struct TestResultResponsefetch: Codable {
     let hemoglobin: Double?
 }
 
+struct FeedbackRequest: Codable {
+    let rating: Int
+    let rating_comment: String
+}
+
+struct FeedbackResponse: Codable {
+    let message: String
+}
+
 class AuthService {
     static let shared = AuthService()
     static let baseURL = Constants.baseURL
