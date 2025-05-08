@@ -204,3 +204,93 @@ struct DoctorResponse {
         let lab_type: String
     }
 }
+
+struct AppointmentDetailResponse: Codable {
+    let appointmentId: Int
+    let date: String
+    let slotId: Int
+    let staffId: String
+    let patientId: Int
+    let status: String
+    let reason: String?
+    let prescription: PrescriptionDetail?
+    let diagnosis: DiagnosisDetail?
+    
+    enum CodingKeys: String, CodingKey {
+        case appointmentId = "appointment_id"
+        case date
+        case slotId = "slot_id"
+        case staffId = "staff_id"
+        case patientId = "patient_id"
+        case status
+        case reason
+        case prescription
+        case diagnosis
+    }
+}
+
+struct PrescriptionDetail: Codable {
+    let prescriptionId: Int
+    let remarks: String?
+    let medicines: [MedicineDetail]?
+    
+    enum CodingKeys: String, CodingKey {
+        case prescriptionId = "prescription_id"
+        case remarks
+        case medicines
+    }
+}
+
+struct MedicineDetail: Codable, Identifiable {
+    var id = UUID()
+    let medicineName: String
+    let dosage: DosageDetail
+    let fastingRequired: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case medicineName = "medicine_name"
+        case dosage
+        case fastingRequired = "fasting_required"
+    }
+}
+
+struct DosageDetail: Codable {
+    let evening: Int?
+    let morning: Int?
+    let afternoon: Int?
+}
+
+struct DiagnosisDetail: Codable {
+    let diagnosisId: Int
+    let diagnosisData: [DiagnosisDataDetail]?
+    let labTestRequired: Bool
+    let followUpRequired: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case diagnosisId = "diagnosis_id"
+        case diagnosisData = "diagnosis_data"
+        case labTestRequired = "lab_test_required"
+        case followUpRequired = "follow_up_required"
+    }
+}
+
+struct DiagnosisDataDetail: Codable, Identifiable {
+    let id: String // Use a computed property or generate locally
+    let organ: String?
+    let symptoms: [String]
+    let notes: String?
+
+    // Generate a unique ID locally since the API doesn't provide one
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.organ = try container.decodeIfPresent(String.self, forKey: .organ)
+        self.symptoms = try container.decode([String].self, forKey: .symptoms)
+        self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        self.id = UUID().uuidString // Generate a unique ID
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case organ, symptoms, notes
+        // Note: 'id' is not included since it's not in the JSON
+    }
+}

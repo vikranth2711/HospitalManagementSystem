@@ -375,10 +375,34 @@ struct PatientDoctorDetailView: View {
             return
         }
         
-        // Validate reason field is not empty
+        // Validate inputs
         let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedReason.isEmpty {
+        guard !trimmedReason.isEmpty else {
             reasonError = "Please enter a reason for your visit"
+            return
+        }
+        
+        guard selectedDate > Date() else {
+            errorMessage = "Please select a future date"
+            showConfirmation = true
+            return
+        }
+        
+        guard !doctorId.isEmpty else {
+            errorMessage = "Invalid doctor selection"
+            showConfirmation = true
+            return
+        }
+        
+        guard selectedSlot.slot_id > 0 else {
+            errorMessage = "Invalid time slot"
+            showConfirmation = true
+            return
+        }
+        
+        guard let token = UserDefaults.standard.string(forKey: "accessToken"), !token.isEmpty else {
+            errorMessage = "Authentication token missing"
+            showConfirmation = true
             return
         }
         
@@ -396,7 +420,8 @@ struct PatientDoctorDetailView: View {
         )
         
         guard let url = URL(string: "\(Constants.baseURL)/hospital/general/appointments/") else {
-            errorMessage = "Invalid URL"
+            errorMessage = "Invalid URL: \(Constants.baseURL)"
+            print("DEBUG: Failed to create URL from \(Constants.baseURL)")
             isLoading = false
             showConfirmation = true
             return
@@ -405,12 +430,17 @@ struct PatientDoctorDetailView: View {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         do {
-            request.httpBody = try JSONEncoder().encode(requestBody)
+            let bodyData = try JSONEncoder().encode(requestBody)
+            request.httpBody = bodyData
+            if let jsonString = String(data: bodyData, encoding: .utf8) {
+                print("DEBUG: Request Body: \(jsonString)")
+            }
         } catch {
             errorMessage = "Failed to encode request: \(error.localizedDescription)"
+            print("DEBUG: Encoding error: \(error)")
             isLoading = false
             showConfirmation = true
             return
@@ -422,6 +452,7 @@ struct PatientDoctorDetailView: View {
                 
                 if let error = error {
                     errorMessage = "Network error: \(error.localizedDescription)"
+                    print("DEBUG: Network error: \(error)")
                     appointmentSuccess = false
                     showConfirmation = true
                     return
@@ -429,24 +460,46 @@ struct PatientDoctorDetailView: View {
                 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     errorMessage = "Invalid response"
+                    print("DEBUG: Invalid response: \(String(describing: response))")
                     appointmentSuccess = false
                     showConfirmation = true
                     return
                 }
                 
+                guard let data = data else {
+                    errorMessage = "No data received"
+                    print("DEBUG: No data in response")
+                    appointmentSuccess = false
+                    showConfirmation = true
+                    return
+                }
+                
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("DEBUG: Response Data: \(responseString)")
+                }
+                
                 if httpResponse.statusCode == 400 {
-                    // Try to parse specific error message from API
-                    if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         if let errorMsg = json["error"] as? String {
                             errorMessage = errorMsg
                         } else if let errors = json["errors"] as? [String: Any], let reasonErrors = errors["reason"] as? [String] {
                             errorMessage = reasonErrors.joined(separator: ", ")
                         } else {
-                            errorMessage = "Invalid appointment details"
+                            errorMessage = "Invalid appointment details. Please check your inputs."
                         }
                     } else {
-                        errorMessage = "Invalid appointment details"
+                        errorMessage = "Invalid appointment details. Please try again."
                     }
+                    appointmentSuccess = false
+                    showConfirmation = true
+                    return
+                } else if httpResponse.statusCode == 401 {
+                    errorMessage = "Authentication failed. Please log in again."
+                    appointmentSuccess = false
+                    showConfirmation = true
+                    return
+                } else if httpResponse.statusCode == 403 {
+                    errorMessage = "You are not authorized to book this appointment."
                     appointmentSuccess = false
                     showConfirmation = true
                     return
@@ -455,28 +508,33 @@ struct PatientDoctorDetailView: View {
                     appointmentSuccess = false
                     showConfirmation = true
                     return
+                } else if httpResponse.statusCode == 500 {
+                    errorMessage = "Server error. Please try again later."
+                    appointmentSuccess = false
+                    showConfirmation = true
+                    return
                 } else if !(200...299).contains(httpResponse.statusCode) {
-                    errorMessage = "Server error: \(httpResponse.statusCode)"
+                    errorMessage = "Unexpected error: \(httpResponse.statusCode)"
                     appointmentSuccess = false
                     showConfirmation = true
                     return
                 }
                 
-                // Success case
                 do {
-                    let response = try JSONDecoder().decode(PatientAppointResponse.self, from: data!)
-                    print("Appointment booked successfully with ID: \(response.appointment_id)")
+                    let response = try JSONDecoder().decode(PatientAppointResponse.self, from: data)
+                    print("DEBUG: Appointment booked successfully with ID: \(response.appointment_id)")
+                    print("DEBUG: Decoded Response: \(response)")
                     appointmentSuccess = true
                     showConfirmation = true
                 } catch {
                     errorMessage = "Failed to parse response: \(error.localizedDescription)"
+                    print("DEBUG: Decoding error: \(error)")
                     appointmentSuccess = false
                     showConfirmation = true
                 }
             }
         }.resume()
-    }
-}
+    }}
 
 struct SlotButton: View {
     let slot: PatientSlotListResponse
