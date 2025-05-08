@@ -828,8 +828,8 @@ class AppointmentRatingView(APIView):
         )
         
         serializer = AppointmentRatingSerializer(appointment_rating)
-        return Response(serializer.data, status=201)
-    
+        #return Response(serializer.data, status=201)
+        return Response({"message": "Rating created successfully"}, status=201)
     def get(self, request, appointment_id):
         """Get rating for an appointment"""
         # Check if appointment exists

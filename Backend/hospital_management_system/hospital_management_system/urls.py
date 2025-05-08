@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/accounts/', include('accounts.urls')),      # OTP signup/login endpoints
     path('api/hospital/', include('hospital.urls')),        # Hospital API endpoints
     path('api/transactions/', include('transactions.urls')),    # Transaction API endpoints
+    path('api/machine-learning/', include('machine_learning.urls')),    # Machine Learning API endpoints
 ]
 
 if settings.DEBUG:
