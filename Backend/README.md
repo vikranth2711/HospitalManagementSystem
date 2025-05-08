@@ -228,26 +228,62 @@
   }
   ```
 
+
 ### Update Patient Profile
 
 - **URL**: `/api/accounts/patient/update-profile/`
 - **Method**: PUT
-- **Authentication**: Required
-- **Description**: Updates the patient's profile information
-- **Request Body**:
-  ```json
-  {
-    "patient_name": "John Smith",
-    "patient_mobile": "9876543211",
-    "address": "456 New St, City"
-  }
-  ```
-- **Response**: 
-  ```json
-  {
-    "message": "Profile updated successfully"
-  }
-  ```
+- **Authentication**: Required (Patient only)
+- **Description**: Updates a patient's profile information including name, mobile number, date of birth, gender, blood group, and address
+
+#### Request
+
+##### Headers
+- `Authorization`: JWT token for authentication
+- `Content-Type`: `multipart/form-data`
+
+##### Body Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `patient_name` | String | No | Patient's full name |
+| `patient_mobile` | String | No | Patient's mobile number |
+| `patient_dob` | String | No | Patient's date of birth in format YYYY-MM-DD |
+| `patient_gender` | String/Boolean | No | Patient's gender (true/1/male for male, false/0/female for female) |
+| `patient_blood_group` | String | No | Patient's blood group (e.g., A+, B-, O+) |
+| `patient_address` | String | No | Patient's residential address |
+
+#### Response
+
+##### Success Response (200 OK)
+```json
+{
+  "message": "Profile updated successfully",
+  "created": false,
+  "success": true
+}
+```
+
+The `created` field indicates whether a new PatientDetails record was created (true) or an existing one was updated (false).
+
+##### Error Responses
+
+###### 400 Bad Request
+```json
+{"error": "Missing required fields"}
+```
+
+```json
+{"error": "Invalid date format. Use YYYY-MM-DD"}
+```
+
+```json
+{"error": "Mobile number already in use"}
+```
+
+###### 403 Forbidden
+```json
+{"error": "Not a patient account"}
+```
 
 ### Update Patient Photo
 
