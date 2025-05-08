@@ -1,26 +1,25 @@
 //
-//  DocProfile.swift
+//  LabTechProfile.swift
 //  Hospitality
 //
-//  Created by admin@33 on 28/04/25.
+//  Created by admin@33 on 08/05/25.
 //
 
 import SwiftUI
 import UIKit
 
-struct DoctorProfileView: View {
+struct LabTechProfileView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @State private var showLogoutConfirmation = false
     @State private var isLoading = true
-    @State private var doctorData: DoctorProfile?
+    @State private var labTechData: LabTechProfile?
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var isUploadingImage = false
     @State private var showAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
-    @State private var showEditView = false
     
     // Color palette
     private let primaryColor = Color(hex: "4A90E2")
@@ -75,7 +74,7 @@ struct DoctorProfileView: View {
                         .padding(.bottom, 30)
                     }
                     .refreshable {
-                        fetchDoctorProfile()
+                        fetchLabTechProfile()
                     }
                 }
             }
@@ -114,7 +113,7 @@ struct DoctorProfileView: View {
                 Text("Are you sure you want to log out?")
             }
             .onAppear {
-                fetchDoctorProfile()
+                fetchLabTechProfile()
             }
         }
     }
@@ -126,7 +125,7 @@ struct DoctorProfileView: View {
             showImagePicker = true
         }) {
             ZStack(alignment: .bottomTrailing) {
-                if let photo = doctorData?.profile_photo,
+                if let photo = labTechData?.profile_photo,
                    let urlString = photo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                    let url = URL(string: urlString),
                    !photo.isEmpty {
@@ -188,11 +187,11 @@ struct DoctorProfileView: View {
             // Name and Email
             HStack {
                 VStack(alignment: .center, spacing: 4) {
-                    Text(doctorData?.staff_name ?? "Name")
+                    Text(labTechData?.staff_name ?? "Name")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C3E50"))
                     
-                    Text(doctorData?.staff_email ?? "Email")
+                    Text(labTechData?.staff_email ?? "Email")
                         .font(.system(size: 16))
                         .foregroundColor(.secondary)
                 }
@@ -208,23 +207,23 @@ struct DoctorProfileView: View {
             HStack(spacing: 12) {
                 InfoPill(
                     title: "ID",
-                    value: doctorData?.staff_id ?? "N/A",
+                    value: labTechData?.staff_id ?? "N/A",
                     icon: "number",
                     color: primaryColor
                 )
                 
                 InfoPill(
                     title: "Role",
-                    value: doctorData?.role.role_name ?? "N/A",
+                    value: labTechData?.role.role_name ?? "N/A",
                     icon: "person.fill",
                     color: successColor
                 )
                 
                 InfoPill(
                     title: "Status",
-                    value: doctorData?.on_leave == true ? "On Leave" : "Active",
+                    value: labTechData?.on_leave == true ? "On Leave" : "Active",
                     icon: "circle.fill",
-                    color: doctorData?.on_leave == true ? warningColor : successColor
+                    color: labTechData?.on_leave == true ? warningColor : successColor
                 )
             }
             .padding(.vertical, 20)
@@ -234,9 +233,9 @@ struct DoctorProfileView: View {
             
             // Additional Details
             VStack(alignment: .leading, spacing: 16) {
-                DetailRow(icon: "calendar", label: "Date of Birth", value: formatDate(doctorData?.staff_dob ?? ""))
-                DetailRow(icon: "phone.fill", label: "Mobile", value: doctorData?.staff_mobile ?? "Not provided")
-                DetailRow(icon: "mappin.and.ellipse", label: "Address", value: doctorData?.staff_address ?? "Not provided")
+                DetailRow(icon: "calendar", label: "Date of Birth", value: formatDate(labTechData?.staff_dob))
+                DetailRow(icon: "phone.fill", label: "Mobile", value: labTechData?.staff_mobile ?? "Not provided")
+                DetailRow(icon: "mappin.and.ellipse", label: "Address", value: labTechData?.staff_address ?? "Not provided")
             }
             .padding(.vertical, 20)
             .padding(.horizontal, 24)
@@ -254,7 +253,7 @@ struct DoctorProfileView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Image(systemName: "stethoscope")
+                        Image(systemName: "testtube.2")
                             .font(.system(size: 24))
                             .foregroundColor(primaryColor)
                         
@@ -263,7 +262,7 @@ struct DoctorProfileView: View {
                             .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C3E50"))
                     }
                     
-                    Text("Doctor's professional information")
+                    Text("Lab technician information")
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
                 }
@@ -276,12 +275,8 @@ struct DoctorProfileView: View {
             
             // Professional Details
             VStack(alignment: .leading, spacing: 16) {
-                DetailRow(icon: "graduationcap.fill", label: "Qualification", value: doctorData?.staff_qualification ?? "Not provided")
-                DetailRow(icon: "cross.case.fill", label: "Specialization", value: doctorData?.doctor_specialization ?? "Not provided")
-                DetailRow(icon: "doc.text.fill", label: "License", value: doctorData?.doctor_license ?? "Not provided")
-                DetailRow(icon: "clock.fill", label: "Experience", value: "\(doctorData?.doctor_experience_years ?? 0) years")
-                DetailRow(icon: "person.fill", label: "Doctor Type", value: doctorData?.doctor_type.doctor_type ?? "Not provided")
-                DetailRow(icon: "calendar.badge.plus", label: "Joined On", value: formatDate(doctorData?.created_at ?? ""))
+                DetailRow(icon: "graduationcap.fill", label: "Qualification", value: labTechData?.staff_qualification ?? "Not provided")
+                DetailRow(icon: "calendar.badge.plus", label: "Joined On", value: formatDate(labTechData?.created_at))
             }
             .padding(.vertical, 20)
             .padding(.horizontal, 24)
@@ -348,7 +343,7 @@ struct DoctorProfileView: View {
     struct DetailRow: View {
         let icon: String
         let label: String
-        let value: String
+        let value: String?
 
         var body: some View {
             HStack(spacing: 16) {
@@ -362,7 +357,7 @@ struct DoctorProfileView: View {
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
                     
-                    Text(value)
+                    Text(value ?? "Not provided")
                         .font(.system(size: 16))
                         .foregroundColor(.primary)
                 }
@@ -374,7 +369,7 @@ struct DoctorProfileView: View {
 
     // MARK: - Functions
 
-    private func fetchDoctorProfile() {
+    private func fetchLabTechProfile() {
         isLoading = true
         
         guard let url = URL(string: "\(Constants.baseURL)/hospital/staff/profile/") else {
@@ -406,8 +401,8 @@ struct DoctorProfileView: View {
                 
                 do {
                     let decoder = JSONDecoder()
-                    let profile = try decoder.decode(DoctorProfile.self, from: data)
-                    self.doctorData = profile
+                    let profile = try decoder.decode(LabTechProfile.self, from: data)
+                    self.labTechData = profile
                 } catch {
                     showAlert(title: "Parsing Error", message: "Could not parse profile data: \(error.localizedDescription)")
                 }
@@ -476,7 +471,7 @@ struct DoctorProfileView: View {
                 
                 if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
                     self.showAlert(title: "Success", message: "Profile photo updated successfully")
-                    self.fetchDoctorProfile()
+                    self.fetchLabTechProfile()
                 } else {
                     self.showAlert(title: "Upload Failed", message: "Server returned status code: \(httpResponse.statusCode)")
                 }
@@ -498,7 +493,11 @@ struct DoctorProfileView: View {
         self.showAlert = true
     }
 
-    private func formatDate(_ dateString: String) -> String {
+    private func formatDate(_ dateString: String?) -> String {
+        guard let dateString = dateString else {
+            return "Not provided"
+        }
+        
         let inputFormatter = DateFormatter()
         inputFormatter.dateFormat = "yyyy-MM-dd"
         
@@ -513,34 +512,25 @@ struct DoctorProfileView: View {
 }
 
 // MARK: - Models
-struct DoctorProfile: Codable {
-    let staff_id: String
-    let staff_name: String
-    let staff_email: String
+struct LabTechProfile: Codable {
+    let staff_id: String?
+    let staff_name: String?
+    let staff_email: String?
     let staff_mobile: String?
-    let role: RoleDoc
-    let created_at: String
-    let on_leave: Bool
-    let staff_dob: String
+    let role: StaffRole
+    let created_at: String?
+    let on_leave: Bool?
+    let staff_dob: String?
     let staff_address: String?
     let staff_qualification: String?
     let profile_photo: String?
-    let doctor_specialization: String?
-    let doctor_license: String?
-    let doctor_experience_years: Int?
-    let doctor_type: DoctorTypeDoc
 }
 
-struct RoleDoc: Codable {
+struct StaffRole: Codable {
     let role_id: Int
     let role_name: String
 }
 
-struct DoctorTypeDoc: Codable {
-    let doctor_type_id: Int
-    let doctor_type: String
-}
-
 #Preview {
-    DoctorProfileView()
+    LabTechProfileView()
 }

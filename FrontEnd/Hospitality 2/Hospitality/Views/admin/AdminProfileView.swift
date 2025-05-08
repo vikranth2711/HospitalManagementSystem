@@ -1,19 +1,19 @@
 //
-//  DocProfile.swift
+//  AdminProfileView.swift
 //  Hospitality
 //
-//  Created by admin@33 on 28/04/25.
+//  Created by admin@33 on 08/05/25.
 //
 
 import SwiftUI
 import UIKit
 
-struct DoctorProfileView: View {
+struct AdminProfileView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @State private var showLogoutConfirmation = false
     @State private var isLoading = true
-    @State private var doctorData: DoctorProfile?
+    @State private var adminData: AdminProfile?
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var isUploadingImage = false
@@ -64,8 +64,11 @@ struct DoctorProfileView: View {
                             // Profile Card
                             profileDetailsCard
                             
-                            // Professional Details Card
-                            professionalDetailsCard
+                            // Admin Details Card
+                            adminDetailsCard
+                            
+                            // Permissions Card
+                            permissionsCard
                             
                             // Logout Button
                             logoutButton
@@ -75,11 +78,11 @@ struct DoctorProfileView: View {
                         .padding(.bottom, 30)
                     }
                     .refreshable {
-                        fetchDoctorProfile()
+                        fetchAdminProfile()
                     }
                 }
             }
-            .navigationTitle("My Profile")
+            .navigationTitle("Admin Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -114,7 +117,7 @@ struct DoctorProfileView: View {
                 Text("Are you sure you want to log out?")
             }
             .onAppear {
-                fetchDoctorProfile()
+                fetchAdminProfile()
             }
         }
     }
@@ -126,7 +129,7 @@ struct DoctorProfileView: View {
             showImagePicker = true
         }) {
             ZStack(alignment: .bottomTrailing) {
-                if let photo = doctorData?.profile_photo,
+                if let photo = adminData?.profile_photo,
                    let urlString = photo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                    let url = URL(string: urlString),
                    !photo.isEmpty {
@@ -188,11 +191,11 @@ struct DoctorProfileView: View {
             // Name and Email
             HStack {
                 VStack(alignment: .center, spacing: 4) {
-                    Text(doctorData?.staff_name ?? "Name")
+                    Text(adminData?.staff_name ?? "Name")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C3E50"))
                     
-                    Text(doctorData?.staff_email ?? "Email")
+                    Text(adminData?.staff_email ?? "Email")
                         .font(.system(size: 16))
                         .foregroundColor(.secondary)
                 }
@@ -208,23 +211,23 @@ struct DoctorProfileView: View {
             HStack(spacing: 12) {
                 InfoPill(
                     title: "ID",
-                    value: doctorData?.staff_id ?? "N/A",
+                    value: adminData?.staff_id ?? "N/A",
                     icon: "number",
                     color: primaryColor
                 )
                 
                 InfoPill(
                     title: "Role",
-                    value: doctorData?.role.role_name ?? "N/A",
+                    value: adminData?.role.role_name ?? "N/A",
                     icon: "person.fill",
                     color: successColor
                 )
                 
                 InfoPill(
-                    title: "Status",
-                    value: doctorData?.on_leave == true ? "On Leave" : "Active",
-                    icon: "circle.fill",
-                    color: doctorData?.on_leave == true ? warningColor : successColor
+                    title: "Admin",
+                    value: adminData?.role.permissions.is_admin == true ? "Yes" : "No",
+                    icon: "shield.fill",
+                    color: adminData?.role.permissions.is_admin == true ? successColor : warningColor
                 )
             }
             .padding(.vertical, 20)
@@ -234,9 +237,9 @@ struct DoctorProfileView: View {
             
             // Additional Details
             VStack(alignment: .leading, spacing: 16) {
-                DetailRow(icon: "calendar", label: "Date of Birth", value: formatDate(doctorData?.staff_dob ?? ""))
-                DetailRow(icon: "phone.fill", label: "Mobile", value: doctorData?.staff_mobile ?? "Not provided")
-                DetailRow(icon: "mappin.and.ellipse", label: "Address", value: doctorData?.staff_address ?? "Not provided")
+                DetailRow(icon: "calendar", label: "Date of Birth", value: formatDate(adminData?.staff_dob ?? ""))
+                DetailRow(icon: "phone.fill", label: "Mobile", value: adminData?.staff_mobile ?? "Not provided")
+                DetailRow(icon: "mappin.and.ellipse", label: "Address", value: adminData?.staff_address ?? "Not provided")
             }
             .padding(.vertical, 20)
             .padding(.horizontal, 24)
@@ -248,22 +251,22 @@ struct DoctorProfileView: View {
         )
     }
 
-    private var professionalDetailsCard: some View {
+    private var adminDetailsCard: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Image(systemName: "stethoscope")
+                        Image(systemName: "person.badge.key.fill")
                             .font(.system(size: 24))
                             .foregroundColor(primaryColor)
                         
-                        Text("Professional Details")
+                        Text("Admin Details")
                             .font(.system(size: 22, weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C3E50"))
                     }
                     
-                    Text("Doctor's professional information")
+                    Text("Administrative information")
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
                 }
@@ -274,14 +277,10 @@ struct DoctorProfileView: View {
             .padding(.top, 20)
             .padding(.bottom, 16)
             
-            // Professional Details
+            // Admin Details
             VStack(alignment: .leading, spacing: 16) {
-                DetailRow(icon: "graduationcap.fill", label: "Qualification", value: doctorData?.staff_qualification ?? "Not provided")
-                DetailRow(icon: "cross.case.fill", label: "Specialization", value: doctorData?.doctor_specialization ?? "Not provided")
-                DetailRow(icon: "doc.text.fill", label: "License", value: doctorData?.doctor_license ?? "Not provided")
-                DetailRow(icon: "clock.fill", label: "Experience", value: "\(doctorData?.doctor_experience_years ?? 0) years")
-                DetailRow(icon: "person.fill", label: "Doctor Type", value: doctorData?.doctor_type.doctor_type ?? "Not provided")
-                DetailRow(icon: "calendar.badge.plus", label: "Joined On", value: formatDate(doctorData?.created_at ?? ""))
+                DetailRow(icon: "graduationcap.fill", label: "Qualification", value: adminData?.staff_qualification ?? "Not provided")
+                DetailRow(icon: "calendar.badge.plus", label: "Joined On", value: formatDate(adminData?.created_at ?? ""))
             }
             .padding(.vertical, 20)
             .padding(.horizontal, 24)
@@ -291,6 +290,84 @@ struct DoctorProfileView: View {
                 .fill(Color.white)
                 .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
         )
+    }
+    
+    private var permissionsCard: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(primaryColor)
+                        
+                        Text("Permissions")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C3E50"))
+                    }
+                    
+                    Text("Administrative permissions")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
+            
+            // Permissions
+            VStack(spacing: 12) {
+                PermissionRow(
+                    icon: "person.3.fill",
+                    title: "Create Admins",
+                    isEnabled: adminData?.role.permissions.can_create_admin == true
+                )
+                
+                PermissionRow(
+                    icon: "person.fill.badge.plus",
+                    title: "Manage Roles",
+                    isEnabled: adminData?.role.permissions.can_manage_roles == true
+                )
+                
+                PermissionRow(
+                    icon: "stethoscope",
+                    title: "Manage Doctors",
+                    isEnabled: adminData?.role.permissions.can_manage_doctors == true
+                )
+                
+                PermissionRow(
+                    icon: "testtube.2",
+                    title: "Manage Lab Techs",
+                    isEnabled: adminData?.role.permissions.can_manage_lab_techs == true
+                )
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 24)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
+        )
+    }
+
+    // MARK: - Format Date
+    private func formatDate(_ dateString: String) -> String {
+        guard !dateString.isEmpty else { return "Not provided" }
+        
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        
+        guard let date = inputFormatter.date(from: dateString) else {
+            return "Not provided"
+        }
+        
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "MMM d, yyyy"
+        return outputFormatter.string(from: date)
     }
     
     private var logoutButton: some View {
@@ -371,13 +448,41 @@ struct DoctorProfileView: View {
             }
         }
     }
+    
+    struct PermissionRow: View {
+        let icon: String
+        let title: String
+        let isEnabled: Bool
+        
+        var body: some View {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(isEnabled ? Color(hex: "38A169") : Color(hex: "E53E3E"))
+                    .frame(width: 20)
+                
+                Text(title)
+                    .font(.system(size: 16))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Image(systemName: isEnabled ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(isEnabled ? Color(hex: "38A169") : Color(hex: "E53E3E"))
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isEnabled ? Color(hex: "38A169").opacity(0.1) : Color(hex: "E53E3E").opacity(0.1))
+            )
+        }
+    }
 
-    // MARK: - Functions
-
-    private func fetchDoctorProfile() {
+    private func fetchAdminProfile() {
         isLoading = true
         
-        guard let url = URL(string: "\(Constants.baseURL)/hospital/staff/profile/") else {
+        guard let url = URL(string: "\(Constants.baseURL)/hospital/admin/profile/") else {
             isLoading = false
             showAlert(title: "Error", message: "Invalid URL")
             return
@@ -390,12 +495,32 @@ struct DoctorProfileView: View {
             request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
         }
         
+        print("Request URL: \(url.absoluteString)")
+        print("Authorization Header: Bearer \(UserDefaults.accessToken)")
+        
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 isLoading = false
                 
                 if let error = error {
+                    print("Network Error: \(error.localizedDescription)")
                     showAlert(title: "Network Error", message: error.localizedDescription)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("Invalid response")
+                    showAlert(title: "Error", message: "Invalid response from server")
+                    return
+                }
+                
+                print("Status Code: \(httpResponse.statusCode)")
+                if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                    print("Response Data: \(responseString)")
+                }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    showAlert(title: "Server Error", message: "Server returned status code: \(httpResponse.statusCode)")
                     return
                 }
                 
@@ -406,9 +531,10 @@ struct DoctorProfileView: View {
                 
                 do {
                     let decoder = JSONDecoder()
-                    let profile = try decoder.decode(DoctorProfile.self, from: data)
-                    self.doctorData = profile
+                    let profile = try decoder.decode(AdminProfile.self, from: data)
+                    self.adminData = profile
                 } catch {
+                    print("Parsing Error: \(error)")
                     showAlert(title: "Parsing Error", message: "Could not parse profile data: \(error.localizedDescription)")
                 }
             }
@@ -423,7 +549,7 @@ struct DoctorProfileView: View {
         
         isUploadingImage = true
         
-        guard let url = URL(string: "\(Constants.baseURL)/hospital/staff/update-photo/") else {
+        guard let url = URL(string: "\(Constants.baseURL)/hospital/admin/update-photo/") else {
             isUploadingImage = false
             showAlert(title: "Error", message: "Invalid URL")
             return
@@ -476,7 +602,7 @@ struct DoctorProfileView: View {
                 
                 if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
                     self.showAlert(title: "Success", message: "Profile photo updated successfully")
-                    self.fetchDoctorProfile()
+                    self.fetchAdminProfile()
                 } else {
                     self.showAlert(title: "Upload Failed", message: "Server returned status code: \(httpResponse.statusCode)")
                 }
@@ -497,50 +623,37 @@ struct DoctorProfileView: View {
         self.alertMessage = message
         self.showAlert = true
     }
-
-    private func formatDate(_ dateString: String) -> String {
-        let inputFormatter = DateFormatter()
-        inputFormatter.dateFormat = "yyyy-MM-dd"
-        
-        guard let date = inputFormatter.date(from: dateString) else {
-            return dateString
-        }
-        
-        let outputFormatter = DateFormatter()
-        outputFormatter.dateFormat = "MMM d, yyyy"
-        return outputFormatter.string(from: date)
-    }
 }
 
-// MARK: - Models
-struct DoctorProfile: Codable {
+struct AdminProfile: Codable {
     let staff_id: String
     let staff_name: String
     let staff_email: String
     let staff_mobile: String?
-    let role: RoleDoc
+    let role: AdminRole
     let created_at: String
-    let on_leave: Bool
-    let staff_dob: String
+    let staff_dob: String?
     let staff_address: String?
     let staff_qualification: String?
     let profile_photo: String?
-    let doctor_specialization: String?
-    let doctor_license: String?
-    let doctor_experience_years: Int?
-    let doctor_type: DoctorTypeDoc
 }
 
-struct RoleDoc: Codable {
+struct AdminRole: Codable {
     let role_id: Int
     let role_name: String
+    let permissions: AdminPermissions
 }
 
-struct DoctorTypeDoc: Codable {
-    let doctor_type_id: Int
-    let doctor_type: String
+struct AdminPermissions: Codable {
+    let is_admin: Bool
+    let can_create_admin: Bool
+    let can_manage_roles: Bool
+    let can_manage_doctors: Bool
+    let can_manage_lab_techs: Bool
+    let can_manage_staff: Bool?
+    let can_manage_patients: Bool?
 }
 
 #Preview {
-    DoctorProfileView()
+    AdminProfileView()
 }
