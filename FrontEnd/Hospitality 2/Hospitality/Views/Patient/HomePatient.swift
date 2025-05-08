@@ -1,5 +1,6 @@
 import SwiftUI
 
+// MARK: - SquareScheduleCard View
 struct SquareScheduleCard: View {
     let icon: String
     let title: String
@@ -81,6 +82,9 @@ struct SquareScheduleCard: View {
     }
 }
 
+
+
+// MARK: - AppointmentHistoryCard View
 struct AppointmentHistoryCard: View {
     let appointment: PatientAppointHistoryListResponse
     @Environment(\.colorScheme) var colorScheme
@@ -105,7 +109,6 @@ struct AppointmentHistoryCard: View {
             Divider()
             
             HStack {
-                // Check if staff_id exists and use it directly without optional binding
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Doctor")
                         .font(.caption)
@@ -118,7 +121,6 @@ struct AppointmentHistoryCard: View {
                 
                 Spacer()
                 
-                // Display slot time based on slot ID
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Time")
                         .font(.caption)
@@ -171,24 +173,23 @@ struct AppointmentHistoryCard: View {
     }
     
     private func getTimeForSlot(_ slotId: Int) -> String {
-        // Simple mapping of slot ID to time
-        // You can customize this based on your app's slot timing structure
         switch slotId {
-            case 1: return "9:00 AM - 9:30 AM"
-            case 2: return "9:30 AM - 10:00 AM"
-            case 3: return "10:00 AM - 10:30 AM"
-            case 4: return "10:30 AM - 11:00 AM"
-            case 5: return "11:00 AM - 11:30 AM"
-            case 6: return "11:30 AM - 12:00 PM"
-            case 7: return "2:00 PM - 2:30 PM"
-            case 8: return "2:30 PM - 3:00 PM"
-            case 9: return "3:00 PM - 3:30 PM"
-            case 10: return "3:30 PM - 4:00 PM"
-            default: return "Slot \(slotId)"
+        case 1: return "9:00 AM - 9:30 AM"
+        case 2: return "9:30 AM - 10:00 AM"
+        case 3: return "10:00 AM - 10:30 AM"
+        case 4: return "10:30 AM - 11:00 AM"
+        case 5: return "11:00 AM - 11:30 AM"
+        case 6: return "11:30 AM - 12:00 PM"
+        case 7: return "2:00 PM - 2:30 PM"
+        case 8: return "2:30 PM - 3:00 PM"
+        case 9: return "3:00 PM - 3:30 PM"
+        case 10: return "3:30 PM - 4:00 PM"
+        default: return "Slot \(slotId)"
         }
     }
 }
 
+// MARK: - RefreshableScrollView
 struct RefreshableScrollView<Content: View>: View {
     let onRefresh: (@escaping () -> Void) -> Void
     let content: Content
@@ -218,6 +219,7 @@ struct RefreshableScrollView<Content: View>: View {
     }
 }
 
+// MARK: - HomePatient View
 struct HomePatient: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedTab = 0
@@ -257,46 +259,9 @@ struct HomePatient: View {
             .navigationBarBackButtonHidden(true)
         }
     }
-    
-    private func getSampleAppointments() -> [AppointmentData] {
-        return [
-//            AppointmentData(
-//                doctorName: "Dr. Sarah Johnson",
-//                specialty: "Cardiologist",
-//                date: "Apr 15, 2025",
-//                time: "10:30 AM",
-//                status: .completed,
-//                notes: "Regular checkup, blood pressure normal. Follow-up in 6 months recommended."
-//            ),
-//            AppointmentData(
-//                doctorName: "Dr. Michael Chen",
-//                specialty: "Dermatologist",
-//                date: "Mar 28, 2025",
-//                time: "2:15 PM",
-//                status: .completed,
-//                notes: "Skin condition follow-up, prescribed new medication. Apply topical cream twice daily."
-//            ),
-//            AppointmentData(
-//                doctorName: "Dr. Emily Wilson",
-//                specialty: "Orthopedist",
-//                date: "Apr 25, 2025",
-//                time: "9:00 AM",
-//                status: .upcoming,
-//                notes: "Annual joint assessment. Bring previous X-ray reports if available."
-//            ),
-//            AppointmentData(
-//                doctorName: "Dr. Robert Garcia",
-//                specialty: "Neurologist",
-//                date: "Feb 10, 2025",
-//                time: "1:45 PM",
-//                status: .completed,
-//                notes: "Headache consultation, recommended lifestyle changes."
-//            )
-        ]
-    }
 }
 
-
+// MARK: - HomeContent View
 struct HomeContent: View {
     @State private var appointmentForDetail: DoctorResponse.DocAppointment? = nil
     @State private var showDetailView = false
@@ -312,6 +277,10 @@ struct HomeContent: View {
     @State private var selectedAppointment: AppointmentData?
     @State private var showRescheduleView = false
     @State private var appointmentToReschedule: PatientAppointHistoryListResponse?
+    @State private var patientData: PatientProfile?
+    @State private var profilePhotoOpacity: Double = 0.0
+    
+    private let primaryColor = Color(hex: "4A90E2")
     
     var body: some View {
         ZStack {
@@ -323,8 +292,7 @@ struct HomeContent: View {
                     appointment: appointment,
                     onManageAppointment: {
                         if let appointmentToReschedule = appointmentHistory.first(where: {
-                            $0.status == "upcoming" &&
-                            $0.reason == appointment.notes
+                            $0.status == "upcoming" && $0.reason == appointment.notes
                         }) {
                             self.appointmentToReschedule = appointmentToReschedule
                             withAnimation {
@@ -351,6 +319,7 @@ struct HomeContent: View {
                 iconScale = 1.0
             }
             refreshAppointments()
+            fetchPatientProfile()
         }
         .sheet(isPresented: $showRescheduleView) {
             if let appointment = appointmentToReschedule {
@@ -436,20 +405,62 @@ struct HomeContent: View {
                         showProfile = true
                     }
                 }) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
-                        .padding(8)
-                        .background(
-                            Circle()
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.blue.opacity(0.1))
-                        )
-                        .scaleEffect(iconScale)
+                    ZStack(alignment: .bottomTrailing) {
+                        profilePlaceholder
+                        
+                        if let photo = patientData?.profile_photo, !photo.isEmpty,
+                           let urlString = photo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                           let url = URL(string: urlString) {
+                            CachedAsyncImage(url: url, cache: UserProfileCache.shared.imageCache) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(colorScheme == .dark ? Color(hex: "2D3748") : .white, lineWidth: 2)
+                                                .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 1)
+                                        )
+                                        .opacity(profilePhotoOpacity)
+                                        .onAppear {
+                                            withAnimation(.easeIn(duration: 0.5)) {
+                                                profilePhotoOpacity = 1.0
+                                            }
+                                        }
+                                case .failure:
+                                    profilePlaceholder
+                                @unknown default:
+                                    profilePlaceholder
+                                }
+                            }
+                        }
+                    }
+                    .scaleEffect(iconScale)
                 }
             }
         }
         .padding(.top, 16)
         .padding(.horizontal)
+    }
+    
+    private var profilePlaceholder: some View {
+        ZStack {
+            Circle()
+                .fill(colorScheme == .dark ? Color(hex: "2D3748").opacity(0.7) : Color.white.opacity(0.9))
+                .frame(width: 60, height: 60)
+                .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 1)
+            
+            Image(systemName: "person.circle.fill")
+                .font(.system(size: 40))
+                .foregroundColor(primaryColor.opacity(0.7))
+        }
+        .overlay(
+            Circle()
+                .stroke(colorScheme == .dark ? Color(hex: "2D3748") : .white, lineWidth: 2)
+        )
     }
     
     private var actionCardsView: some View {
@@ -505,7 +516,6 @@ struct HomeContent: View {
                     refreshAppointments {}
                 }
             } else {
-                // Filter only upcoming appointments
                 let upcomingAppointments = appointmentHistory.filter { $0.status.lowercased() == "upcoming" }
                 
                 if upcomingAppointments.isEmpty {
@@ -515,10 +525,8 @@ struct HomeContent: View {
                         message: "You don't have any upcoming appointments scheduled"
                     )
                 } else {
-                    // Use the same card style as DoctorAppointmentsView
                     VStack(spacing: 12) {
                         ForEach(upcomingAppointments.sorted(by: { $0.appointment_id > $1.appointment_id })) { appointment in
-                            // Convert the PatientAppointHistoryListResponse to DocAppointment format
                             let docAppointment = DoctorResponse.DocAppointment(
                                 appointmentId: appointment.appointment_id,
                                 date: appointment.date,
@@ -529,7 +537,6 @@ struct HomeContent: View {
                             )
                             
                             Button(action: {
-                                // Set the selected appointment and show the detail view
                                 appointmentForDetail = docAppointment
                                 showDetailView = true
                             }) {
@@ -542,30 +549,26 @@ struct HomeContent: View {
                 }
             }
         }
-        // Update sheet to use appointmentForDetail instead of selectedAppointment
         .sheet(isPresented: $showDetailView) {
             if let appointment = appointmentForDetail {
                 AppointmentDetailView(appointment: appointment)
             }
         }
     }
-
-    // Helper function to map slot IDs to time ranges
+    
     private func getTimeForSlot(_ slotId: Int) -> String {
-        // Simple mapping of slot ID to time
-        // You can customize this based on your app's slot timing structure
         switch slotId {
-            case 1: return "9:00 AM - 9:30 AM"
-            case 2: return "9:30 AM - 10:00 AM"
-            case 3: return "10:00 AM - 10:30 AM"
-            case 4: return "10:30 AM - 11:00 AM"
-            case 5: return "11:00 AM - 11:30 AM"
-            case 6: return "11:30 AM - 12:00 PM"
-            case 7: return "2:00 PM - 2:30 PM"
-            case 8: return "2:30 PM - 3:00 PM"
-            case 9: return "3:00 PM - 3:30 PM"
-            case 10: return "3:30 PM - 4:00 PM"
-            default: return "Slot \(slotId)"
+        case 1: return "9:00 AM - 9:30 AM"
+        case 2: return "9:30 AM - 10:00 AM"
+        case 3: return "10:00 AM - 10:30 AM"
+        case 4: return "10:30 AM - 11:00 AM"
+        case 5: return "11:00 AM - 11:30 AM"
+        case 6: return "11:30 AM - 12:00 PM"
+        case 7: return "2:00 PM - 2:30 PM"
+        case 8: return "2:30 PM - 3:00 PM"
+        case 9: return "3:00 PM - 3:30 PM"
+        case 10: return "3:30 PM - 4:00 PM"
+        default: return "Slot \(slotId)"
         }
     }
     
@@ -587,7 +590,7 @@ struct HomeContent: View {
                             doctorName: appointment.staff_id ?? "Unknown",
                             specialty: appointment.reason ?? "Unknown",
                             date: appointment.date,
-                            time: appointment.status ?? "Unknown",
+                            time: getTimeForSlot(appointment.slot_id),
                             notes: appointment.reason ?? "No notes provided"
                         )
                     }
@@ -650,6 +653,41 @@ struct HomeContent: View {
         }.resume()
     }
     
+    private func fetchPatientProfile() {
+        guard let url = URL(string: "\(Constants.baseURL)/accounts/patient/profile/") else {
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        if !UserDefaults.accessToken.isEmpty {
+            request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Profile fetch error: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let data = data else {
+                    print("No profile data received")
+                    return
+                }
+                
+                do {
+                    let decoder = JSONDecoder()
+                    let profile = try decoder.decode(PatientProfile.self, from: data)
+                    self.patientData = profile
+                } catch {
+                    print("Profile parsing error: \(error.localizedDescription)")
+                }
+            }
+        }.resume()
+    }
+    
     private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
         let generator = UIImpactFeedbackGenerator(style: style)
         generator.prepare()
@@ -657,17 +695,18 @@ struct HomeContent: View {
     }
 }
 
+// MARK: - AppointmentData Struct
 struct AppointmentData: Identifiable {
     let id = UUID()
     let doctorName: String
     let specialty: String
     let date: String
     let time: String
-//    let status: AppointmentStatus
     let notes: String
 }
+
+// MARK: - AppointmentDetailOverlay View
 struct AppointmentDetailOverlay: View {
-//    let appointment: DoctorResponse.DocAppointment
     let appointment: AppointmentData
     let onManageAppointment: () -> Void
     let onDismiss: () -> Void
@@ -691,7 +730,6 @@ struct AppointmentDetailOverlay: View {
                     DetailRow(label: "Specialty", value: appointment.specialty)
                     DetailRow(label: "Date", value: appointment.date)
                     DetailRow(label: "Time", value: appointment.time)
-//                    DetailRow(label: "Status", value: appointment.status.rawValue.capitalized)
                     DetailRow(label: "Notes", value: appointment.notes)
                 }
                 .padding()
@@ -703,21 +741,6 @@ struct AppointmentDetailOverlay: View {
                             radius: 5, x: 0, y: 2
                         )
                 )
-                
-//                if appointment.status == .upcoming {
-//                    Button(action: {
-//                        triggerHaptic()
-//                        onManageAppointment()
-//                    }) {
-//                        Text("Reschedule Appointment")
-//                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-//                            .foregroundColor(.white)
-//                            .padding()
-//                            .frame(maxWidth: .infinity)
-//                            .background(Color.blue)
-//                            .cornerRadius(10)
-//                    }
-//                }
                 
                 Button(action: {
                     triggerHaptic()
@@ -746,6 +769,9 @@ struct AppointmentDetailOverlay: View {
     }
 }
 
+
+
+// MARK: - AppointmentRescheduleView
 struct AppointmentRescheduleView: View {
     let appointmentId: Int
     let doctorId: String
@@ -919,7 +945,7 @@ struct AppointmentRescheduleView: View {
                     title: Text(rescheduleSuccess ? "Success" : "Error"),
                     message: Text(rescheduleSuccess ?
                                   "Your appointment has been rescheduled successfully!" :
-                                    "Failed to reschedule appointment. Please try again."),
+                                  "Failed to reschedule appointment. Please try again."),
                     dismissButton: .default(Text("OK")) {
                         if rescheduleSuccess {
                             onRescheduleComplete()
@@ -1127,4 +1153,8 @@ struct AppointmentRescheduleView: View {
             }
         }.resume()
     }
+}
+
+#Preview {
+    HomePatient()
 }

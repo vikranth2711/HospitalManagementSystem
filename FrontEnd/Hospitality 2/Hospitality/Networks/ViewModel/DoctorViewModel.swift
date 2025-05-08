@@ -17,6 +17,7 @@ class DoctorViewModel: ObservableObject {
        @Published var labTestRecommendationMessage: String = ""
        @Published var recommendedLabTests: [DoctorResponse.RecommendedLabTest] = []
        @Published var labTestDateTime: Date = Date().addingTimeInterval(24 * 60 * 60)
+       @Published var patientData: PatientProfile?
        
        // Lab test recommendation form state
        @Published var selectedTestIds: [Int] = []
@@ -75,6 +76,45 @@ class DoctorViewModel: ObservableObject {
             }
         }
     }
+    
+    //
+    func fetchPatientProfileLab(completion: @escaping (Bool) -> Void) {
+            guard let url = URL(string: "\(Constants.baseURL)/accounts/patient/profile/") else {
+                completion(false)
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            if !UserDefaults.accessToken.isEmpty {
+                request.addValue("Bearer \(UserDefaults.accessToken)", forHTTPHeaderField: "Authorization")
+            }
+
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("Error fetching profile: \(error)")
+                        completion(false)
+                        return
+                    }
+
+                    guard let data = data else {
+                        completion(false)
+                        return
+                    }
+
+                    do {
+                        let decoder = JSONDecoder()
+                        let profile = try decoder.decode(PatientProfile.self, from: data)
+                        self.patientData = profile
+                        completion(true)
+                    } catch {
+                        print("Decoding error: \(error)")
+                        completion(false)
+                    }
+                }
+            }.resume()
+        }
     
     // Fetch Patient Profile
     func fetchPatientProfile(patientId: String) {
