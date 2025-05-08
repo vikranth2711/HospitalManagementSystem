@@ -1720,9 +1720,10 @@ class PayForLabTestsView(APIView):
         
         # Update lab test with transaction
         lab_test.tran = transaction
+        lab_test.status = LabTest.Status.PAID  # Update status to paid
         lab_test.save()
         
-        # Generate invoice for the lab test
+        # Generate invoice for the lab test and change status to paid
         try:
             invoice_type = InvoiceType.objects.get(invoice_type_name='lab_test')
             
@@ -1733,24 +1734,6 @@ class PayForLabTestsView(APIView):
             total = subtotal + tax
             print(lab_test.test_datetime)
             # Create invoice
-            # if lab_test.test_datetime:
-            #     # Convert to string and fix timezone format if needed
-            #     dt_str = str(lab_test.test_datetime)
-            #     if '+00' in dt_str:
-            #         dt_str = dt_str.replace('+00', '+0000')
-                
-            #     try:
-            #         from datetime import datetime
-            #         dt_obj = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S%z')
-            #         date_str = dt_obj.strftime('%Y-%m-%d')
-            #     except Exception:
-            #         # Fallback if parsing fails
-            #         date_str = 'Unknown Date'
-            # else:
-            #     date_str = 'Unknown Date'
-
-            # invoice_remark = f"Invoice for {lab_test.test_type.test_name} on {date_str}"
-            #invoice_remark = "Invoice for Lab Test"
 
             # Then use invoice_remark in your Invoice.objects.create()
 
@@ -1825,6 +1808,7 @@ class AddLabTestResultsView(APIView):
         lab_test.test_result = test_result
         if test_image:
             lab_test.test_image = test_image
+        lab_test.status = LabTest.Status.COMPLETED  # Update status to completed
         lab_test.save()
         
         return Response({
@@ -1841,6 +1825,24 @@ class LabListView(APIView):
         serializer = LabSerializer(labs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+# class LabTestListView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         # Optional filters
+#         lab_id = request.query_params.get('lab_id')
+#         test_type_id = request.query_params.get('test_type_id')
+
+#         queryset = LabTest.objects.all()
+#         if lab_id:
+#             queryset = queryset.filter(lab__lab_id=lab_id)
+#         if test_type_id:
+#             queryset = queryset.filter(test_type__test_type_id=test_type_id)
+
+#         serializer = LabTestSerializer(queryset, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
 class LabTestListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1849,16 +1851,40 @@ class LabTestListView(APIView):
         # Optional filters
         lab_id = request.query_params.get('lab_id')
         test_type_id = request.query_params.get('test_type_id')
+        status = request.query_params.get('status')
 
         queryset = LabTest.objects.all()
+        
+        # Apply filters
         if lab_id:
             queryset = queryset.filter(lab__lab_id=lab_id)
         if test_type_id:
             queryset = queryset.filter(test_type__test_type_id=test_type_id)
+        if status:
+            queryset = queryset.filter(status=status)
+            
+        # For non-admin users, restrict access based on role
+        if hasattr(request.user, 'patient_id'):
+            # Patients can only see their own tests
+            queryset = queryset.filter(appointment__patient=request.user)
+        elif hasattr(request.user, 'staff_id'):
+            try:
+                # Lab technicians can only see paid/completed tests assigned to their lab
+                if hasattr(request.user, 'lab_tech_details'):
+                    assigned_lab = request.user.lab_tech_details.assigned_lab
+                    queryset = queryset.filter(
+                        lab__lab_name=assigned_lab,
+                        status__in=[LabTest.Status.PAID, LabTest.Status.COMPLETED]
+                    )
+                # Doctors can see all tests for their patients
+                elif hasattr(request.user, 'doctor_details'):
+                    queryset = queryset.filter(appointment__staff=request.user)
+            except AttributeError:
+                pass
 
         serializer = LabTestSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
 class PatientRecommendedLabTestsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1930,8 +1956,11 @@ class LabTechnicianAssignedPatientsView(APIView):
         start_datetime_str = request.query_params.get('start_datetime')
         end_datetime_str = request.query_params.get('end_datetime')
 
-        # Get lab tests for the assigned lab
-        lab_tests = LabTest.objects.filter(lab__lab_name=assigned_lab)
+        # Get lab tests for the assigned lab that are paid or completed
+        lab_tests = LabTest.objects.filter(
+            lab__lab_name=assigned_lab,
+            status__in=[LabTest.Status.PAID, LabTest.Status.COMPLETED]
+        )
 
         if start_datetime_str:
             start_datetime = parse_datetime(start_datetime_str)
@@ -1958,6 +1987,7 @@ class LabTechnicianAssignedPatientsView(APIView):
                 "test_datetime": lab_test.test_datetime.isoformat() if lab_test.test_datetime else None,
                 "priority": lab_test.priority,
                 "test_result": lab_test.test_result,
+                "status": lab_test.status,  # Include status in the response
                 "is_paid": lab_test.tran is not None
             })
 
@@ -1969,3 +1999,48 @@ class LabTechnicianAssignedPatientsView(APIView):
             appointment['lab_tests'] = lab_tests_map.get(appointment['appointment_id'], [])
             
         return Response(appointment_data, status=status.HTTP_200_OK)
+
+class UpdateLabTestStatusView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, lab_test_id):
+        # Check if user is a lab technician
+        if not hasattr(request.user, 'staff_id'):
+            return Response({"error": "Only staff can update lab test status"}, status=403)
+            
+        try:
+            lab_tech = request.user.lab_tech_details
+        except (AttributeError, LabTechnicianDetails.DoesNotExist):
+            return Response({"error": "Only lab technicians can update lab test status"}, status=403)
+            
+        # Get the lab test
+        lab_test = get_object_or_404(LabTest, lab_test_id=lab_test_id)
+        
+        # Check if test is paid for
+        if not lab_test.tran or lab_test.status == LabTest.Status.RECOMMENDED:
+            return Response({"error": "This lab test has not been paid for yet"}, status=400)
+            
+        # Get new status
+        new_status = request.data.get("status")
+        reason = request.data.get("reason", "")
+        
+        # Validate status
+        if new_status not in [LabTest.Status.MISSED, LabTest.Status.FAILED]:
+            return Response({"error": "Invalid status. Can only update to 'missed' or 'failed'"}, status=400)
+            
+        # Update lab test status
+        lab_test.status = new_status
+        
+        # Add reason to test_result if provided
+        if reason:
+            if lab_test.test_result is None:
+                lab_test.test_result = {}
+            lab_test.test_result["status_reason"] = reason
+            
+        lab_test.save()
+        
+        return Response({
+            "message": f"Lab test status updated to {new_status}",
+            "lab_test_id": lab_test.lab_test_id
+        }, status=200)

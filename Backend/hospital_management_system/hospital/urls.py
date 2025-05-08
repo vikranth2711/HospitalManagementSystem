@@ -101,7 +101,7 @@ urlpatterns = [
     
     # Patient APIs
     path('general/patient/recommended-lab-tests/', functional_views.PatientRecommendedLabTestsView.as_view(), name='patient-recommended-lab-tests'),
-    
+
     # Doctor URLs
     path('admin/doctors/create/', views.CreateDoctorView.as_view(), name='create-doctor'),
     path('admin/doctors/', views.DoctorListView.as_view(), name='doctor-list'),
@@ -143,6 +143,7 @@ urlpatterns = [
     path('general/appointments/<int:appointment_id>/recommend-lab-tests/', functional_views.RecommendLabTestsView.as_view(), name='recommend-lab-tests'),
     path('general/lab-tests/<int:lab_test_id>/pay/', functional_views.PayForLabTestsView.as_view(), name='pay-for-lab-test'),
     path('general/lab-tests/<int:lab_test_id>/results/', functional_views.AddLabTestResultsView.as_view(), name='add-lab-test-results'),
+    path('general/lab-tests/<int:lab_test_id>/status/', functional_views.UpdateLabTestStatusView.as_view(), name='update-lab-test-status'),
 
     # Lab Test Type API
     path('general/lab-test-types/', views.LabTestTypeListView.as_view(), name='lab-test-type-list'),

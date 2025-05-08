@@ -51,13 +51,28 @@ class AppointmentRatingSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['rating_id']
 
+# class LabTestSerializer(serializers.ModelSerializer):
+#     test_type_name = serializers.CharField(source='test_type.test_name', read_only=True)
+#     lab_name = serializers.CharField(source='lab.lab_name', read_only=True)
+
+#     class Meta:
+#         model = LabTest
+#         fields = ['lab_test_id', 'lab', 'lab_name', 'test_datetime', 'test_result', 'test_type', 'test_type_name', 'appointment', 'priority']
+
 class LabTestSerializer(serializers.ModelSerializer):
     test_type_name = serializers.CharField(source='test_type.test_name', read_only=True)
     lab_name = serializers.CharField(source='lab.lab_name', read_only=True)
+    patient_name = serializers.CharField(source='appointment.patient.patient_name', read_only=True)
+    doctor_name = serializers.CharField(source='appointment.staff.staff_name', read_only=True)
 
     class Meta:
         model = LabTest
-        fields = ['lab_test_id', 'lab', 'lab_name', 'test_datetime', 'test_result', 'test_type', 'test_type_name', 'appointment', 'priority']
+        fields = [
+            'lab_test_id', 'lab', 'lab_name', 'test_datetime', 
+            'test_result', 'test_type', 'test_type_name', 
+            'appointment', 'priority', 'status',
+            'patient_name', 'doctor_name'
+        ]
 
 class AppointmentChargeSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.staff_name', read_only=True)

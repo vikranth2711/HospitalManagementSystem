@@ -994,6 +994,7 @@ The `created` field indicates whether a new PatientDetails record was created (t
   ```
 
 ### Recommend Lab Tests
+> ⚠️ **Deprecated**: This API is no longer recommended. Please use `/new-api-endpoint` instead.
 
 - **URL**: `/api/hospital/general/appointments//recommend-lab-tests/`
 - **Method**: POST
@@ -1026,6 +1027,7 @@ The `created` field indicates whether a new PatientDetails record was created (t
   ```
 
 ### Pay for Lab Test
+> ⚠️ **Deprecated**: This API is no longer recommended. Please use `/new-api-endpoint` instead.
 
 - **URL**: `/api/hospital/general/lab-tests//pay/`
 - **Method**: POST
@@ -1055,6 +1057,7 @@ The `created` field indicates whether a new PatientDetails record was created (t
   ```
 
 ### Add Lab Test Results
+> ⚠️ **Deprecated**: This API is no longer recommended. Please use `/new-api-endpoint` instead.
 
 - **URL**: `/api/hospital/general/lab-tests//results/`
 - **Method**: PUT
@@ -2362,6 +2365,7 @@ urlpatterns = [
 ## Lab Technician APIs
 
 ### Lab Technician Assigned Patients
+> ⚠️ **Deprecated**: This API is no longer recommended. Please use `/new-api-endpoint` instead.
 
 - **URL**: `/api/hospital/general/lab-technician/assigned-patients/`
 - **Method**: GET
@@ -2387,3 +2391,175 @@ urlpatterns = [
     }
   ]
   ```
+
+# Lab Test Status Workflow API Reference
+
+## LabTest Model (Updated)
+
+**Status choices:**
+- `recommended`
+- `paid`
+- `completed`
+- `missed`
+- `failed`
+
+```python
+status = models.CharField(
+    max_length=15,
+    choices=[
+        ('recommended', 'Recommended'),
+        ('paid', 'Paid'),
+        ('completed', 'Completed'),
+        ('missed', 'Missed'),
+        ('failed', 'Failed')
+    ],
+    default='recommended'
+)
+```
+
+### 1. Recommend Lab Tests
+
+- **URL:** `/api/hospital/general/appointments//recommend-lab-tests/`
+- **Method:** `POST`
+- **Auth:** Doctor
+- **Description:** Recommends lab tests for a patient. All new lab tests are created with status `recommended`.
+- **Request Example:**
+  ```json
+  {
+    "test_type_ids": [2, 3],
+    "priority": "high",
+    "test_datetime": "2025-05-10 10:00:00"
+  }
+  ```
+- **Response Example:**
+  ```json
+  {
+    "message": "Recommended 2 lab tests",
+    "lab_tests": [
+      {
+        "lab_test_id": 56,
+        "test_type": "Blood Test",
+        "lab_name": "Central Pathology Lab",
+        "lab_type": "Pathology",
+        "status": "recommended"
+      }
+    ]
+  }
+  ```
+
+---
+
+### 2. Pay for Lab Test
+
+- **URL:** `/api/hospital/general/lab-tests//pay/`
+- **Method:** `POST`
+- **Auth:** Patient
+- **Description:** Pays for a lab test. On success, sets status to `paid`.
+- **Request Example:**
+  ```json
+  {
+    "payment_method_id": 2,
+    "transaction_reference": "PAY_87654321",
+    "payment_gateway_response": {...}
+  }
+  ```
+- **Response Example:**
+  ```json
+  {
+    "message": "Payment for lab test processed successfully",
+    "transaction_id": 457,
+    "amount": "500.00 ₹",
+    "invoice_id": 79,
+    "invoice_number": "INV-20250515-0002"
+  }
+  ```
+
+---
+
+### 3. Add Lab Test Results
+
+- **URL:** `/api/hospital/general/lab-tests//results/`
+- **Method:** `PUT`
+- **Auth:** Lab Technician
+- **Description:** Adds results for a paid lab test and sets status to `completed`.
+- **Request Example:**
+  ```json
+  {
+    "test_result": { ... },
+    "test_image": ""
+  }
+  ```
+- **Response Example:**
+  ```json
+  {
+    "message": "Lab test results added successfully",
+    "lab_test_id": 56
+  }
+  ```
+
+---
+
+### 4. Update Lab Test Status (Missed/Failed)
+
+- **URL:** `/api/hospital/general/lab-tests//status/`
+- **Method:** `PUT`
+- **Auth:** Lab Technician
+- **Description:** Updates the status of a lab test to `missed` or `failed` (with optional reason).
+- **Request Example:**
+  ```json
+  {
+    "status": "missed",
+    "reason": "Patient did not show up"
+  }
+  ```
+- **Response Example:**
+  ```json
+  {
+    "message": "Lab test status updated to missed",
+    "lab_test_id": 56
+  }
+  ```
+
+---
+
+### 5. Lab Technician Assigned Patients & Lab Tests
+
+- **URL:** `/api/hospital/general/lab-technician/assigned-patients/`
+- **Method:** `GET`
+- **Auth:** Lab Technician
+- **Query Parameters:**
+  - `start_datetime` (optional)
+  - `end_datetime` (optional)
+- **Description:** Returns appointments and associated lab tests for the technician’s assigned lab, **only showing tests with status `paid` or `completed`**.
+- **Response Example:**
+  ```json
+  [
+    {
+      "appointment_id": 123,
+      "patient": 101,
+      "patient_name": "John Doe",
+      "status": "upcoming",
+      "lab_tests": [
+        {
+          "lab_test_id": 56,
+          "test_type": "Blood Test",
+          "test_datetime": "2025-05-10T10:00:00Z",
+          "priority": "high",
+          "test_result": null,
+          "status": "paid",
+          "is_paid": true
+        }
+      ]
+    }
+  ]
+  ```
+
+---
+
+## LabTest Status Workflow
+
+- **Doctor recommends test:** `status = recommended`
+- **Patient pays:** `status = paid`
+- **Lab tech completes test:** `status = completed`
+- **Lab tech marks as missed/failed:** `status = missed` or `failed`
+- **Lab tech views:** Only `paid` or `completed` tests are visible

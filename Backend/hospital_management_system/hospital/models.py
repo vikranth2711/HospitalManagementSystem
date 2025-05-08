@@ -260,11 +260,41 @@ class Diagnosis(models.Model):
 #     def __str__(self):
 #         return f"Lab Test {self.lab_test_id} ({self.test_type.test_name})"
 
+# class LabTest(models.Model):
+#     class Priority(models.TextChoices):
+#         HIGH = 'high', 'High'
+#         MEDIUM = 'medium', 'Medium'
+#         LOW = 'low', 'Low'
+
+#     lab_test_id = models.AutoField(primary_key=True)
+#     lab = models.ForeignKey('Lab', on_delete=models.CASCADE, related_name='lab_tests')
+#     test_datetime = models.DateTimeField()
+#     test_result = models.JSONField(blank=True, null=True)
+#     test_type = models.ForeignKey('LabTestType', on_delete=models.CASCADE, related_name='lab_tests')
+#     appointment = models.ForeignKey('Appointment', on_delete=models.CASCADE, related_name='lab_tests')
+#     tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_tests') #####Changed
+#     test_image = models.ImageField(upload_to='lab_test_images/', null=True, blank=True)  # Optional image
+#     priority = models.CharField(
+#         max_length=10,
+#         choices=Priority.choices,
+#         default=Priority.MEDIUM
+#     )
+
+#     def __str__(self):
+#         return f"Lab Test {self.lab_test_id} ({self.test_type.test_name})"
+
 class LabTest(models.Model):
     class Priority(models.TextChoices):
         HIGH = 'high', 'High'
         MEDIUM = 'medium', 'Medium'
         LOW = 'low', 'Low'
+        
+    class Status(models.TextChoices):
+        RECOMMENDED = 'recommended', 'Recommended'
+        PAID = 'paid', 'Paid'
+        COMPLETED = 'completed', 'Completed'
+        MISSED = 'missed', 'Missed'
+        FAILED = 'failed', 'Failed'
 
     lab_test_id = models.AutoField(primary_key=True)
     lab = models.ForeignKey('Lab', on_delete=models.CASCADE, related_name='lab_tests')
@@ -272,12 +302,17 @@ class LabTest(models.Model):
     test_result = models.JSONField(blank=True, null=True)
     test_type = models.ForeignKey('LabTestType', on_delete=models.CASCADE, related_name='lab_tests')
     appointment = models.ForeignKey('Appointment', on_delete=models.CASCADE, related_name='lab_tests')
-    tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_tests') #####Changed
-    test_image = models.ImageField(upload_to='lab_test_images/', null=True, blank=True)  # Optional image
+    tran = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_tests')
+    test_image = models.ImageField(upload_to='lab_test_images/', null=True, blank=True)
     priority = models.CharField(
         max_length=10,
         choices=Priority.choices,
         default=Priority.MEDIUM
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=Status.choices,
+        default=Status.RECOMMENDED
     )
 
     def __str__(self):
