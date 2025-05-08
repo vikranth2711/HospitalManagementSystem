@@ -22,14 +22,69 @@ struct ProfileView: View {
     private let dangerColor = Color(hex: "E53E3E")
     private let successColor = Color(hex: "38A169")
     private let warningColor = Color(hex: "F6AD55")
-    private let backgroundGradient = LinearGradient(
-        gradient: Gradient(colors: [
-            Color(hex: "EEF6FF"),
-            Color(hex: "F8FAFF")
-        ]),
-        startPoint: .top,
-        endPoint: .bottom
-    )
+    
+    // Dynamic colors and gradients based on color scheme
+    private var cardBackgroundColor: Color {
+        colorScheme == .dark ? Color(hex: "1A202C") : .white
+    }
+    
+    private var textPrimaryColor: Color {
+        colorScheme == .dark ? .white : Color(hex: "2C3E50")
+    }
+    
+    private var textSecondaryColor: Color {
+        colorScheme == .dark ? Color(hex: "A0AEC0") : .secondary
+    }
+    
+    private var dividerColor: Color {
+        colorScheme == .dark ? Color(hex: "2D3748").opacity(0.6) : Color(hex: "E2E8F0")
+    }
+    
+    private var backgroundGradient: LinearGradient {
+        colorScheme == .dark ?
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(hex: "0F172A"),
+                    Color(hex: "1E293B")
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            ) :
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(hex: "EEF6FF"),
+                    Color(hex: "F8FAFF")
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+    }
+    
+    private var cardShadowColor: Color {
+        colorScheme == .dark ? Color.black.opacity(0.25) : Color.black.opacity(0.08)
+    }
+    
+    private var healthCardGradient: LinearGradient {
+        colorScheme == .dark ?
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    primaryColor.opacity(0.8),
+                    secondaryColor.opacity(0.8),
+                    Color(hex: "6A6AE2").opacity(0.8)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ) :
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    primaryColor,
+                    secondaryColor,
+                    Color(hex: "6A6AE2")
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+    }
 
     var body: some View {
         NavigationStack {
@@ -44,7 +99,7 @@ struct ProfileView: View {
                             .tint(primaryColor)
                         Text("Loading profile...")
                             .font(.subheadline)
-                            .foregroundColor(.gray)
+                            .foregroundColor(textSecondaryColor)
                             .padding(.top, 10)
                     }
                 } else {
@@ -155,7 +210,7 @@ struct ProfileView: View {
                                 .clipShape(Circle())
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white, lineWidth: 4)
+                                        .stroke(colorScheme == .dark ? Color(hex: "2D3748") : .white, lineWidth: 4)
                                         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                                 )
                         case .failure:
@@ -163,7 +218,7 @@ struct ProfileView: View {
                             Image(systemName: "exclamationmark.triangle")
                                 .foregroundColor(.red)
                                 .frame(width: 120, height: 120)
-                                .background(Color.white.opacity(0.7))
+                                .background(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7))
                                 .clipShape(Circle())
                         @unknown default:
                             EmptyView()
@@ -179,6 +234,20 @@ struct ProfileView: View {
                         .background(Color.black.opacity(0.3))
                         .clipShape(Circle())
                 }
+                
+                // Edit camera icon
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+                    .padding(8)
+                    .background(primaryColor)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(colorScheme == .dark ? Color(hex: "1A202C") : .white, lineWidth: 2)
+                    )
+                    .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    .offset(x: 5, y: 5)
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -190,11 +259,11 @@ struct ProfileView: View {
             .font(.system(size: 80))
             .foregroundColor(primaryColor.opacity(0.8))
             .frame(width: 120, height: 120)
-            .background(Color.white.opacity(0.7))
+            .background(colorScheme == .dark ? Color(hex: "2D3748").opacity(0.7) : Color.white.opacity(0.7))
             .clipShape(Circle())
             .overlay(
                 Circle()
-                    .stroke(Color.white, lineWidth: 4)
+                    .stroke(colorScheme == .dark ? Color(hex: "2D3748") : .white, lineWidth: 4)
                     .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
             )
     }
@@ -206,11 +275,11 @@ struct ProfileView: View {
                 VStack(alignment: .center, spacing: 4) {
                     Text(patientData?.patient_name ?? "Name")
                         .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C3E50"))
+                        .foregroundColor(textPrimaryColor)
                     
                     Text(patientData?.patient_email ?? "Email")
                         .font(.system(size: 16))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(textSecondaryColor)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 24)
@@ -218,6 +287,7 @@ struct ProfileView: View {
             }
             
             Divider()
+                .background(dividerColor)
                 .padding(.horizontal, 20)
             
             // Quick Info Pills
@@ -226,41 +296,60 @@ struct ProfileView: View {
                     title: "Blood",
                     value: patientData?.patient_blood_group ?? "N/A",
                     icon: "drop.fill",
-                    color: dangerColor
+                    color: dangerColor,
+                    colorScheme: colorScheme
                 )
                 
                 InfoPill(
                     title: "Gender",
                     value: patientData?.patient_gender == true ? "Male" : "Female",
                     icon: "person.fill",
-                    color: primaryColor
+                    color: primaryColor,
+                    colorScheme: colorScheme
                 )
                 
                 InfoPill(
                     title: "ID",
                     value: "#\(patientData?.patient_id ?? 0)",
                     icon: "number",
-                    color: successColor
+                    color: successColor,
+                    colorScheme: colorScheme
                 )
             }
             .padding(.vertical, 20)
             
             Divider()
+                .background(dividerColor)
                 .padding(.horizontal, 20)
             
             // Additional Details
             VStack(alignment: .leading, spacing: 16) {
-                DetailRow(icon: "calendar", label: "Date of Birth", value: formatDate(patientData?.patient_dob ?? ""))
-                DetailRow(icon: "phone.fill", label: "Mobile", value: patientData?.patient_mobile ?? "Not provided")
-                DetailRow(icon: "mappin.and.ellipse", label: "Address", value: patientData?.patient_address ?? "Not provided")
+                DetailRow(
+                    icon: "calendar",
+                    label: "Date of Birth",
+                    value: formatDate(patientData?.patient_dob ?? ""),
+                    colorScheme: colorScheme
+                )
+                DetailRow(
+                    icon: "phone.fill",
+                    label: "Mobile",
+                    value: patientData?.patient_mobile ?? "Not provided",
+                    colorScheme: colorScheme
+                )
+                DetailRow(
+                    icon: "mappin.and.ellipse",
+                    label: "Address",
+                    value: patientData?.patient_address ?? "Not provided",
+                    colorScheme: colorScheme
+                )
             }
             .padding(.vertical, 20)
             .padding(.horizontal, 24)
         }
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white)
-                .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
+                .fill(cardBackgroundColor)
+                .shadow(color: cardShadowColor, radius: 15, x: 0, y: 5)
         )
     }
 
@@ -300,19 +389,10 @@ struct ProfileView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 16)
             }
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        primaryColor,
-                        secondaryColor,
-                        Color(hex: "6A6AE2")
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .frame(height: 100)
+            .background(healthCardGradient)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: primaryColor.opacity(0.4), radius: 15, x: 0, y: 8)
+            .shadow(color: primaryColor.opacity(colorScheme == .dark ? 0.3 : 0.4), radius: 15, x: 0, y: 8)
         }
     }
     
@@ -332,7 +412,7 @@ struct ProfileView: View {
             .foregroundColor(dangerColor)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(dangerColor.opacity(0.1))
+                    .fill(colorScheme == .dark ? dangerColor.opacity(0.15) : dangerColor.opacity(0.1))
             )
         }
     }
@@ -344,6 +424,19 @@ struct ProfileView: View {
         let value: String
         let icon: String
         let color: Color
+        let colorScheme: ColorScheme
+        
+        private var pillBackgroundColor: Color {
+            colorScheme == .dark ? color.opacity(0.18) : color.opacity(0.12)
+        }
+        
+        private var textColor: Color {
+            colorScheme == .dark ? .white : .primary
+        }
+        
+        private var subtitleColor: Color {
+            colorScheme == .dark ? Color(hex: "A0AEC0") : .secondary
+        }
 
         var body: some View {
             VStack(spacing: 6) {
@@ -353,16 +446,16 @@ struct ProfileView: View {
                     .frame(width: 40, height: 40)
                     .background(
                         Circle()
-                            .fill(color.opacity(0.12))
+                            .fill(pillBackgroundColor)
                     )
                 
                 Text(value)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(textColor)
                 
                 Text(title)
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(subtitleColor)
             }
             .frame(maxWidth: .infinity)
         }
@@ -375,6 +468,7 @@ struct ProfileView: View {
         let unit: String
         let trend: String
         let trendUp: Bool?
+        let colorScheme: ColorScheme
 
         var body: some View {
             VStack(alignment: .leading, spacing: 12) {
@@ -416,7 +510,7 @@ struct ProfileView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.15))
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.15))
             )
             .frame(maxWidth: .infinity)
         }
@@ -433,22 +527,35 @@ struct ProfileView: View {
         let icon: String
         let label: String
         let value: String
+        let colorScheme: ColorScheme
+        
+        private var iconColor: Color {
+            Color(hex: "4A90E2")
+        }
+        
+        private var labelColor: Color {
+            colorScheme == .dark ? Color(hex: "A0AEC0") : .secondary
+        }
+        
+        private var valueColor: Color {
+            colorScheme == .dark ? .white : .primary
+        }
 
         var body: some View {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 18))
-                    .foregroundColor(Color(hex: "4A90E2"))
+                    .foregroundColor(iconColor)
                     .frame(width: 20)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
                         .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(labelColor)
                     
                     Text(value)
                         .font(.system(size: 16))
-                        .foregroundColor(.primary)
+                        .foregroundColor(valueColor)
                 }
                 
                 Spacer()
@@ -621,6 +728,10 @@ struct PatientProfileMenuItem: View {
     let title: String
     @Environment(\.colorScheme) var colorScheme
     
+    private var textColor: Color {
+        colorScheme == .dark ? .white : Color(hex: "2C5282")
+    }
+    
     var body: some View {
         HStack(spacing: 15) {
             Image(systemName: icon)
@@ -630,7 +741,7 @@ struct PatientProfileMenuItem: View {
             
             Text(title)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+                .foregroundColor(textColor)
             
             Spacer()
             
