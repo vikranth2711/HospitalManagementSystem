@@ -4,24 +4,42 @@ import HealthKit
 struct HealthMetricsView: View {
     @StateObject private var viewModel = HealthMetricsViewModel()
     @State private var showingPermissionAlert = false
+    @Environment(\.colorScheme) var colorScheme
+    
+    // MARK: - Color Scheme
+    private let primaryColor = Color(hex: "3BD1D3")
+    private let secondaryColor = Color(hex: "00A3A3")
+    private let accentColor = Color(hex: "F5A623")
+    private let heartColor = Color(hex: "FF5D7A")
+    private let oxygenColor = Color(hex: "5E7CE2")
     
     var body: some View {
         NavigationView {
             ZStack {
-                Color(UIColor.systemGroupedBackground)
-                    .ignoresSafeArea()
+                // Gradient background
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        primaryColor.opacity(colorScheme == .dark ? 0.2 : 0.1),
+                        colorScheme == .dark ? Color(hex: "1A2234") : Color(hex: "F7FAFF")
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
                 if viewModel.isLoading {
                     VStack {
                         ProgressView()
                             .scaleEffect(1.5)
+                            .tint(primaryColor)
                         Text("Loading health data...")
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(primaryColor)
                             .padding(.top, 16)
                     }
                 } else {
                     ScrollView {
-                        VStack(spacing: 20) {
+                        VStack(spacing: 24) {
                             // Header Stats
                             headerStatsView
                             
@@ -31,21 +49,14 @@ struct HealthMetricsView: View {
                             // SpO2 Section
                             spO2Section
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
                         .padding(.bottom, 30)
                     }
                 }
             }
             .navigationTitle("Health Metrics")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: viewModel.refreshData) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                }
-            }
             .onAppear {
                 viewModel.requestAuthorization { success in
                     if !success {
@@ -69,15 +80,15 @@ struct HealthMetricsView: View {
     // MARK: - Header Stats View
     private var headerStatsView: some View {
         VStack(spacing: 16) {
-            HStack(spacing: 20) {
+            HStack(spacing: 16) {
                 // Average Heart Rate
                 MetricCardView(
                     title: "Heart Rate",
                     value: viewModel.averageHeartRate != nil ? "\(String(format: "%.0f", viewModel.averageHeartRate!))" : "–",
                     unit: "BPM",
                     iconName: "heart.fill",
-                    color: .red,
-                    trend: viewModel.heartRateTrend
+                    color: heartColor,
+                    backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
                 )
                 
                 // Average SpO2
@@ -85,9 +96,9 @@ struct HealthMetricsView: View {
                     title: "Blood Oxygen",
                     value: viewModel.averageSpO2 != nil ? "\(String(format: "%.0f", viewModel.averageSpO2!))" : "–",
                     unit: "%",
-                    iconName: "lungs.fill",
-                    color: .blue,
-                    trend: viewModel.spO2Trend
+                    iconName: "waveform.path.ecg",
+                    color: oxygenColor,
+                    backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
                 )
             }
             .padding(.top, 10)
@@ -97,12 +108,9 @@ struct HealthMetricsView: View {
     // MARK: - Heart Rate Section
     private var heartRateSection: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("Heart Rate Events")
-                .font(.title2)
-                .fontWeight(.bold)
-                .padding(.leading, 5)
+            SectionHeaderView2(title: "Heart Rate Events", iconName: "heart.circle.fill", color: heartColor)
             
-            VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 // High Heart Rate Events
                 EventsCardView(
                     title: "High Heart Rate",
@@ -113,9 +121,10 @@ struct HealthMetricsView: View {
                         let bpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
                         return String(format: "%.0f", bpm)
                     },
-                    valueColor: .red,
+                    valueColor: heartColor,
                     valueUnit: "BPM",
-                    iconName: "arrow.up.heart.fill"
+                    iconName: "arrow.up.heart.fill",
+                    backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
                 )
                 
                 // Low Heart Rate Events
@@ -128,9 +137,10 @@ struct HealthMetricsView: View {
                         let bpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
                         return String(format: "%.0f", bpm)
                     },
-                    valueColor: .blue,
+                    valueColor: primaryColor,
                     valueUnit: "BPM",
-                    iconName: "arrow.down.heart.fill"
+                    iconName: "arrow.down.heart.fill",
+                    backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
                 )
             }
         }
@@ -139,10 +149,7 @@ struct HealthMetricsView: View {
     // MARK: - SpO2 Section
     private var spO2Section: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("Blood Oxygen Events")
-                .font(.title2)
-                .fontWeight(.bold)
-                .padding(.leading, 5)
+            SectionHeaderView2(title: "Blood Oxygen Events", iconName: "lungs.fill", color: oxygenColor)
             
             // Low SpO2 Events
             EventsCardView(
@@ -154,11 +161,32 @@ struct HealthMetricsView: View {
                     let percent = sample.quantity.doubleValue(for: HKUnit.percent()) * 100
                     return String(format: "%.0f", percent)
                 },
-                valueColor: .orange,
+                valueColor: accentColor,
                 valueUnit: "%",
-                iconName: "lungs.fill"
+                iconName: "waveform.path.ecg",
+                backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
             )
         }
+    }
+}
+
+// MARK: - Section Header View
+struct SectionHeaderView2: View {
+    let title: String
+    let iconName: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: iconName)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(color)
+            
+            Text(title)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(Color.primary)
+        }
+        .padding(.leading, 4)
     }
 }
 
@@ -169,19 +197,25 @@ struct MetricCardView: View {
     let unit: String
     let iconName: String
     let color: Color
-    let trend: Double?
+    let backgroundColor: Color
     
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+            RoundedRectangle(cornerRadius: 24)
+                .fill(backgroundColor)
+                .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: 6)
             
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Image(systemName: iconName)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(color)
+                    ZStack {
+                        Circle()
+                            .fill(color.opacity(0.15))
+                            .frame(width: 36, height: 36)
+                        
+                        Image(systemName: iconName)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(color)
+                    }
                     
                     Text(title)
                         .font(.system(size: 16, weight: .medium))
@@ -189,33 +223,23 @@ struct MetricCardView: View {
                     
                     Spacer()
                     
-                    if let trend = trend {
-                        HStack(spacing: 2) {
-                            Image(systemName: trend > 0 ? "arrow.up" : "arrow.down")
-                                .font(.caption)
-                                .foregroundColor(trend > 0 ? .red : .green)
-                            
-                            Text("\(abs(trend), specifier: "%.1f")%")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
                 }
                 
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(value)
                         .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(color)
                     
                     Text(unit)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.secondary)
+                        .padding(.leading, 2)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
         }
-        .frame(height: 100)
+        .frame(height: 110)
     }
 }
 
@@ -229,13 +253,20 @@ struct EventsCardView: View {
     let valueColor: Color
     let valueUnit: String
     let iconName: String
+    let backgroundColor: Color
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Image(systemName: iconName)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(valueColor)
+                ZStack {
+                    Circle()
+                        .fill(valueColor.opacity(0.15))
+                        .frame(width: 36, height: 36)
+                    
+                    Image(systemName: iconName)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(valueColor)
+                }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -248,28 +279,39 @@ struct EventsCardView: View {
                 
                 Spacer()
                 
-                Text("\(samples.count)")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(valueColor)
+                ZStack {
+                    Circle()
+                        .fill(valueColor.opacity(0.15))
+                        .frame(width: 36, height: 36)
+                    
+                    Text("\(samples.count)")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(valueColor)
+                }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
-            
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(UIColor.separator).opacity(0.5))
-                .padding(.horizontal, 16)
+            .padding(.top, 16)
             
             if samples.isEmpty {
                 HStack {
                     Spacer()
-                    Text(noDataMessage)
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 16)
+                    VStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(Color.green.opacity(0.8))
+                        
+                        Text(noDataMessage)
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 24)
                     Spacer()
                 }
             } else {
+                Divider()
+                    .padding(.horizontal, 16)
+                
                 VStack(spacing: 0) {
                     ForEach(samples.prefix(5), id: \.uuid) { sample in
                         eventRow(sample: sample)
@@ -277,9 +319,9 @@ struct EventsCardView: View {
                 }
             }
         }
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .background(backgroundColor)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: 6)
     }
     
     private func eventRow(sample: HKQuantitySample) -> some View {
@@ -299,7 +341,7 @@ struct EventsCardView: View {
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
     }
     
     private func formatDate(_ date: Date) -> String {
@@ -307,6 +349,23 @@ struct EventsCardView: View {
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Button Style
+struct BorderedCircleButtonStyle: ButtonStyle {
+    let color: Color
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(8)
+            .background(
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            )
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .animation(.spring(response: 0.3), value: configuration.isPressed)
     }
 }
 
@@ -392,11 +451,9 @@ class HealthMetricsViewModel: ObservableObject {
 struct HealthMetricsView_Previews: PreviewProvider {
     static var previews: some View {
         HealthMetricsView()
+            .preferredColorScheme(.light)
+        
+        HealthMetricsView()
+            .preferredColorScheme(.dark)
     }
 }
-
-
-
-
-
-
