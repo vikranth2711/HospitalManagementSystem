@@ -507,62 +507,79 @@ struct LabRecordCard: View {
         Button(action: {
             onTap()
         }) {
-            VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                // Icon on the left with a playful style
                 ZStack {
                     Circle()
-                        .fill(colorScheme == .dark ? Color.blue.opacity(0.2) : Color(hex: "4A90E2").opacity(0.2))
-                        .frame(width: 40, height: 40)
+                        .fill(colorScheme == .dark ? Color.blue.opacity(0.2) : Color(hex: "A3BFFA").opacity(0.3))
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(colorScheme == .dark ? Color.blue.opacity(0.4) : Color(hex: "A3BFFA"), lineWidth: 2)
+                        )
                     
                     Image(systemName: "doc.text.fill")
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
-                        .font(.system(size: 20))
-                }
-                
-                HStack {
-                    Text(record.labName)
+                        .foregroundColor(colorScheme == .dark ? Color(hex: "E0E7FF") : Color(hex: "4A90E2"))
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
-                    
-                    Text(record.status.capitalized)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            record.status.lowercased() == "recommended" ?
-                            Color.blue.opacity(0.15) :
-                            (record.status.lowercased() == "completed" ? Color.green.opacity(0.15) : Color.gray.opacity(0.15))
-                        )
-                        .foregroundColor(
-                            colorScheme == .dark ?
-                            (record.status.lowercased() == "recommended" ? Color.blue : Color.green) :
-                            (record.status.lowercased() == "recommended" ? Color(hex: "4A90E2") : Color(hex: "2ECC71"))
-                        )
-                        .clipShape(Capsule())
                 }
                 
-                HStack {
+                // Main content
+                VStack(alignment: .leading, spacing: 4) {
+                    // Test name (larger and prominent)
                     Text(record.testTypeName)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? Color(hex: "E0E7FF") : Color(hex: "2D3748"))
+                        .lineLimit(1)
                     
-                    Spacer()
+                    // Lab name (smaller, below test name)
+                    Text(record.labName)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color(hex: "718096"))
+                        .lineLimit(1)
                     
+                    // Date and time
                     Text(record.scheduledTime, format: .dateTime.day().month().hour().minute())
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
+                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : Color(hex: "718096"))
                 }
+                
+                Spacer()
+                
+                // Status label on the right
+                Text(record.status.capitalized)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        record.status.lowercased() == "recommended" ?
+                        Color(hex: "A3BFFA").opacity(0.2) :
+                        (record.status.lowercased() == "completed" ? Color(hex: "6EE7B7").opacity(0.2) : Color.gray.opacity(0.2))
+                    )
+                    .foregroundColor(
+                        colorScheme == .dark ?
+                        (record.status.lowercased() == "recommended" ? Color(hex: "A3BFFA") : Color(hex: "6EE7B7")) :
+                        (record.status.lowercased() == "recommended" ? Color(hex: "4A90E2") : Color(hex: "2ECC71"))
+                    )
+                    .clipShape(Capsule())
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, minHeight: 140)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                    .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : Color.white)
+                    .shadow(color: colorScheme == .dark ? Color.black.opacity(0.2) : Color.gray.opacity(0.1), radius: 8, x: 0, y: 3)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(colorScheme == .dark ? Color(hex: "A3BFFA").opacity(0.2) : Color(hex: "E0E7FF").opacity(0.5), lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
     }
 }
+
+
 
 struct ReportsContent_Previews: PreviewProvider {
     static var previews: some View {

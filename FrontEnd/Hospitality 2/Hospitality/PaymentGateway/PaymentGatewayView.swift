@@ -90,7 +90,7 @@ struct PaymentGatewayView: View {
     @State private var showingSuccessAlert = false
     @State private var showingFailureAlert = false
     @State private var transactionId = ""
-    @State private var paymentAmount: Double = 1.00
+    @State private var paymentAmount: Double = 350
     @State private var cardNumber = ""
     @State private var cardholderName = ""
     @State private var expiryDate = ""

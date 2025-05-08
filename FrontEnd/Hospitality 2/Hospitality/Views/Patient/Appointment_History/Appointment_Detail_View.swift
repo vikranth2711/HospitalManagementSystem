@@ -1,364 +1,391 @@
 import SwiftUI
 
-// Main detail view for a selected appointment
+// MARK: - Appointment Detail View
 struct AppointmentDetailView: View {
-    let appointment: DoctorResponse.DocAppointment
-    @StateObject private var viewModel = AppointmentDetailViewModel()
-    @Environment(\.presentationMode) var presentationMode
+    // MARK: - Properties
+    let appointmentId: Int
     @State private var activeTab: DetailTab = .overview
-    @State private var showingRescheduleView = false
-    @State private var showingFeedbackView = false
-    
-    enum DetailTab {
-        case overview, diagnosis, prescription, vitals, profile
-    }
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color(.systemGroupedBackground).ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Tab selector
-                    TabSelectionView(activeTab: $activeTab)
-                    
-                    // Content based on selected tab
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            AppointmentHeaderCard(appointment: appointment)
-                                .padding(.horizontal)
-                            
-                            // Dynamic content based on selected tab
-                            Group {
-                                switch activeTab {
-                                case .overview:
-                                    AppointmentOverviewView(appointment: appointment)
-                                case .diagnosis:
-                                    if viewModel.isLoadingDiagnosis {
-                                        LoadingView(message: "Loading diagnosis...")
-                                    } else if let diagnosis = viewModel.diagnosis {
-                                        DiagnosisDetailView(diagnosis: diagnosis)
-                                    } else {
-                                        EmptyStateView(
-                                            icon: "stethoscope",
-                                            title: "No Diagnosis",
-                                            message: "No diagnosis information is available for this appointment."
-                                        )
-                                    }
-                                case .prescription:
-                                    if viewModel.isLoadingPrescription {
-                                        LoadingView(message: "Loading prescription...")
-                                    } else if let prescription = viewModel.prescription {
-                                        PrescriptionDetailView(prescription: prescription)
-                                    } else {
-                                        EmptyStateView(
-                                            icon: "pills",
-                                            title: "No Prescription",
-                                            message: "No prescription has been issued for this appointment."
-                                        )
-                                    }
-                                case .vitals:
-                                    if viewModel.isLoadingVitals {
-                                        LoadingView(message: "Loading vitals...")
-                                    } else if let vitals = viewModel.vitals {
-                                        VitalsDetailView(vitals: vitals)
-                                    } else {
-                                        EmptyStateView(
-                                            icon: "heart.text.square",
-                                            title: "No Vitals",
-                                            message: "No vitals data has been recorded for this appointment."
-                                        )
-                                    }
-                                case .profile:
-                                    if viewModel.isLoadingProfile {
-                                        LoadingView(message: "Loading profile...")
-                                    } else if let profile = viewModel.patientProfile {
-                                        PatientProfileView(profile: profile)
-                                    } else {
-                                        EmptyStateView(
-                                            icon: "person.crop.circle.badge.exclamationmark",
-                                            title: "Profile Unavailable",
-                                            message: "Unable to load patient profile information."
-                                        )
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding(.vertical)
-                    }
-                    
-                    // Feedback button (only shown for completed appointments)
-                    if appointment.status.lowercased() == "completed" {
-                        Button(action: {
-                            showingFeedbackView = true
-                        }) {
-                            HStack {
-                                Image(systemName: "star.fill")
-                                Text("Leave Feedback")
-                                    .fontWeight(.semibold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                            .padding(.horizontal)
-                            .padding(.bottom, 8)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Appointment Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        if canReschedule(appointment) {
-                            Button(action: {
-                                showingRescheduleView = true
-                            }) {
-                                Label("Reschedule", systemImage: "calendar.badge.clock")
-                            }
-                        }
-                        
-                        Button(action: {
-                            // Refresh data
-                            viewModel.loadAllData(appointment: appointment)
-                        }) {
-                            Label("Refresh", systemImage: "arrow.clockwise")
-                        }
-                        
-                        // Add export option if needed
-                        Button(action: {
-                            // Export function
-                        }) {
-                            Label("Export Details", systemImage: "square.and.arrow.up")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
-            .onAppear {
-                viewModel.loadAllData(appointment: appointment)
-            }
-            .sheet(isPresented: $showingRescheduleView) {
-                AppointmentRescheduleView(
-                    appointmentId: appointment.appointmentId,
-                    doctorId: appointment.staffId,
-                    currentDate: appointment.date,
-                    currentSlotId: appointment.slotId,
-                    reason: "",
-                    onRescheduleComplete: {
-                        showingRescheduleView = false
-                    }
-                )
-            }
-            .sheet(isPresented: $showingFeedbackView) {
-                FeedbackView(appointmentId: appointment.appointmentId)
-            }
-        }
-    }
-    
-    private func canReschedule(_ appointment: DoctorResponse.DocAppointment) -> Bool {
-        return !isBeforeToday(appointment.date) &&
-               appointment.status.lowercased() != "cancelled" &&
-               appointment.status.lowercased() != "completed"
-    }
-    
-    private func isBeforeToday(_ dateString: String) -> Bool {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        guard let appointmentDate = dateFormatter.date(from: dateString) else {
-            return false
-        }
-        
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        return appointmentDate < today
-    }
-}
-
-// View model for the detail view
-class AppointmentDetailViewModel: ObservableObject {
-    // Patient profile
-    @Published var patientProfile: DoctorResponse.PatientProfile?
-    @Published var isLoadingProfile = false
-    @Published var profileError: String?
-    
-    // Vitals
-    @Published var vitals: DoctorResponse.DocGetLatestPatientVitals?
-    @Published var isLoadingVitals = false
-    @Published var vitalsError: String?
-    
-    // Diagnosis
-    @Published var diagnosis: DoctorResponse.DiagnosisResponse?
-    @Published var isLoadingDiagnosis = false
-    @Published var diagnosisError: String?
-    
-    // Prescription
-    @Published var prescription: DoctorResponse.PrescriptionResponse?
-    @Published var isLoadingPrescription = false
-    @Published var prescriptionError: String?
-    
-    // Lab tests
-    @Published var labTests: [DoctorResponse.RecommendedLabTest] = []
-    @Published var isLoadingLabTests = false
-    @Published var labTestsError: String?
-    
-    private let doctorServices = DoctorServices()
-    
-    func loadAllData(appointment: DoctorResponse.DocAppointment) {
-        loadPatientProfile(patientId: String(appointment.patientId))
-        loadPatientVitals(patientId: String(appointment.patientId))
-        // For diagnosis and prescription, we would need the actual IDs
-        // In a real implementation, we might need to make API calls to get these
-        
-        // Simulating diagnosis and prescription fetch
-        // In a real implementation, replace with actual API calls
-        fetchDiagnosis(appointmentId: appointment.appointmentId)
-        fetchPrescription(appointmentId: appointment.appointmentId)
-    }
-    
-    func loadPatientProfile(patientId: String) {
-        isLoadingProfile = true
-        profileError = nil
-        
-        Task {
-            do {
-                let profile = try await doctorServices.fetchPatientProfile(patientId: patientId)
-                DispatchQueue.main.async {
-                    self.patientProfile = profile
-                    self.isLoadingProfile = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.profileError = error.localizedDescription
-                    self.isLoadingProfile = false
-                }
-            }
-        }
-    }
-    
-    func loadPatientVitals(patientId: String) {
-        isLoadingVitals = true
-        vitalsError = nil
-        
-        Task {
-            do {
-                let fetchedVitals = try await doctorServices.fetchPatientLatestVitals(patientId: patientId)
-                DispatchQueue.main.async {
-                    self.vitals = fetchedVitals
-                    self.isLoadingVitals = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.vitalsError = error.localizedDescription
-                    self.isLoadingVitals = false
-                }
-            }
-        }
-    }
-    
-    func fetchDiagnosis(appointmentId: Int) {
-        // In a real implementation, you would need an API endpoint to fetch diagnosis by appointment ID
-        // This is a placeholder for demonstration purposes
-        isLoadingDiagnosis = true
-        diagnosisError = nil
-        
-        // Simulate API call delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.isLoadingDiagnosis = false
-            
-            // For demonstration, create a mock diagnosis response 50% of the time
-            if Bool.random() {
-                self.diagnosis = DoctorResponse.DiagnosisResponse(
-                    message: "Diagnosis retrieved successfully",
-                    diagnosisId: 123
-                )
-            } else {
-                // No diagnosis available
-                self.diagnosis = nil
-            }
-        }
-    }
-    
-    func fetchPrescription(appointmentId: Int) {
-        // In a real implementation, you would need an API endpoint to fetch prescription by appointment ID
-        // This is a placeholder for demonstration purposes
-        isLoadingPrescription = true
-        prescriptionError = nil
-        
-        // Simulate API call delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.isLoadingPrescription = false
-            
-            // For demonstration, create a mock prescription response 60% of the time
-            if Bool.random() && Bool.random() {
-                self.prescription = DoctorResponse.PrescriptionResponse(
-                    message: "Prescription retrieved successfully"
-                )
-            } else {
-                // No prescription available
-                self.prescription = nil
-            }
-        }
-    }
-}
-
-// Tab selection component
-struct TabSelectionView: View {
-    @Binding var activeTab: AppointmentDetailView.DetailTab
+    @State private var appointmentDetail: AppointmentDetailResponse?
+    @State private var isLoading = true
+    @State private var error: String?
+    @StateObject private var viewModel = AppointmentDetailViewModel()
     @Environment(\.colorScheme) var colorScheme
     
+    // MARK: - Body
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-                TabButton(title: "Overview", systemImage: "doc.text", isActive: activeTab == .overview) {
-                    activeTab = .overview
-                }
-                
-                TabButton(title: "Diagnosis", systemImage: "stethoscope", isActive: activeTab == .diagnosis) {
-                    activeTab = .diagnosis
-                }
-                
-                TabButton(title: "Prescription", systemImage: "pills", isActive: activeTab == .prescription) {
-                    activeTab = .prescription
-                }
-                
-                TabButton(title: "Vitals", systemImage: "heart.text.square", isActive: activeTab == .vitals) {
-                    activeTab = .vitals
-                }
-                
-                TabButton(title: "Profile", systemImage: "person", isActive: activeTab == .profile) {
-                    activeTab = .profile
+        content
+            .navigationTitle("Appointment")
+            .onAppear {
+                Task {
+                    await loadAppointmentDetails()
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+    }
+    
+    // MARK: - AppointmentDetailViewModel
+    class AppointmentDetailViewModel: ObservableObject {
+        // Appointment details with diagnosis and prescription
+        @Published var appointmentDetails: AppointmentDetailResponse?
+        @Published var isLoadingDetails = false
+        @Published var detailsError: String?
+        
+        private let doctorServices = DoctorServices()
+        
+        func loadAllData(appointment: DoctorResponse.DocAppointment) {
+            loadAppointmentDetails(appointmentId: appointment.appointmentId)
         }
-        .background(Color(hex: "4A90E2"))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color.white.opacity(0.2)),
-            alignment: .bottom
-        )
+        
+        func loadAppointmentDetails(appointmentId: Int) {
+            isLoadingDetails = true
+            detailsError = nil
+            print("🔍 Loading appointment details for appointment ID: \(appointmentId)")
+            
+            Task {
+                do {
+                    let details = try await doctorServices.fetchAppointmentDetails(appointmentId: appointmentId)
+                    DispatchQueue.main.async {
+                        self.appointmentDetails = details
+                        self.isLoadingDetails = false
+                        print("✅ Successfully loaded appointment details: \(details)")
+                        print("Diagnosis data: \(String(describing: details.diagnosis))")
+                        if let diagnosisData = details.diagnosis?.diagnosisData {
+                            print("Diagnosis data items: \(diagnosisData)")
+                        }
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        self.detailsError = error.localizedDescription
+                        self.isLoadingDetails = false
+                        print("❌ Failed to load appointment details: \(error)")
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - StatusBadge
+    struct StatusBadge: View {
+        let status: String
+        
+        var body: some View {
+            Text(getDisplayStatus())
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(statusColor.opacity(0.15))
+                .foregroundColor(statusColor)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(statusColor.opacity(0.3), lineWidth: 1)
+                )
+        }
+        
+        private func getDisplayStatus() -> String {
+            switch status.lowercased() {
+            case "cancelled":
+                return "Cancelled"
+            case "completed":
+                return "Completed"
+            case "upcoming":
+                return "Upcoming"
+            case "scheduled":
+                return "Scheduled"
+            case "confirmed":
+                return "Confirmed"
+            case "pending":
+                return "Pending"
+            case "missed":
+                return "Missed"  // Make sure this case exists
+            default:
+                return status.capitalized
+            }
+        }
+
+        private var statusColor: Color {
+            switch status.lowercased() {
+            case "completed":
+                return Color.green
+            case "upcoming", "scheduled", "confirmed":
+                return Color.blue
+            case "cancelled":
+                return Color.red
+            case "missed":
+                return Color.purple  // Make sure this case exists with a distinctive color
+            case "pending":
+                return Color.orange
+            default:
+                return Color.gray
+            }
+        }   }
+    
+    // MARK: - Main Content
+    @ViewBuilder
+    private var content: some View {
+        VStack(spacing: 0) {
+            // Tab selection at the top with improved visual treatment
+            tabSelectionView
+            
+            // Main scrollable content area
+            ScrollView {
+                if isLoading {
+                    loadingView
+                } else if let error = error {
+                    errorView
+                } else if let appointmentDetail = appointmentDetail {
+                    appointmentContent(appointmentDetail)
+                }
+            }
+            .refreshable {
+                await loadAppointmentDetails()
+            }
+        }
+    }
+    
+    // MARK: - Tab Selection View
+    private var tabSelectionView: some View {
+        Picker("View", selection: $activeTab) {
+            ForEach(DetailTab.allCases, id: \.self) { tab in
+                Label(
+                    tab.title,
+                    systemImage: tab.iconName
+                ).tag(tab)
+            }
+        }
+        .pickerStyle(SegmentedPickerStyle())
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(.systemBackground))
+    }
+    
+    // MARK: - Loading View
+    private var loadingView: some View {
+        ContentUnavailableView {
+            ProgressView()
+                .controlSize(.large)
+        } description: {
+            Text("Loading appointment details...")
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 300)
+        .padding()
+    }
+    
+    // MARK: - Error View
+    private var errorView: some View {
+        ContentUnavailableView {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundColor(.orange)
+        } description: {
+            Text("Error Loading Details")
+                .font(.headline)
+        } actions: {
+            Button(action: {
+                Task {
+                    await loadAppointmentDetails()
+                }
+            }) {
+                Text("Try Again")
+                    .font(.system(size: 14, weight: .medium))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            
+            if let error = error {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        }
+        .padding()
+    }
+    
+    // MARK: - Appointment Content
+    @ViewBuilder
+    private func appointmentContent(_ appointment: AppointmentDetailResponse) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            switch activeTab {
+            case .overview:
+                overviewContent(appointment)
+            case .diagnosis:
+                diagnosisContent(appointment)
+            case .prescription:
+                prescriptionContent(appointment)
+            }
+        }
+        .padding()
+    }
+    
+    // MARK: - Overview Content
+    @ViewBuilder
+    private func overviewContent(_ appointment: AppointmentDetailResponse) -> some View {
+        // Appointment overview card
+        AppointmentOverviewCard(appointment: appointment)
+
+        // Summary cards if available
+        if appointment.prescription != nil || appointment.diagnosis != nil {
+            SectionHeaderView1(title: "Summary")
+            
+            // Create a GeometryReader to control the sizing precisely
+            GeometryReader { geometry in
+                let twoColumnWidth = geometry.size.width / 2 - 8 // 16 spacing between cards, so 8 on each side
+                
+                HStack(spacing: 16) {
+                    // First card or placeholder
+                    Group {
+                        if appointment.prescription != nil {
+                            SummaryCard(
+                                title: "Prescription",
+                                iconName: "pills",
+                                color: .blue,
+                                action: { activeTab = .prescription }
+                            )
+                        } else {
+                            // Empty placeholder to maintain layout
+                            Color.clear
+                        }
+                    }
+                    .frame(width: twoColumnWidth)
+                    
+                    // Second card or placeholder
+                    Group {
+                        if appointment.diagnosis != nil {
+                            SummaryCard(
+                                title: "Diagnosis",
+                                iconName: "stethoscope",
+                                color: .green,
+                                action: { activeTab = .diagnosis }
+                            )
+                        } else {
+                            // Empty placeholder to maintain layout
+                            Color.clear
+                        }
+                    }
+                    .frame(width: twoColumnWidth)
+                }
+            }
+            .frame(height: 100) // Set a fixed height for the entire row
+        }
+        
+        // Timeline of appointment status
+        SectionHeaderView1(title: "Appointment Timeline")
+        AppointmentTimelineView(status: appointment.status.lowercased())
+    }
+    
+    @ViewBuilder
+    private func diagnosisContent(_ appointment: AppointmentDetailResponse) -> some View {
+        if let diagnosis = appointment.diagnosis {
+            // Log in a view modifier or separate function if needed
+            DiagnosisDetailView(diagnosis: diagnosis)
+                .onAppear {
+                    print("🩺 Diagnosis data available: \(diagnosis)")
+                }
+        } else {
+            ContentUnavailableView {
+                Image(systemName: "stethoscope")
+                    .font(.system(size: 50))
+                    .foregroundColor(.secondary)
+            } description: {
+                Text("No diagnosis available")
+                    .font(.headline)
+            }
+            .onAppear {
+                print("🩺 No diagnosis data available")
+            }
+        }
+    }
+    
+    // MARK: - Prescription Content
+    @ViewBuilder
+    private func prescriptionContent(_ appointment: AppointmentDetailResponse) -> some View {
+        if let prescription = appointment.prescription {
+            RefactoredPrescriptionView(prescription: prescription)
+        } else {
+            ContentUnavailableView {
+                Image(systemName: "pills")
+                    .font(.system(size: 50))
+                    .foregroundColor(.secondary)
+            } description: {
+                Text("No prescription available")
+                    .font(.headline)
+            } actions: {
+                Text("The doctor hasn't prescribed any medications for this appointment yet.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+        }
+    }
+    
+    // MARK: - Helper Functions
+    private func loadAppointmentDetails() async {
+        isLoading = true
+        error = nil
+        
+        do {
+            viewModel.loadAppointmentDetails(appointmentId: appointmentId)
+            // Wait for the loading to complete
+            for _ in 0..<10 {
+                if !viewModel.isLoadingDetails {
+                    break
+                }
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+            }
+            
+            if let details = viewModel.appointmentDetails {
+                appointmentDetail = details
+                isLoading = false
+            } else if let detailsError = viewModel.detailsError {
+                self.error = detailsError
+                isLoading = false
+            }
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+        }
     }
 }
 
-// Update the tab button to work better with the blue background
+// MARK: - Extensions
+extension AppointmentDetailView {
+    enum DetailTab: String, CaseIterable {
+        case overview
+        case diagnosis
+        case prescription
+        
+        var title: String {
+            switch self {
+            case .overview: return "Overview"
+            case .diagnosis: return "Diagnosis"
+            case .prescription: return "Prescription"
+            }
+        }
+        
+        var iconName: String {
+            switch self {
+            case .overview: return "doc.text"
+            case .diagnosis: return "stethoscope"
+            case .prescription: return "pills"
+            }
+        }
+    }
+}
+
+// MARK: - Initializer for DocAppointment
+extension AppointmentDetailView {
+    init(appointment: DoctorResponse.DocAppointment) {
+        self.appointmentId = appointment.appointmentId
+    }
+}
+
+// MARK: - Tab Button
 struct TabButton: View {
     let title: String
     let systemImage: String
@@ -367,9 +394,9 @@ struct TabButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 18))
+                    .font(.system(size: 16))
                 
                 Text(title)
                     .font(.system(size: 12, weight: .medium))
@@ -377,161 +404,217 @@ struct TabButton: View {
             .foregroundColor(isActive ? .white : .white.opacity(0.7))
             .frame(height: 50)
             .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(isActive ? Color.white.opacity(0.2) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isActive ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
-            )
+            .contentShape(Rectangle())
         }
+        .background(
+            ZStack {
+                if isActive {
+                    Color.white.opacity(0.2)
+                        .cornerRadius(10)
+                    
+                    VStack {
+                        Spacer()
+                        Rectangle()
+                            .frame(height: 3)
+                            .cornerRadius(1.5)
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+        )
         .buttonStyle(PlainButtonStyle())
     }
 }
 
-// Appointment header card
-struct AppointmentHeaderCard: View {
-    let appointment: DoctorResponse.DocAppointment
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Appointment #\(appointment.appointmentId)")
-                        .font(.system(size: 18, weight: .bold))
-                    
-                    Text("\(formatDate(appointment.date)) • Slot \(appointment.slotId)")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                StatusBadge(status: appointment.status)
-            }
-            
-            Divider()
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Doctor")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("Staff ID: \(appointment.staffId)")
-                        .font(.subheadline)
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Patient")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("ID: \(appointment.patientId)")
-                        .font(.subheadline)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-    }
-    
-    private func formatDate(_ dateString: String) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        guard let date = dateFormatter.date(from: dateString) else {
-            return dateString
-        }
-        
-        dateFormatter.dateStyle = .medium
-        return dateFormatter.string(from: date)
-    }
-}
-
-// Overview tab content
-struct AppointmentOverviewView: View {
-    let appointment: DoctorResponse.DocAppointment
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionHeaderView1(title: "Appointment Summary")
-            
-            VStack(alignment: .leading, spacing: 12) {
-                InfoRow(label: "Appointment ID", value: "\(appointment.appointmentId)")
-                InfoRow(label: "Date", value: formatDate(appointment.date))
-                InfoRow(label: "Time Slot", value: "Slot \(appointment.slotId)")
-                InfoRow(label: "Staff ID", value: appointment.staffId)
-                InfoRow(label: "Patient ID", value: "\(appointment.patientId)")
-                InfoRow(label: "Status", value: appointment.status)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            
-            // Timeline
-            SectionHeaderView1(title: "Appointment Timeline")
-            
-            AppointmentTimelineView(status: appointment.status.lowercased())
-        }
-    }
-    
-    private func formatDate(_ dateString: String) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        guard let date = dateFormatter.date(from: dateString) else {
-            return dateString
-        }
-        
-        dateFormatter.dateStyle = .medium
-        return dateFormatter.string(from: date)
-    }
-}
-
-// Section header component
+// MARK: - Section Header
 struct SectionHeaderView1: View {
     let title: String
     
     var body: some View {
         HStack {
             Text(title)
-                .font(.system(size: 18, weight: .semibold))
-            
-            Spacer()
-        }
-        .padding(.top, 8)
-    }
-}
-
-// Info row component
-struct InfoRow: View {
-    let label: String
-    let value: String
-    
-    var body: some View {
-        HStack(alignment: .top) {
-            Text(label)
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-                .frame(width: 100, alignment: .leading)
-            
-            Text(value)
-                .font(.system(size: 14))
+                .font(.title3)
+                .fontWeight(.bold)
                 .foregroundColor(.primary)
             
             Spacer()
         }
+        .padding(.top, 12)
+        .padding(.bottom, 8)
     }
 }
 
-// Timeline component
+// MARK: - Summary Card
+struct SummaryCard: View {
+    let title: String
+    let iconName: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    // Icon with proper sizing and accessibility traits
+                    Image(systemName: iconName)
+                        .font(.system(size: 28, weight: .medium))
+                        .foregroundColor(color)
+                        .accessibility(hidden: true)
+                    
+                    Spacer()
+                    
+                    // Chevron moved to right side for better navigation pattern
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .accessibility(hidden: true)
+                }
+                
+                Spacer(minLength: 8)
+                
+                // Title with improved typography and accessibility
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, minHeight: 90)
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(10)
+        }
+        .buttonStyle(CardButtonStyle(color: color))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title)")
+        .accessibilityHint("Tap to view details")
+    }
+}
+
+// Custom button style for proper tap feedback
+struct CardButtonStyle: ButtonStyle {
+    let color: Color
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(.secondarySystemBackground))
+                    .shadow(
+                        color: Color.black.opacity(0.07),
+                        radius: 3,
+                        x: 0,
+                        y: 1
+                    )
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+// Example implementation for SwiftUI previews
+struct SummaryCard_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 16) {
+            SummaryCard(
+                title: "Account Summary",
+                iconName: "person.crop.circle.fill",
+                color: .blue
+            ) {
+                print("Card tapped")
+            }
+            
+            SummaryCard(
+                title: "Payment History",
+                iconName: "creditcard.fill",
+                color: .green
+            ) {
+                print("Card tapped")
+            }
+        }
+        .padding()
+        .previewLayout(.sizeThatFits)
+    }
+}
+
+// MARK: - Appointment Overview Card
+struct AppointmentOverviewCard: View {
+    let appointment: AppointmentDetailResponse
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeaderView1(title: "Appointment Overview")
+            
+            VStack(alignment: .leading, spacing: 12) {
+                InfoRow(label: "Appointment ID", value: "#\(appointment.appointmentId)")
+                InfoRow(label: "Date", value: formatDate(appointment.date))
+                InfoRow(label: "Status", value: appointment.status, isStatus: true)
+                if let reason = appointment.reason, !reason.isEmpty {
+                    InfoRow(label: "Reason", value: reason)
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(12)
+        }
+    }
+    
+    private func formatDate(_ dateString: String) -> String {
+        // First try the ISO format with time
+        let isoFormatter = DateFormatter()
+        isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        
+        if let date = isoFormatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            return displayFormatter.string(from: date)
+        }
+        
+        // Then try simple date format
+        let simpleFormatter = DateFormatter()
+        simpleFormatter.dateFormat = "yyyy-MM-dd"
+        
+        if let date = simpleFormatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .none
+            return displayFormatter.string(from: date)
+        }
+        
+        // Return original if we can't parse it
+        return dateString
+    }}
+
+// MARK: - Info Row
+struct InfoRow: View {
+    let label: String
+    let value: String
+    var isStatus: Bool = false
+    
+    var body: some View {
+        HStack(alignment: .center) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(width: 120, alignment: .leading)
+            
+            if isStatus {
+                StatusBadge(status: value)
+            } else {
+                Text(value)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Timeline View
 struct AppointmentTimelineView: View {
     let status: String
     
@@ -566,13 +649,12 @@ struct AppointmentTimelineView: View {
             )
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
 
-// Timeline item component
+// MARK: - Timeline Item
 struct TimelineItem: View {
     let title: String
     let description: String
@@ -602,11 +684,12 @@ struct TimelineItem: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
                     .foregroundColor(isCompleted ? .primary : .secondary)
                 
                 Text(description)
-                    .font(.system(size: 14))
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
             .padding(.bottom, isLast ? 0 : 24)
@@ -616,500 +699,370 @@ struct TimelineItem: View {
     }
 }
 
-// Diagnosis detail view
-struct DiagnosisDetailView: View {
-    let diagnosis: DoctorResponse.DiagnosisResponse
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionHeaderView1(title: "Diagnosis Information")
-            
-            VStack(alignment: .leading, spacing: 12) {
-                InfoRow(label: "Diagnosis ID", value: "\(diagnosis.diagnosisId)")
-                InfoRow(label: "Status", value: "Completed")
-                InfoRow(label: "Notes", value: "Diagnosis was completed successfully. The details would be displayed here in a real implementation.")
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            
-            // In a real implementation, you would display the actual diagnosis details here
-            // This is just a placeholder
-            Text("Note: This is a simulated diagnosis view. In a real implementation, the complete diagnosis information would be displayed here.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-                .padding()
-                .background(Color.yellow.opacity(0.1))
-                .cornerRadius(8)
-        }
-    }
-}
-
-// Prescription detail view
-struct PrescriptionDetailView: View {
-    let prescription: DoctorResponse.PrescriptionResponse
+// MARK: - Refactored Prescription View
+struct RefactoredPrescriptionView: View {
+    let prescription: PrescriptionDetail
+    @StateObject private var medicationsViewModel = MedicationsViewModel()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeaderView1(title: "Prescription Details")
             
             VStack(alignment: .leading, spacing: 12) {
-                InfoRow(label: "Status", value: "Issued")
-                InfoRow(label: "Message", value: prescription.message)
+                InfoRow(label: "Prescription ID", value: "#\(prescription.prescriptionId)")
+                
+                if ((prescription.remarks?.isEmpty) == nil) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Remarks")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Text(prescription.remarks ?? "")
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.tertiarySystemBackground))
+                            .cornerRadius(8)
+                    }
+                }
             }
             .padding()
-            .background(Color(.systemBackground))
+            .background(Color(.secondarySystemBackground))
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
             
-            // Medications would be displayed here
+            // Medications section
             SectionHeaderView1(title: "Medications")
             
-            VStack(spacing: 12) {
-                // Sample medications - in a real implementation, these would come from the API
-                MedicationRow(
-                    name: "Sample Medication 1",
-                    dosage: "10mg",
-                    frequency: "Once daily",
-                    duration: "7 days"
-                )
+            if medicationsViewModel.isLoading {
+                ProgressView("Loading medications...")
+                    .frame(maxWidth: .infinity, minHeight: 100)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
+            } else if let error = medicationsViewModel.error {
+                VStack(spacing: 8) {
+                    Text("Could not load medications")
+                        .font(.headline)
+                        .foregroundColor(.red)
+                    
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    Button(action: {
+                        medicationsViewModel.loadMedications(from: prescription)
+                    }) {
+                        Text("Try Again")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                    }
+                    .padding(.top, 8)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(12)
+            } else if medicationsViewModel.medications.isEmpty {
+                Text("No medications prescribed")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 80)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(medicationsViewModel.medications) { medication in
+                        MedicationCardView(medication: medication)
+                    }
+                }
+            }
+            
+            // Information about prescription
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.blue)
                 
-                MedicationRow(
-                    name: "Sample Medication 2",
-                    dosage: "500mg",
-                    frequency: "Twice daily",
-                    duration: "5 days"
-                )
+                Text("Take medication as prescribed. Contact your doctor if you experience any unusual symptoms.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
             }
             .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            
-            // In a real implementation, you would display the actual prescription details here
-            // This is just a placeholder
-            Text("Note: This is a simulated prescription view. In a real implementation, the complete prescription information would be displayed here.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-                .padding()
-                .background(Color.yellow.opacity(0.1))
-                .cornerRadius(8)
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(8)
+        }
+        .onAppear {
+            medicationsViewModel.loadMedications(from: prescription)
         }
     }
 }
 
-// Medication row component
-struct MedicationRow: View {
-    let name: String
-    let dosage: String
-    let frequency: String
-    let duration: String
+// MARK: - Medication Card View
+struct MedicationCardView: View {
+    let medication: MedicationViewModel
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(name)
-                .font(.system(size: 16, weight: .medium))
-            
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label {
-                    Text(dosage)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                } icon: {
-                    Image(systemName: "pills")
-                        .foregroundColor(.blue)
-                }
+                Text(medication.name)
+                    .font(.headline)
                 
                 Spacer()
                 
-                Label {
-                    Text(frequency)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                } icon: {
-                    Image(systemName: "clock")
-                        .foregroundColor(.green)
-                }
-                
-                Spacer()
-                
-                Label {
-                    Text(duration)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                } icon: {
-                    Image(systemName: "calendar")
-                        .foregroundColor(.orange)
+                if medication.fastingRequired {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        
+                        Text("Take on empty stomach")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
                 }
             }
             
             Divider()
+            
+            HStack(spacing: 16) {
+                DosageView(title: "Morning", count: medication.morning, color: .blue)
+                DosageView(title: "Afternoon", count: medication.afternoon, color: .orange)
+                DosageView(title: "Evening", count: medication.evening, color: .purple)
+            }
+            
+            HStack {
+                Text("Frequency:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text(medication.frequencyDescription)
+                    .font(.subheadline)
+            }
         }
+        .padding()
+        .background(Color(.tertiarySystemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
 }
 
-// Vitals detail view
-struct VitalsDetailView: View {
-    let vitals: DoctorResponse.DocGetLatestPatientVitals
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionHeaderView1(title: "Patient Vitals")
-            
-            VStack(alignment: .leading, spacing: 12) {
-                InfoRow(label: "Recorded", value: formatDate(vitals.createdAt))
-                InfoRow(label: "Appointment", value: "#\(vitals.appointmentId)")
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            
-            // Vitals grid
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                VitalCard(
-                    title: "Height",
-                    value: String(format: "%.1f cm", vitals.patientHeight),
-                    iconName: "ruler",
-                    color: .blue
-                )
-                
-                VitalCard(
-                    title: "Weight",
-                    value: String(format: "%.1f kg", vitals.patientWeight),
-                    iconName: "scalemass",
-                    color: .green
-                )
-                
-                VitalCard(
-                    title: "Heart Rate",
-                    value: "\(vitals.patientHeartrate) bpm",
-                    iconName: "heart",
-                    color: .red
-                )
-                
-                VitalCard(
-                    title: "SpO2",
-                    value: String(format: "%.1f%%", vitals.patientSpo2),
-                    iconName: "lungs",
-                    color: .purple
-                )
-                
-                VitalCard(
-                    title: "Temperature",
-                    value: String(format: "%.1f °C", vitals.patientTemperature),
-                    iconName: "thermometer",
-                    color: .orange
-                )
-                
-                VitalCard(
-                    title: "BMI",
-                    value: String(format: "%.1f", calculateBMI(height: vitals.patientHeight, weight: vitals.patientWeight)),
-                    iconName: "figure.mixed.cardio",
-                    color: .teal
-                )
-            }
-        }
-    }
-    
-    private func calculateBMI(height: Double, weight: Double) -> Double {
-        // Height in meters (convert from cm)
-        let heightInMeters = height / 100
-        return weight / (heightInMeters * heightInMeters)
-    }
-    
-    private func formatDate(_ dateString: String) -> String {
-        let inputFormatter = DateFormatter()
-        inputFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ" // Adjust format based on your API
-        
-        guard let date = inputFormatter.date(from: dateString) else {
-            return dateString
-        }
-        
-        let outputFormatter = DateFormatter()
-        outputFormatter.dateStyle = .medium
-        outputFormatter.timeStyle = .short
-        return outputFormatter.string(from: date)
-    }
-}
-
-// Vital card component
-struct VitalCard: View {
+// MARK: - Dosage View
+struct DosageView: View {
     let title: String
-    let value: String
-    let iconName: String
+    let count: Int
     let color: Color
     
     var body: some View {
-        VStack(spacing: 12) {
-            Circle()
-                .fill(color.opacity(0.1))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Image(systemName: iconName)
-                        .font(.system(size: 24))
-                        .foregroundColor(color)
-                )
-            
+        VStack(spacing: 4) {
             Text(title)
-                .font(.system(size: 14))
+                .font(.caption)
                 .foregroundColor(.secondary)
             
-            Text(value)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.primary)
+            HStack(spacing: 2) {
+                ForEach(0..<count, id: \.self) { _ in
+                    Image(systemName: "pill.fill")
+                        .foregroundColor(color)
+                        .font(.system(size: 14))
+                }
+                
+                if count == 0 {
+                    Text("None")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .frame(minWidth: 80)
     }
 }
 
-// Patient profile view
-struct PatientProfileView: View {
-    let profile: DoctorResponse.PatientProfile
+// MARK: - Refactored Diagnosis View
+struct DiagnosisDetailView: View {
+    let diagnosis: DiagnosisDetail
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SectionHeaderView1(title: "Patient Information")
-            
-            // Profile header
-            HStack {
-                ProfileImageView(imageURL: profile.profilePhoto)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(profile.patientName)
-                        .font(.system(size: 20, weight: .bold))
-                    
-                    Text("Patient #\(profile.patientId)")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                    
-                    HStack {
-                        Label {
-                            Text(formattedAge(dob: profile.dob))
-                                .font(.system(size: 12))
-                        } icon: {
-                            Image(systemName: "calendar")
-                                .font(.system(size: 12))
-                        }
-                        .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Label {
-                            Text(profile.gender ? "Male" : "Female")
-                                .font(.system(size: 12))
-                        } icon: {
-                            Image(systemName: profile.gender ? "person" : "person.2")
-                                .font(.system(size: 12))
-                        }
-                        .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Label {
-                            Text(profile.bloodGroup)
-                                .font(.system(size: 12))
-                        } icon: {
-                            Image(systemName: "drop")
-                                .font(.system(size: 12))
-                        }
-                        .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            
-            // Contact information
-            SectionHeaderView1(title: "Contact Information")
+            SectionHeaderView1(title: "Diagnosis Information")
             
             VStack(alignment: .leading, spacing: 12) {
-                InfoRow(label: "Email", value: profile.patientEmail)
-                InfoRow(label: "Mobile", value: profile.patientMobile)
-                if let address = profile.address {
-                    InfoRow(label: "Address", value: address)
+                InfoRow(label: "Diagnosis ID", value: "#\(diagnosis.diagnosisId)")
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Lab Required")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Label(
+                            diagnosis.labTestRequired ? "Yes" : "No",
+                            systemImage: diagnosis.labTestRequired ? "checkmark.circle.fill" : "xmark.circle.fill"
+                        )
+                        .foregroundColor(diagnosis.labTestRequired ? .green : .red)
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Follow-up")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Label(
+                            diagnosis.followUpRequired ? "Required" : "Not Required",
+                            systemImage: diagnosis.followUpRequired ? "checkmark.circle.fill" : "xmark.circle.fill"
+                        )
+                        .foregroundColor(diagnosis.followUpRequired ? .green : .red)
+                    }
                 }
+                .padding(.vertical, 4)
             }
             .padding()
-            .background(Color(.systemBackground))
+            .background(Color(.secondarySystemBackground))
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            
+            // Diagnostic details section
+            if let diagnosisData = diagnosis.diagnosisData, !diagnosisData.isEmpty {
+                SectionHeaderView1(title: "Diagnosis Details")
+                
+                ForEach(diagnosisData) { data in
+                    DiagnosisDataCardView(data: data)
+                }
+            } else {
+                Text("No detailed diagnosis information available")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
+            }
         }
     }
+}
+
+// MARK: - Diagnosis Data Card View
+struct DiagnosisDataCardView: View {
+    let data: DiagnosisDataDetail
     
-    private func formattedAge(dob: String) -> String {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "yyyy-MM-dd"
-                    
-                    guard let birthDate = dateFormatter.date(from: dob) else {
-                        return "Unknown"
-                    }
-                    
-                    let calendar = Calendar.current
-                    let ageComponents = calendar.dateComponents([.year], from: birthDate, to: Date())
-                    
-                    if let age = ageComponents.year {
-                        return "\(age) years"
-                    } else {
-                        return "Unknown"
-                    }
-                }
-            }
-
-            // Profile image component
-            struct ProfileImageView: View {
-                let imageURL: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(data.organ ?? "")
+                .font(.headline)
+                .padding(.bottom, 4)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Symptoms")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 
-                var body: some View {
-                    ZStack {
-                        if let urlString = imageURL, let url = URL(string: urlString) {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .empty:
-                                    ProgressView()
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                case .failure:
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.white)
-                                @unknown default:
-                                    EmptyView()
-                                }
+                if data.symptoms.isEmpty {
+                    Text("No symptoms recorded")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 4)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(data.symptoms, id: \.self) { symptom in
+                                Text(symptom)
+                                    .font(.caption)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.blue.opacity(0.1))
+                                    .foregroundColor(.blue)
+                                    .clipShape(Capsule())
                             }
-                            .frame(width: 80, height: 80)
-                            .clipShape(Circle())
-                        } else {
-                            Circle()
-                                .fill(Color.blue.opacity(0.2))
-                                .frame(width: 80, height: 80)
-                                .overlay(
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.blue)
-                                )
                         }
+                        .padding(.horizontal, 4)
                     }
                 }
             }
-
-            // Loading state view
-            struct LoadingView: View {
-                let message: String
-                
-                var body: some View {
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        
-                        Text(message)
-                            .font(.system(size: 16))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 200)
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
+            
+            if let notes = data.notes, !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Notes")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text(notes)
+                        .font(.body)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(8)
                 }
             }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+}
 
-            // Empty state view
-//            struct EmptyStateView: View {
-//                let icon: String
-//                let title: String
-//                let message: String
-//                
-//                var body: some View {
-//                    VStack(spacing: 16) {
-//                        Image(systemName: icon)
-//                            .font(.system(size: 40))
-//                            .foregroundColor(.gray)
-//                        
-//                        Text(title)
-//                            .font(.system(size: 18, weight: .semibold))
-//                        
-//                        Text(message)
-//                            .font(.system(size: 14))
-//                            .foregroundColor(.secondary)
-//                            .multilineTextAlignment(.center)
-//                            .padding(.horizontal)
-//                    }
-//                    .padding(.vertical, 40)
-//                    .frame(maxWidth: .infinity)
-//                    .background(Color(.systemBackground))
-//                    .cornerRadius(12)
-//                }
-//            }
+class MedicationsViewModel: ObservableObject {
+    @Published var medications: [MedicationViewModel] = []
+    @Published var isLoading = false
+    @Published var error: String?
+    
+    func loadMedications(from prescription: PrescriptionDetail) {
+        isLoading = true
+        error = nil
+        
+        // Convert prescription medicines to view model objects
+        DispatchQueue.main.async {
+            self.medications = prescription.medicines?.map { medicine in
+                MedicationViewModel(
+                    id: medicine.id,
+                    name: medicine.medicineName,
+                    morning: medicine.dosage.morning ?? 0,
+                    afternoon: medicine.dosage.afternoon ?? 0,
+                    evening: medicine.dosage.evening ?? 0,
+                    fastingRequired: medicine.fastingRequired
+                )
+            } ?? []
+            self.isLoading = false
+        }
+    }
+}
 
-            // Extension to the AppointmentData struct
-//            struct AppointmentData {
-//                let doctorName: String
-//                let specialty: String
-//                let date: String
-//                let time: String
-//                let notes: String
-//            }
-
-            // MARK: - Integration with existing code
-
-            // This updates the existing AppointmentRow to navigate to the detail view
-            struct AppointmentRowWithNavigation: View {
-                let appointment: DoctorResponse.DocAppointment
-                @State private var showDetailView = false
-                
-                var body: some View {
-                    Button(action: {
-                        showDetailView = true
-                    }) {
-                        AppointmentRow(appointment: appointment)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .sheet(isPresented: $showDetailView) {
-                        AppointmentDetailView(appointment: appointment)
-                    }
-                }
+struct MedicationViewModel: Identifiable {
+    let id: UUID
+    let name: String
+    let morning: Int
+    let afternoon: Int
+    let evening: Int
+    let fastingRequired: Bool
+    
+    var frequencyDescription: String {
+        let total = morning + afternoon + evening
+        
+        if total == 3 {
+            return "Three times a day"
+        } else if total == 2 {
+            if morning >= 1 && evening >= 1 {
+                return "Twice a day (morning and evening)"
+            } else if morning >= 1 && afternoon >= 1 {
+                return "Twice a day (morning and afternoon)"
+            } else if afternoon >= 1 && evening >= 1 {
+                return "Twice a day (afternoon and evening)"
             }
-
-            // Extension for the DoctorAppointmentsView to use the new row type
-            extension DoctorAppointmentsView {
-                // Update this in the ForEach within the LazyVStack
-                func updatedAppointmentsList() -> some View {
-                    LazyVStack(spacing: 12) {
-                        ForEach(filteredAppointments) { appointment in
-                            AppointmentRowWithNavigation(appointment: appointment)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
-                }
+        } else if total == 1 {
+            if morning >= 1 {
+                return "Once a day (morning)"
+            } else if afternoon >= 1 {
+                return "Once a day (afternoon)"
+            } else if evening >= 1 {
+                return "Once a day (evening)"
             }
-
-            // MARK: - Helper Extensions
-
-            extension View {
-                func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-                    clipShape(RoundedCorner(radius: radius, corners: corners))
-                }
-            }
-
-            struct RoundedCorner: Shape {
-                var radius: CGFloat = .infinity
-                var corners: UIRectCorner = .allCorners
-
-                func path(in rect: CGRect) -> Path {
-                    let path = UIBezierPath(
-                        roundedRect: rect,
-                        byRoundingCorners: corners,
-                        cornerRadii: CGSize(width: radius, height: radius)
-                    )
-                    return Path(path.cgPath)
-                }
-            }
+        }
+        
+        return "As prescribed"
+    }
+}
