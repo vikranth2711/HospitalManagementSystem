@@ -320,6 +320,7 @@ class AppointmentDetailViewModel: ObservableObject {
 // Tab selection component
 struct TabSelectionView: View {
     @Binding var activeTab: AppointmentDetailView.DetailTab
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -347,17 +348,17 @@ struct TabSelectionView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .background(Color(.systemBackground))
+        .background(Color(hex: "4A90E2"))
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Color.gray.opacity(0.2)),
+                .foregroundColor(Color.white.opacity(0.2)),
             alignment: .bottom
         )
     }
 }
 
-// Tab button component
+// Update the tab button to work better with the blue background
 struct TabButton: View {
     let title: String
     let systemImage: String
@@ -373,16 +374,16 @@ struct TabButton: View {
                 Text(title)
                     .font(.system(size: 12, weight: .medium))
             }
-            .foregroundColor(isActive ? .blue : .gray)
+            .foregroundColor(isActive ? .white : .white.opacity(0.7))
             .frame(height: 50)
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isActive ? Color.blue.opacity(0.1) : Color.clear)
+                    .fill(isActive ? Color.white.opacity(0.2) : Color.clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isActive ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                    .stroke(isActive ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())

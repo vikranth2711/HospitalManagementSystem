@@ -177,16 +177,6 @@ struct ReportsContent: View {
                 endPoint: .bottomTrailing
             ).ignoresSafeArea()
 
-            ForEach(0..<8) { _ in
-                Circle()
-                    .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
-                    .frame(width: CGFloat.random(in: 50...200))
-                    .position(
-                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-                    )
-                    .blur(radius: 3)
-            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
