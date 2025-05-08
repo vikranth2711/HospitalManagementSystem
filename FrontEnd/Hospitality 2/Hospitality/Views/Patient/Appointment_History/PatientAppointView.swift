@@ -1,5 +1,109 @@
 import SwiftUI
 
+// MARK: - AppointmentsViewModel
+class AppointmentsViewModel: ObservableObject {
+    @Published var appointments: [DoctorResponse.DocAppointment] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var sortBy: AppointmentSortOrder = .dateDescending
+    
+    private let doctorServices = DoctorServices()
+    
+    func loadAppointments() {
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                let fetchedAppointments = try await doctorServices.fetchDoctorAppointmentHistory()
+                
+                // Create a new array with updated appointment status based on date
+                let updatedAppointments = fetchedAppointments.map { appointment -> DoctorResponse.DocAppointment in
+                    var updatedStatus = appointment.status
+                    
+                    if appointment.status.lowercased() == "scheduled" {
+                        let isBeforeToday = self.isBeforeToday(appointment.date)
+                        if isBeforeToday {
+                            updatedStatus = "Completed"
+                        } else {
+                            updatedStatus = "Upcoming"
+                        }
+                    }
+                    
+                    return DoctorResponse.DocAppointment(
+                        appointmentId: appointment.appointmentId,
+                        date: appointment.date,
+                        slotId: appointment.slotId,
+                        staffId: appointment.staffId,
+                        patientId: appointment.patientId,
+                        status: updatedStatus
+                    )
+                }
+                
+                DispatchQueue.main.async {
+                    self.appointments = updatedAppointments
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    func refreshAppointments() async {
+        do {
+            let fetchedAppointments = try await doctorServices.fetchDoctorAppointmentHistory()
+            
+            // Create a new array with updated appointment status based on date
+            let updatedAppointments = fetchedAppointments.map { appointment -> DoctorResponse.DocAppointment in
+                var updatedStatus = appointment.status
+                
+                if appointment.status.lowercased() == "scheduled" {
+                    let isBeforeToday = self.isBeforeToday(appointment.date)
+                    if isBeforeToday {
+                        updatedStatus = "Completed"
+                    } else {
+                        updatedStatus = "Upcoming"
+                    }
+                }
+                
+                return DoctorResponse.DocAppointment(
+                    appointmentId: appointment.appointmentId,
+                    date: appointment.date,
+                    slotId: appointment.slotId,
+                    staffId: appointment.staffId,
+                    patientId: appointment.patientId,
+                    status: updatedStatus
+                )
+            }
+            
+            DispatchQueue.main.async {
+                self.appointments = updatedAppointments
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.errorMessage = error.localizedDescription
+            }
+        }
+    }
+    
+    private func isBeforeToday(_ dateString: String) -> Bool {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        guard let appointmentDate = dateFormatter.date(from: dateString) else {
+            return false
+        }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return appointmentDate < today
+    }
+}
+
 struct DoctorAppointmentsView: View {
     @StateObject private var viewModel = AppointmentsViewModel()
     @State private var selectedFilter: AppointmentFilter = .all
@@ -261,14 +365,9 @@ struct DoctorAppointmentsView: View {
     
     private var backgroundGradient: some View {
         LinearGradient(
-            gradient: Gradient(colors:[
-<<<<<<< HEAD:FrontEnd/Hospitality 2/Hospitality/Views/Patient/PatientAppointView.swift
-            Color(.systemBackground),
-            Color(.systemGroupedBackground)
-=======
-              Color(.systemBackground),
-              Color(.systemGroupedBackground),
->>>>>>> akshat_functions:FrontEnd/Hospitality 2/Hospitality/Views/Patient/Appointment_History/PatientAppointView.swift
+            gradient: Gradient(colors: [
+                Color(.systemBackground),
+                Color(.systemGroupedBackground)
             ]),
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -356,117 +455,6 @@ struct DoctorAppointmentsView: View {
             return false
         }
         
-<<<<<<< HEAD:FrontEnd/Hospitality 2/Hospitality/Views/Patient/PatientAppointView.swift
-        if isBeforeToday(appointment.date) {
-            return "Completed"
-        } else {
-            return "upcoming"
-=======
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        return appointmentDate < today
-    }
-}
-
-// MARK: - AppointmentsViewModel
-class AppointmentsViewModel: ObservableObject {
-    @Published var appointments: [DoctorResponse.DocAppointment] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    @Published var sortBy: AppointmentSortOrder = .dateDescending
-    
-    private let doctorServices = DoctorServices()
-    
-    func loadAppointments() {
-        isLoading = true
-        errorMessage = nil
-        
-        Task {
-            do {
-                let fetchedAppointments = try await doctorServices.fetchDoctorAppointmentHistory()
-                
-                // Create a new array with updated appointment status based on date
-                let updatedAppointments = fetchedAppointments.map { appointment -> DoctorResponse.DocAppointment in
-                    var updatedStatus = appointment.status
-                    
-                    if appointment.status.lowercased() == "scheduled" {
-                        let isBeforeToday = self.isBeforeToday(appointment.date)
-                        if isBeforeToday {
-                            updatedStatus = "Completed"
-                        } else {
-                            updatedStatus = "Upcoming"
-                        }
-                    }
-                    
-                    return DoctorResponse.DocAppointment(
-                        appointmentId: appointment.appointmentId,
-                        date: appointment.date,
-                        slotId: appointment.slotId,
-                        staffId: appointment.staffId,
-                        patientId: appointment.patientId,
-                        status: updatedStatus
-                    )
-                }
-                
-                DispatchQueue.main.async {
-                    self.appointments = updatedAppointments
-                    self.isLoading = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                }
-            }
-        }
-    }
-    
-    func refreshAppointments() async {
-        do {
-            let fetchedAppointments = try await doctorServices.fetchDoctorAppointmentHistory()
-            
-            // Create a new array with updated appointment status based on date
-            let updatedAppointments = fetchedAppointments.map { appointment -> DoctorResponse.DocAppointment in
-                var updatedStatus = appointment.status
-                
-                if appointment.status.lowercased() == "scheduled" {
-                    let isBeforeToday = self.isBeforeToday(appointment.date)
-                    if isBeforeToday {
-                        updatedStatus = "Completed"
-                    } else {
-                        updatedStatus = "Upcoming"
-                    }
-                }
-                
-                return DoctorResponse.DocAppointment(
-                    appointmentId: appointment.appointmentId,
-                    date: appointment.date,
-                    slotId: appointment.slotId,
-                    staffId: appointment.staffId,
-                    patientId: appointment.patientId,
-                    status: updatedStatus
-                )
-            }
-            
-            DispatchQueue.main.async {
-                self.appointments = updatedAppointments
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.errorMessage = error.localizedDescription
-            }
->>>>>>> akshat_functions:FrontEnd/Hospitality 2/Hospitality/Views/Patient/Appointment_History/PatientAppointView.swift
-        }
-    }
-    
-    private func isBeforeToday(_ dateString: String) -> Bool {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        guard let appointmentDate = dateFormatter.date(from: dateString) else {
-            return false
-        }
-        
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         return appointmentDate < today
@@ -522,7 +510,6 @@ struct FilterPill1: View {
         .buttonStyle(PlainButtonStyle())
     }
 }
-
 
 struct AppointmentRow: View {
     let appointment: DoctorResponse.DocAppointment
