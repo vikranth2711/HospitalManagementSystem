@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 
+// MARK: - Models
 struct LabRecord: Identifiable, Codable {
     let id: Int
     let lab: Int
@@ -11,7 +12,7 @@ struct LabRecord: Identifiable, Codable {
     let testTypeName: String
     let priority: String
     let appointment: Int
-    let status: String
+    let status : String
 
     enum CodingKeys: String, CodingKey {
         case id = "lab_test_id"
@@ -30,7 +31,7 @@ struct LabRecord: Identifiable, Codable {
 enum TestResultValue: Codable {
     case number(Double)
     case text(String)
-    case object([String: TestResultValue])  // Optional: For future complex types
+    case object([String: TestResultValue])
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -61,21 +62,17 @@ enum TestResultValue: Codable {
     }
 }
 
-
 // MARK: - Service
 class LabRecordService {
     static let shared = LabRecordService()
     private let baseURL = Constants.baseURL
     
     func fetchUpcomingLabRecords(completion: @escaping (Result<[LabRecord], DoctorCreationError>) -> Void) {
-        guard let url = URL(string: "\(baseURL)/hospital/general/patient/recommended-lab-tests/") ??
-                URL(string: "http://ec2-13-127-223-203.ap-south-1.compute.amazonaws.com/api/hospital/general/patient/recommended-lab-tests/")
-        else {
+        guard let url = URL(string: "\(baseURL)/hospital/general/patient/recommended-lab-tests/") else {
             completion(.failure(.invalidURL))
             return
         }
         
-        print(url)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -107,6 +104,7 @@ class LabRecordService {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
                 let response = try decoder.decode([LabRecord].self, from: data)
+                print(response)
                 completion(.success(response))
             } catch {
                 print("Decoding error: \(error)")
@@ -116,10 +114,9 @@ class LabRecordService {
     }
 }
 
-
-
 // MARK: - View Model
 class LabRecordsViewModel: ObservableObject {
+    @State private var selectedFilter: String = "Recommended"
     @Published var records: [LabRecord] = []
     @Published var isLoading: Bool = false
     private var cancellables = Set<AnyCancellable>()
@@ -143,159 +140,216 @@ class LabRecordsViewModel: ObservableObject {
 
 // MARK: - View
 struct ReportsContent: View {
+    @State private var selectedFilter: String = "Recommended"
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = LabRecordsViewModel()
     @State private var opacity: Double = 0.0
     @State private var searchText: String = ""
     @State private var selectedDate: Date = Date()
-    @State private var selectedFilter: String = "Upcoming" // Default to Upcoming
-    @State private var iconScale: CGFloat = 0.8
     @State private var isDateFilterActive: Bool = false
-    @State private var selectedRecord: LabRecord? // For overlay
+    @State private var selectedRecord: LabRecord?
+    @State private var cardOffset: CGFloat = 100
+    @State private var navBarOpacity: Double = 0.0
     
-    @StateObject private var doctorViewModel = DoctorViewModel()
-    
-    //var patientid = 3
-    
-
     private var filteredRecords: [LabRecord] {
-        viewModel.records.filter { record in
-            let isUpcoming = record.scheduledTime >= Date()
-            let matchesSegment = selectedFilter == "Upcoming" ? isUpcoming : !isUpcoming
-            let matchesSearch = searchText.isEmpty || record.labName.lowercased().contains(searchText.lowercased())
-            let matchesDate = !isDateFilterActive || Calendar.current.isDate(record.scheduledTime, inSameDayAs: selectedDate)
-            return matchesSegment && matchesSearch && matchesDate
-        }
-    }
+           viewModel.records.filter { record in
+               let matchesSegment: Bool
+               switch selectedFilter {
+               case "Recommended":
+                   matchesSegment = record.status.lowercased() == "recommended"
+               case "Completed":
+                   matchesSegment = record.status.lowercased() == "completed"
+               case "Paid":
+                   matchesSegment = record.status.lowercased() == "paid"
+               default:
+                   matchesSegment = true
+               }
+               
+               let matchesSearch = searchText.isEmpty || record.testTypeName.lowercased().contains(searchText.lowercased())
+               let matchesDate = !isDateFilterActive || Calendar.current.isDate(record.scheduledTime, inSameDayAs: selectedDate)
+               
+               return matchesSegment && matchesSearch && matchesDate
+           }
+       }
+
+
     
     var body: some View {
-        ZStack {
-            // Background
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
-                    colorScheme == .dark ? Color(hex: "1A202C") : Color(hex: "F0F8FF")
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Background circles
-            ForEach(0..<8) { _ in
-                Circle()
-                    .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
-                    .frame(width: CGFloat.random(in: 50...200))
-                    .position(
-                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-                    )
-                    .blur(radius: 3)
-            }
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Lab Records")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
+        NavigationStack {
+            ZStack {
+                // Gradient Background
+                LinearGradient(
+                    colors: [
+                        colorScheme == .dark ? Color(hex: "0A0E1A") : Color(hex: "E6F0FA"),
+                        colorScheme == .dark ? Color(hex: "1A2238") : Color(hex: "F8FBFF")
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                // Subtle decorative elements
+                GeometryReader { geometry in
+                    ForEach(0..<3) { _ in
+                        Circle()
+                            .fill(colorScheme == .dark ? Color.blue.opacity(0.1) : Color(hex: "4A90E2").opacity(0.05))
+                            .frame(width: CGFloat.random(in: 100...250))
+                            .blur(radius: 20)
+                            .position(
+                                x: CGFloat.random(in: 0...geometry.size.width),
+                                y: CGFloat.random(in: 0...geometry.size.height)
+                            )
+                    }
+                }
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Header
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Your Lab Reports")
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E3A8A"))
                             
-                            Text("View your scheduled and completed lab tests")
-                                .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "4A5568"))
-                        }
-                        
-                        Spacer()
-                        
-                  
-                        
-                    }
-                    .padding(.top, 16)
-                    .padding(.horizontal)
-                    
-                    // Segmented Picker for Upcoming/Completed
-                    Picker("Report Type", selection: $selectedFilter) {
-                        Text("Upcoming").tag("Upcoming")
-                        Text("Completed").tag("Completed")
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    
-                    // Search Bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                        TextField("Search tests...", text: $searchText)
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                            .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(colorScheme == .dark ? Color.blue.opacity(0.3) : Color(hex: "4A90E2").opacity(0.3), lineWidth: 1.5)
-                    )
-                    .padding(.horizontal)
-                    
-                    // Date Picker
-                    HStack(spacing: 12) {
-                        DatePicker(
-                            "",
-                            selection: $selectedDate,
-                            displayedComponents: [.date]
-                        )
-                        .datePickerStyle(CompactDatePickerStyle())
-                        .accentColor(colorScheme == .dark ? .blue : Color(hex: "4A90E2"))
-                        .opacity(isDateFilterActive ? 1.0 : 0.5)
-                    }
-                    .padding(.horizontal)
-                    
-                    // Records List
-                    LazyVStack(spacing: 12) {
-                        if viewModel.isLoading {
-                            ProgressView()
-                                .padding(.vertical, 20)
-                                .frame(maxWidth: .infinity)
-                        } else if filteredRecords.isEmpty {
-                            Text("No \(selectedFilter.lowercased()) lab records found")
+                            Text("Track your medical tests and results")
                                 .font(.system(size: 16, weight: .medium, design: .rounded))
-                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
-                                .padding(.vertical, 20)
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            ForEach(filteredRecords) { record in
-                                LabRecordCard(record: record, onTap: { selectedRecord = record })
-                                    .padding(.horizontal)
+                                .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "64748B"))
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 16)
+                        
+                        // Search Bar
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.gray)
+                            TextField("Search tests...", text: $searchText)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                .font(.system(size: 16, design: .rounded))
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(colorScheme == .dark ? Color(hex: "1E293B") : .white)
+                                .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.1), radius: 8)
+                        )
+                        .padding(.horizontal)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: searchText)
+                        
+                        // Filters
+                        HStack(spacing: 12) {
+                            Picker("Report Type", selection: $selectedFilter) {
+                                Text("Recommended").tag("Recommended")
+                                Text("Completed").tag("Completed")
+                                Text("Paid").tag("Paid")
+                            }
+                            .pickerStyle(.segmented)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(colorScheme == .dark ? Color(hex: "1E293B") : .white)
+                            )
+                            
+                            // Date Filter Toggle
+                            Button(action: {
+                                triggerHaptic()
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                    isDateFilterActive.toggle()
+                                }
+                            }) {
+                                Image(systemName: isDateFilterActive ? "calendar.circle.fill" : "calendar.circle")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(colorScheme == .dark ? Color(hex: "60A5FA") : Color(hex: "2563EB"))
+                                    .padding(8)
+                                    .background(
+                                        Circle()
+                                            .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color(hex: "DBEAFE"))
+                                    )
                             }
                         }
+                        .padding(.horizontal)
+                        
+                        // Date Picker
+                        if isDateFilterActive {
+                            DatePicker(
+                                "",
+                                selection: $selectedDate,
+                                displayedComponents: [.date]
+                            )
+                            .datePickerStyle(.compact)
+                            .accentColor(colorScheme == .dark ? Color(hex: "60A5FA") : Color(hex: "2563EB"))
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(colorScheme == .dark ? Color(hex: "1E293B") : .white)
+                                    .shadow(color: .black.opacity(0.1), radius: 4)
+                            )
+                            .padding(.horizontal)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                        
+                        // Records List
+                        LazyVStack(spacing: 16) {
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .tint(colorScheme == .dark ? .white : Color(hex: "2563EB"))
+                                    .padding(.vertical, 32)
+                                    .frame(maxWidth: .infinity)
+                            } else if filteredRecords.isEmpty {
+                                Text("No \(selectedFilter.lowercased()) lab records found")
+                                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                                    .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "64748B"))
+                                    .padding(.vertical, 32)
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                ForEach(filteredRecords) { record in
+                                    LabRecordCard(record: record, onTap: { selectedRecord = record })
+                                        .padding(.horizontal)
+                                        .offset(y: cardOffset)
+                                        .animation(
+                                            .spring(response: 0.6, dampingFraction: 0.8)
+                                            .delay(Double(filteredRecords.firstIndex(where: { $0.id == record.id }) ?? 0) * 0.05),
+                                            value: cardOffset
+                                        )
+                                }
+                            }
+                        }
+                        .padding(.vertical)
                     }
-                    .padding(.vertical)
+                    .padding(.bottom, 32)
                 }
-                .padding(.vertical)
+                .opacity(opacity)
+                .onAppear {
+                    viewModel.fetchLabRecords()
+                    withAnimation(.easeInOut(duration: 0.8)) {
+                        opacity = 1.0
+                        cardOffset = 0
+                    }
+                    withAnimation(.easeInOut(duration: 0.6).delay(0.2)) {
+                        navBarOpacity = 1.0
+                    }
+                }
+                .refreshable {
+                    viewModel.fetchLabRecords()
+                }
+                
+                // Detail Overlay
+                if let record = selectedRecord {
+                    LabRecordDetailOverlay(record: record, isPresented: Binding(
+                        get: { selectedRecord != nil },
+                        set: { if !$0 { selectedRecord = nil } }
+                    ))
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
             }
-            .opacity(opacity)
-            .onAppear {
-                viewModel.fetchLabRecords()
-                //doctorViewModel.fetchPatientProfileLab()
-                withAnimation(.easeInOut(duration: 0.8)) {
-                    opacity = 1.0
+            .navigationTitle("Reports")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Reports")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E3A8A"))
+                        .opacity(navBarOpacity)
                 }
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.1)) {
-                    iconScale = 1.0
-                }
-            }
-            
-            // Overlay
-            if let record = selectedRecord {
-                LabRecordDetailOverlay(record: record, isPresented: Binding(
-                    get: { selectedRecord != nil },
-                    set: { if !$0 { selectedRecord = nil } }
-                ), doctorViewModel: doctorViewModel)
             }
         }
     }
@@ -305,68 +359,84 @@ struct ReportsContent: View {
         generator.prepare()
         generator.impactOccurred()
     }
+}
+
+// MARK: - Detail Overlay
+struct LabRecordDetailOverlay: View {
+    let record: LabRecord
+    @Binding var isPresented: Bool
+    @Environment(\.colorScheme) var colorScheme
     
-    // MARK: - Overlay View
-    private struct LabRecordDetailOverlay: View {
-        let record: LabRecord
-        @Binding var isPresented: Bool
-        @Environment(\.colorScheme) var colorScheme
-        @ObservedObject var doctorViewModel: DoctorViewModel
-
-
-        var body: some View {
-            ZStack {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isPresented = false
+                    }
+                }
+            
+            VStack(spacing: 24) {
+                // Header with close button
+                HStack {
+                    Text("Lab Report Details")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E3A8A"))
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             isPresented = false
                         }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.6) : Color(hex: "64748B"))
                     }
-
-                VStack(spacing: 20) {
-                    // Header
-                    Text("Lab Record Details")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2C5282"))
-
-                    // Details
-                    VStack(alignment: .leading, spacing: 12) {
-//                        DetailRow(label: "Test Type", value: record.testTypeName)
-//                        DetailRow(label: "Priority", value: record.priority.capitalized)
-//                        DetailRow(label: "Lab Name", value: record.labName)
-//                        DetailRow(label: "Scheduled Time", value: record.scheduledTime, format: .dateTime.day().month().year().hour().minute())
-
-                        // Dynamic Test Results Section
-                        if let resultMap = record.testResult {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Test Results:")
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
-
+                }
+                .padding(.horizontal)
+                
+                // Details ScrollView
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        DetailRow(label: "Test Type", value: record.testTypeName)
+                        DetailRow(label: "Priority", value: record.priority.capitalized)
+                        DetailRow(
+                            label: "Scheduled Time",
+                            value: record.scheduledTime,
+                            format: .dateTime.day().month().year().hour().minute()
+                        )
+                        
+                        // Test Results
+                        if let resultMap = record.testResult, !resultMap.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Test Results")
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "475569"))
+                                
                                 ForEach(resultMap.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
                                     HStack {
                                         Text(key.capitalized + ":")
-                                            .font(.system(size: 14, weight: .regular, design: .rounded))
-                                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
-
+                                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                                            .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E293B"))
+                                        
                                         Spacer()
-
+                                        
                                         switch value {
                                         case .number(let num):
-                                            Text(String(num))
+                                            Text(String(format: "%.2f", num))
                                                 .font(.system(size: 14, weight: .regular, design: .rounded))
-                                                .foregroundColor(.blue)
-
+                                                .foregroundStyle(Color(hex: "2563EB"))
                                         case .text(let str):
                                             Text(str)
                                                 .font(.system(size: 14, weight: .regular, design: .rounded))
-                                                .foregroundColor(.gray)
-
-                                        @unknown default:
-                                            Text("Unsupported")
+                                                .foregroundStyle(Color(hex: "64748B"))
+                                        case .object:
+                                            Text("Complex Data")
                                                 .font(.system(size: 14, weight: .regular, design: .rounded))
-                                                .foregroundColor(.red)
+                                                .foregroundStyle(.red)
                                         }
                                     }
                                 }
@@ -376,204 +446,220 @@ struct ReportsContent: View {
                         }
                     }
                     .padding(.horizontal)
-                    
+                }
+                
+                // Buttons
+                HStack(spacing: 16) {
+                    // Download PDF Button
                     Button(action: {
-//                        let pdfData = PDFGenerator.createLabRecordPDF(from: record, using: DoctorViewModel)
-//                        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("LabTest-\(record.id).pdf")
-//
-//                        do {
-//                            try pdfData.write(to: tempURL)
-//                            let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
-//                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-//                               let rootVC = scene.windows.first?.rootViewController {
-//                                rootVC.present(activityVC, animated: true, completion: nil)
-//                            }
-//                        } catch {
-//                            print("Failed to write PDF: \(error.localizedDescription)")
-//                        }
                         generateAndSharePDF()
-
                     }) {
                         HStack {
                             Image(systemName: "arrow.down.doc.fill")
                             Text("Download PDF")
                         }
-                        .padding()
-                        .background(Color.blue.opacity(0.2))
-                        .cornerRadius(10)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(LinearGradient(
+                                    colors: [Color(hex: "2563EB"), Color(hex: "60A5FA")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ))
+                        )
                     }
-
+                    
                     // Close Button
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isPresented = false
-                        }
-                    }) {
-                        Text("Close")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "4A90E2"))
-                            )
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+//                    Button(action: {
+//                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+//                            isPresented = false
+//                        }
+//                    }) {
+//                        Text("Close")
+//                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+//                            .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E293B"))
+//                            .padding(.vertical, 14)
+//                            .frame(maxWidth: .infinity)
+//                            .background(
+//                                RoundedRectangle(cornerRadius: 12)
+//                                    .fill(colorScheme == .dark ? Color(hex: "334155") : Color(hex: "E2E8F0"))
+//                            )
+//                    }
                 }
-                .padding(.vertical, 20)
-                .frame(maxWidth: 320)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                        .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
-                )
-                .padding(.horizontal, 20)
-                .transition(.scale.combined(with: .opacity))
+                .padding(.horizontal)
+            }
+            .padding(.vertical, 24)
+            .frame(maxWidth: 360)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(colorScheme == .dark ? Color(hex: "1E293B") : .white)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.15), radius: 12)
+            )
+            .padding(.horizontal, 16)
+        }
+    }
+    
+    @StateObject var viewModel11 = DoctorViewModel()
+    
+    private func generateAndSharePDF() {
+        // Break down the PDF generation into distinct steps
+        //let pdfData = PDFGenerator.createLabRecordPDF(from: record, using: viewModel11)
+        
+        PDFGenerator.createLabRecordPDF(from: record, using: viewModel11) { pdfData in
+            if let data = pdfData {
+                // Use the PDF data (save to file, share, etc.)
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("LabTest-\(record.id).pdf")
+                
+                do {
+                    try pdfData!.write(to: tempURL)
+                    sharePDF(at: tempURL)
+                } catch {
+                    print("Failed to write PDF: \(error.localizedDescription)")
+                }
+                
+            } else {
+                print("Failed to generate PDF.")
             }
         }
-        @StateObject var viewModel11 = DoctorViewModel()
+    }
+    
+    private func sharePDF(at url: URL) {
+        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = scene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true, completion: nil)
+        }
+    }
+    
+    // Detail Row Component
+    struct DetailRow<Value>: View {
+        let label: String
+        let value: Value
+        let format: Date.FormatStyle?
         
-        private func generateAndSharePDF() {
-            // Break down the PDF generation into distinct steps
-            //let pdfData = PDFGenerator.createLabRecordPDF(from: record, using: viewModel11)
-            
-            PDFGenerator.createLabRecordPDF(from: record, using: viewModel11) { pdfData in
-                if let data = pdfData {
-                    // Use the PDF data (save to file, share, etc.)
-                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("LabTest-\(record.id).pdf")
-                    
-                    do {
-                        try pdfData!.write(to: tempURL)
-                        sharePDF(at: tempURL)
-                    } catch {
-                        print("Failed to write PDF: \(error.localizedDescription)")
-                    }
-                    
+        init(label: String, value: Value, format: Date.FormatStyle? = nil) {
+            self.label = label
+            self.value = value
+            self.format = format
+        }
+        
+        @Environment(\.colorScheme) var colorScheme
+        
+        var body: some View {
+            HStack(alignment: .top) {
+                Text(label + ":")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.8) : Color(hex: "475569"))
+                    .frame(width: 100, alignment: .leading)
+                
+                Spacer()
+                
+                if let dateValue = value as? Date, let format = format {
+                    Text(dateValue, format: format)
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E293B"))
                 } else {
-                    print("Failed to generate PDF.")
-                }
-            }
-            
-
-        }
-        
-        private func sharePDF(at url: URL) {
-            let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let rootVC = scene.windows.first?.rootViewController {
-                rootVC.present(activityVC, animated: true, completion: nil)
-            }
-        }
-        
-        // Helper View for Detail Rows
-        private struct DetailRow<Value>: View {
-            let label: String
-            let value: Value
-            let format: Date.FormatStyle?
-
-            init(label: String, value: Value, format: Date.FormatStyle? = nil) {
-                self.label = label
-                self.value = value
-                self.format = format
-            }
-
-            @Environment(\.colorScheme) var colorScheme
-
-            var body: some View {
-                HStack {
-                    Text(label + ":")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
-
-                    Spacer()
-
-                    if let dateValue = value as? Date, let format = format {
-                        Text(dateValue, format: format)
-                            .font(.system(size: 14, weight: .regular, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
-                    } else {
-                        Text(String(describing: value))
-                            .font(.system(size: 14, weight: .regular, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
-                    }
+                    Text(String(describing: value))
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E293B"))
                 }
             }
         }
     }
-
 }
 
-// MARK: - Lab Record Card
+// MARK: - Lab RecordmediumCard
 struct LabRecordCard: View {
     let record: LabRecord
     let onTap: () -> Void
     @Environment(\.colorScheme) var colorScheme
+    @State private var scale: CGFloat = 0.95
     
     var body: some View {
         Button(action: {
-            onTap()
+            triggerHaptic()
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                scale = 0.92
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    scale = 0.95
+                }
+                onTap()
+            }
         }) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Icon with colored background
+            HStack(spacing: 16) {
+                // Icon
                 ZStack {
                     Circle()
-                        .fill(colorScheme == .dark ? Color.blue.opacity(0.2) : Color(hex: "4A90E2").opacity(0.2))
-                        .frame(width: 40, height: 40)
+                        .fill(LinearGradient(
+                            colors: [Color(hex: "2563EB"), Color(hex: "60A5FA")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 48, height: 48)
                     
                     Image(systemName: "doc.text.fill")
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
-                        .font(.system(size: 20))
+                        .foregroundStyle(.white)
+                        .font(.system(size: 24))
                 }
                 
-                // Title and Label
-                HStack {
-                    Text(record.labName)
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? .white : Color(hex: "2D3748"))
+                // Content
+                VStack(alignment: .leading, spacing: 8) {
+                    // Title and Status
+                    HStack {
+                        Text(record.testTypeName)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundStyle(colorScheme == .dark ? .white : Color(hex: "1E293B"))
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Spacer()
+                        
+                        Text(record.status.capitalized)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(record.scheduledTime >= Date()
+                                        ? Color(hex: "2563EB").opacity(0.15)
+                                        : Color(hex: "22C55E").opacity(0.15)
+                                    )
+                            )
+                            .foregroundStyle(record.scheduledTime >= Date()
+                                ? Color(hex: "2563EB")
+                                : Color(hex: "22C55E")
+                            )
+                    }
                     
-                    if record.scheduledTime >= Date() {
-                        Text("Recommended")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.blue.opacity(0.15))
-                            .foregroundColor(colorScheme == .dark ? Color.blue : Color(hex: "4A90E2"))
-                            .clipShape(Capsule())
-                    } else {
-                        Text("Completed")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.green.opacity(0.15))
-                            .foregroundColor(colorScheme == .dark ? Color.green : Color(hex: "2ECC71"))
-                            .clipShape(Capsule())
+                    // Details
+                    HStack {
+                        Spacer()
+                        
+                        Text(record.scheduledTime, format: .dateTime.day().month().hour().minute())
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundStyle(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "64748B"))
                     }
                 }
-                
-                // Type and Scheduled Time
-                HStack {
-                    Text(record.testTypeName)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
-                    
-                    Spacer()
-                    
-                    Text(record.scheduledTime, format: .dateTime.day().month().hour().minute())
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(hex: "718096"))
-                }
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, minHeight: 140)
+            .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(colorScheme == .dark ? Color(hex: "1E2533") : .white)
-                    .shadow(color: colorScheme == .dark ? Color.black.opacity(0.3) : Color.gray.opacity(0.15), radius: 10, x: 0, y: 5)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(colorScheme == .dark ? Color(hex: "1E293B") : .white)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.1), radius: 8)
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .scaleEffect(scale)
+    }
+    
+    private func triggerHaptic() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
     }
 }
 
