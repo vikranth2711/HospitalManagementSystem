@@ -63,28 +63,16 @@ struct AppointmentsListView: View {
         }
     }
     
-    // Add this to your AppointmentsListView
-    private func saveAppointmentsToCache(_ appointments: [DoctorResponse.DocAppointment]) {
-        if let encoded = try? JSONEncoder().encode(appointments) {
-            UserDefaults.standard.set(encoded, forKey: "cachedAppointments")
-        }
-    }
-
-    private func loadCachedAppointments() -> [DoctorResponse.DocAppointment]? {
-        if let data = UserDefaults.standard.data(forKey: "cachedAppointments") {
-            return try? JSONDecoder().decode([DoctorResponse.DocAppointment].self, from: data)
-        }
-        return nil
-    }
-
-    // Modify your loadAppointments function:
     private func loadAppointments() {
         isLoading = true
-        errorMessage = nil
         
-        // Load cached appointments first
-        if let cached = loadCachedAppointments() {
-            self.appointments = cached
+        // Check if cache is still valid (e.g., less than 1 hour old)
+        if let lastUpdated = UserDefaults.standard.object(forKey: "lastAppointmentsUpdate") as? Date,
+           Date().timeIntervalSince(lastUpdated) < 3600,
+           let cachedData = UserDefaults.standard.data(forKey: "cachedAppointments"),
+           let cachedAppointments = try? JSONDecoder().decode([DoctorResponse.DocAppointment].self, from: cachedData) {
+            self.appointments = cachedAppointments
+            self.isLoading = false
         }
         
         Task {
@@ -92,12 +80,16 @@ struct AppointmentsListView: View {
                 let fetchedAppointments = try await DoctorServices().fetchDoctorAppointmentHistory()
                 DispatchQueue.main.async {
                     self.appointments = fetchedAppointments
-                    self.saveAppointmentsToCache(fetchedAppointments)
                     self.isLoading = false
+                    // Update cache
+                    if let encoded = try? JSONEncoder().encode(fetchedAppointments) {
+                        UserDefaults.standard.set(encoded, forKey: "cachedAppointments")
+                        UserDefaults.standard.set(Date(), forKey: "lastAppointmentsUpdate")
+                    }
                 }
             } catch {
                 DispatchQueue.main.async {
-                    if self.appointments.isEmpty { // Only show error if no cached data
+                    if self.appointments.isEmpty {
                         self.errorMessage = error.localizedDescription
                     }
                     self.isLoading = false
@@ -200,15 +192,6 @@ struct AppointmentCardView: View {
                 }
                 
                 HStack {
-                    Image(systemName: "clock")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                    Text("Appointment time will be displayed here")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
                     StatusBadge(status: appointment.status)
                     Spacer()
                     Text("ID: \(appointment.appointmentId)")
@@ -300,29 +283,6 @@ struct AppointmentCardView: View {
         }
     }
 }
-
-//struct StatusBadge: View {
-//    let status: String
-//
-//    var body: some View {
-//        Text(status.capitalized)
-//            .font(.caption2)
-//            .padding(.horizontal, 8)
-//            .padding(.vertical, 4)
-//            .background(statusBackgroundColor)
-//            .foregroundColor(.white)
-//            .cornerRadius(12)
-//    }
-//
-//    private var statusBackgroundColor: Color {
-//        switch status.lowercased() {
-//        case "completed": return .green
-//        case "scheduled": return .blue
-//        case "cancelled": return .red
-//        default: return .gray
-//        }
-//    }
-//}
 
 struct ErrorViewAppoint: View {
     let error: String

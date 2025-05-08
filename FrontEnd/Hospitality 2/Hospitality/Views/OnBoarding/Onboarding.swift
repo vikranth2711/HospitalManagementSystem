@@ -19,8 +19,7 @@ struct AdminOnboarding: View {
                 "Configure system settings"
             ],
             buttonText: "Enter Dashboard",
-            destination: AnyView(AdminHomeView()),
-            navigate: $navigateToDashboard
+            destination: AnyView(AdminHomeView())
         )
         .onChange(of: navigateToDashboard) { newValue in
             if newValue {
@@ -47,8 +46,7 @@ struct DoctorOnboarding: View {
                 "Prescribe medications"
             ],
             buttonText: "Begin Patient Care",
-            destination: AnyView(DoctorDashboardView(doctorId: doctorId)),
-            navigate: $navigateToDashboard
+            destination: AnyView(DoctorDashboardView(doctorId: doctorId))
         )
         .onChange(of: navigateToDashboard) { newValue in
             if newValue {
@@ -74,8 +72,7 @@ struct PatientOnboarding: View {
                 "Manage prescriptions"
             ],
             buttonText: "Access My Health",
-            destination: AnyView(HomePatient()),
-            navigate: $navigateToDashboard
+            destination: AnyView(HomePatient())
         )
         .onChange(of: navigateToDashboard) { newValue in
             if newValue {
@@ -101,8 +98,7 @@ struct LabTechOnboarding: View {
                 "Track specimens"
             ],
             buttonText: "Enter Lab Portal",
-            destination: AnyView(LabTechnicianView()),
-            navigate: $navigateToDashboard
+            destination: AnyView(LabTechnicianView())
         )
         .onChange(of: navigateToDashboard) { newValue in
             if newValue {
@@ -122,8 +118,8 @@ struct OnboardingBase: View {
     let features: [String]
     let buttonText: String
     let destination: AnyView
-    @Binding var navigate: Bool
     
+    @State private var navigate = false
     @State private var opacity: Double = 0.0
     @State private var scale: CGFloat = 0.8
     @Environment(\.colorScheme) var colorScheme
@@ -256,10 +252,8 @@ struct OnboardingBase: View {
                     }
                 }
                 .navigationDestination(isPresented: $navigate) {
-                    NavigationStack {
-                        destination
-                            .navigationBarBackButtonHidden(true)
-                    }
+                    destination
+                        .navigationBarBackButtonHidden(true)
                 }
             }
         }

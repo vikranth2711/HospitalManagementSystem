@@ -114,11 +114,6 @@ struct ShiftsView: View {
                 }
             }
             
-            Text(formattedDateTime)
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 4)
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)

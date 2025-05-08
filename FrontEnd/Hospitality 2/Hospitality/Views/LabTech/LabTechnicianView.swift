@@ -7,6 +7,93 @@
 
 import SwiftUI
 
+// MARK: - Extensions for Color Support
+
+
+
+// Extension for Hex Color Support in UIColor
+extension UIColor {
+    convenience init(hex: String) {
+        let hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased().replacingOccurrences(of: "#", with: "")
+        var rgb: UInt64 = 0
+        
+        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else {
+            self.init(red: 0, green: 0, blue: 0, alpha: 1.0)
+            return
+        }
+        let r, g, b: CGFloat
+        if hexSanitized.count == 6 {
+            r = CGFloat((rgb & 0xFF0000) >> 16) / 255.0
+            g = CGFloat((rgb & 0x00FF00) >> 8) / 255.0
+            b = CGFloat(rgb & 0x0000FF) / 255.0
+        } else {
+            r = 0
+            g = 0
+            b = 0
+        }
+        
+        self.init(red: r, green: g, blue: b, alpha: 1.0)
+    }
+}
+
+// MARK: - ColorSet for Consistent UI Styling
+struct ColorSet {
+    static let primaryBackground = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "101420") : UIColor(hex: "E8F5FF")
+    })
+    static let secondaryBackground = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "1A202C") : UIColor(hex: "F0F8FF")
+    })
+    static let cardBackground = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "1E2533") : UIColor.white
+    })
+    static let primaryText = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor.white : UIColor(hex: "2C5282")
+    })
+    static let secondaryText = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor(hex: "718096") : UIColor(hex: "4A5568")
+    })
+    static let accentBlue = Color(hex: "4A90E2")
+    static let accentGreen = Color(hex: "38A169")
+    static let accentRed = Color(hex: "E53E3E")
+    static let borderGradient = LinearGradient(
+        gradient: Gradient(colors: [accentBlue.opacity(0.5), accentBlue.opacity(0.3)]),
+        startPoint: .top,
+        endPoint: .bottom
+    )
+}
+
+// MARK: - Custom Button Style
+struct CustomButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
+            .foregroundColor(.white)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(hex: "4A90E2"),
+                                Color(hex: "5E5CE6")
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .shadow(color: Color(hex: "4A90E2").opacity(0.2), radius: 4, x: 0, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(ColorSet.borderGradient, lineWidth: 1)
+            )
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+    }
+}
+
+// MARK: - Data Models and Supporting Structs
 struct LabTestResultRequest: Encodable {
     let testResult: TestResultRequest
     
@@ -83,7 +170,6 @@ struct TestResultResponse: Decodable {
     }
 }
 
-// MARK: - Data Models
 struct LabTestTypeTech: Codable {
     let sampleCollected: String
     let parameters: [String: LabTestParameter]
@@ -203,93 +289,233 @@ struct TestResult: Codable {
     }
 }
 
-// MARK: - Main View
 struct LabTechnicianView: View {
     @StateObject private var viewModel = LabTechnicianViewModel()
+    @Environment(\.colorScheme) var colorScheme
     @State private var showingProfile = false
-    
+    @State private var selectedSegment: String = "Upcoming"
+    @State private var searchText = ""
+    @State private var iconScale: CGFloat = 0.8
+    @State private var opacity: Double = 0.0
+
     var body: some View {
-        NavigationView {
+        ZStack {
+            // Gradient Background
+            LinearGradient(
+                gradient: Gradient(colors: [ColorSet.primaryBackground, ColorSet.secondaryBackground]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            // Bubble Animations
+            ForEach(0..<6) { _ in
+                Circle()
+                    .fill(ColorSet.accentBlue.opacity(0.04))
+                    .frame(width: CGFloat.random(in: 60...180))
+                    .position(
+                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
+                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
+                    )
+                    .blur(radius: 4)
+            }
+
             ScrollView {
                 VStack(spacing: 16) {
-                    if viewModel.isLoading {
-                        ProgressView("Loading appointments...")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else if let errorMessage = viewModel.errorMessage {
-                        ErrorView(message: errorMessage, onRetry: {
-                            viewModel.fetchAppointments()
-                        })
-                    } else if viewModel.appointments.isEmpty {
-                        EmptyStateView(icon: "newspaper.circle", title: "No Data", message: "Have a nice evening")
-                    } else {
-                        ForEach(viewModel.appointments) { appointment in
-                            AppointmentSection(appointment: appointment, viewModel: viewModel)
+                    // Header
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Lab Technician Dashboard")
+                                .font(.system(size: 26, weight: .bold, design: .rounded))
+                                .foregroundColor(ColorSet.primaryText)
+                        }
+                        Spacer()
+                        Button(action: {
+                            triggerHaptic()
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                showingProfile = true
+                            }
+                        }) {
+                            @Environment(\.colorScheme) var colorScheme // Add this at the top of your View
+
+                            // Inside the body
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
+                                .padding(12)
+                                .background(
+                                    Circle()
+                                        .fill(
+                                            colorScheme == .dark
+                                            ? Color.white.opacity(0.08)
+                                            : Color(hex: "D9EFFF")
+                                        )
+                                )
+                                .scaleEffect(iconScale)
+
+
+                        }
+                        .accessibilityLabel("Profile")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 24)
+
+                    // Segmented Picker
+                    Picker("Tests", selection: $selectedSegment) {
+                        Text("Upcoming").tag("Upcoming")
+                        Text("Completed").tag("Completed")
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
+                    .background(ColorSet.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(ColorSet.borderGradient, lineWidth: 1)
+                    )
+                    .padding(.horizontal)
+
+                    // Search Bar (spacing reduced)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(ColorSet.secondaryText)
+                            .frame(width: 20)
+                        TextField("Search tests...", text: $searchText)
+                            .font(.system(size: 16, design: .rounded))
+                            .foregroundColor(ColorSet.primaryText)
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(ColorSet.secondaryText)
+                            }
+                            .accessibilityLabel("Clear Search")
                         }
                     }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
+                    .background(ColorSet.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(ColorSet.borderGradient, lineWidth: 1)
+                    )
+                    .padding(.horizontal)
+                    .padding(.bottom, 4) // Reduced space below search bar
+
+                    // Appointment List
+                    VStack(spacing: 16) {
+                        if viewModel.isLoading {
+                            ProgressView("Loading appointments...")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        } else if let errorMessage = viewModel.errorMessage {
+                            ErrorView(message: errorMessage, onRetry: {
+                                viewModel.fetchAppointments()
+                            })
+                        } else {
+                            let filteredAppointments = viewModel.appointments.filter { appointment in
+                                appointment.labTests.contains { test in
+                                    let matchesSegment = selectedSegment == "Upcoming" ? test.testResult == nil : test.testResult != nil
+                                    let matchesSearch = searchText.isEmpty || test.testType.lowercased().contains(searchText.lowercased())
+                                    return matchesSegment && matchesSearch
+                                }
+                            }
+
+                            if filteredAppointments.isEmpty {
+                                EmptyStateView(icon: "newspaper.circle", title: "No Tests", message: "No tests match the selected criteria")
+                            } else {
+                                ForEach(filteredAppointments) { appointment in
+                                    let matchingTests = appointment.labTests.filter { test in
+                                        let matchesSegment = selectedSegment == "Upcoming" ? test.testResult == nil : test.testResult != nil
+                                        let matchesSearch = searchText.isEmpty || test.testType.lowercased().contains(searchText.lowercased())
+                                        return matchesSegment && matchesSearch
+                                    }
+
+                                    if !matchingTests.isEmpty {
+                                        AppointmentSection(appointment: appointment, viewModel: viewModel, matchingTests: matchingTests)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding()
                 }
-                .padding()
-            }
-            .navigationTitle("Lab Technician Dashboard")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingProfile = true }) {
-                        Image(systemName: "person.circle")
-                            .font(.title2)
+                .padding(.bottom, 24)
+                .opacity(opacity)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 0.8)) {
+                        opacity = 1.0
+                    }
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.1)) {
+                        iconScale = 1.0
                     }
                 }
             }
-            .sheet(isPresented: $showingProfile) {
-                LabTechProfileView()
-            }
-            .onAppear {
+            .refreshable {
                 viewModel.fetchAppointments()
             }
         }
+        .sheet(isPresented: $showingProfile) {
+            LabTechProfileView()
+        }
+        .onAppear {
+            viewModel.fetchAppointments()
+        }
     }
 }
+
+
+    private func triggerHaptic(style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+
+
 
 // MARK: - Subviews
 struct AppointmentSection: View {
     let appointment: AppointmentListResponse
     @ObservedObject var viewModel: LabTechnicianViewModel
+    let matchingTests: [LabTest2]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Appointment header
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(appointment.patientName)
                         .font(.headline)
+                        .foregroundColor(ColorSet.primaryText)
                     Text("Dr. \(appointment.staffName)")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(ColorSet.secondaryText)
                 }
-                
                 Spacer()
-                
-                StatusBadge(status: appointment.status)
+                LabStatusBadge(status: appointment.status)
             }
-            
             Text("Appointment: \(formattedDate(appointment.createdDate)) at \(appointment.slotStartTime)")
                 .font(.caption)
-                .foregroundColor(.secondary)
-            
+                .foregroundColor(ColorSet.secondaryText)
             Text("Reason: \(appointment.reason)")
                 .font(.caption)
-                .foregroundColor(.secondary)
-            
-            // Lab tests
+                .foregroundColor(ColorSet.secondaryText)
             VStack(spacing: 12) {
-                ForEach(appointment.labTests) { test in
+                ForEach(matchingTests) { test in
                     LabTestCard(test: test, patientName: appointment.patientName, viewModel: viewModel)
                 }
             }
             .padding(.top, 8)
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(ColorSet.cardBackground)
+                .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(ColorSet.borderGradient, lineWidth: 1)
+        )
     }
     
     private func formattedDate(_ dateString: String) -> String {
@@ -315,23 +541,19 @@ struct LabTestCard: View {
                 Text(test.testType)
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                
+                    .foregroundColor(ColorSet.primaryText)
                 Spacer()
-                
                 PriorityBadge(priority: test.priority)
             }
-            
             HStack {
                 Text("Scheduled: \(formattedDateTime(test.testDateTime))")
                     .font(.caption)
-                
+                    .foregroundColor(ColorSet.secondaryText)
                 Spacer()
-                
                 Text(test.isPaid ? "Paid" : "Unpaid")
                     .font(.caption)
-                    .foregroundColor(test.isPaid ? .green : .orange)
+                    .foregroundColor(test.isPaid ? ColorSet.accentGreen : ColorSet.accentRed)
             }
-            
             if let result = test.testResult {
                 CompletedTestView(result: result)
             } else {
@@ -339,18 +561,19 @@ struct LabTestCard: View {
                     showingResultInput = true
                 }) {
                     Text("Enter Results")
-                        .font(.caption)
-                        .padding(8)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
                 }
+                .buttonStyle(CustomButtonStyle())
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(ColorSet.cardBackground.opacity(0.8))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ColorSet.borderGradient, lineWidth: 1)
+        )
         .sheet(isPresented: $showingResultInput) {
             LabTestInputView(test: test, patientName: patientName, viewModel: viewModel)
         }
@@ -375,19 +598,16 @@ struct CompletedTestView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Completed")
                 .font(.caption)
-                .foregroundColor(.green)
+                .foregroundColor(ColorSet.accentGreen)
                 .padding(4)
-                .background(Color.green.opacity(0.2))
+                .background(ColorSet.accentGreen.opacity(0.2))
                 .cornerRadius(4)
-            
             if let notes = result.notes, !notes.isEmpty {
                 Text("Notes: \(notes)")
                     .font(.caption)
+                    .foregroundColor(ColorSet.secondaryText)
             }
-            
-            // Display relevant results based on test type
             if result.hemoglobin != nil || result.wbcCount != nil || result.rbcCount != nil || result.platelets != nil {
-                // CBC results
                 if let hb = result.hemoglobin {
                     ResultRow(label: "Hemoglobin", value: "\(hb) g/dL")
                 }
@@ -401,7 +621,6 @@ struct CompletedTestView: View {
                     ResultRow(label: "Platelets", value: "\(platelets)/mcL")
                 }
             } else if result.fasting != nil || result.postprandial != nil {
-                // Blood sugar results
                 if let fasting = result.fasting {
                     ResultRow(label: "Fasting", value: "\(fasting) mg/dL")
                 }
@@ -409,7 +628,6 @@ struct CompletedTestView: View {
                     ResultRow(label: "Postprandial", value: "\(pp) mg/dL")
                 }
             }
-            // Add more test type result displays as needed
         }
     }
 }
@@ -422,11 +640,12 @@ struct ResultRow: View {
         HStack {
             Text(label)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(ColorSet.secondaryText)
             Spacer()
             Text(value)
                 .font(.caption)
                 .fontWeight(.medium)
+                .foregroundColor(ColorSet.primaryText)
         }
     }
 }
@@ -442,7 +661,6 @@ struct LabTestInputView: View {
     @State private var selectedOptions: [String: String] = [:]
     @State private var errorMessage: String?
     
-    // Load test parameters from your JSON schema
     private var testParameters: [String: Any]? {
         guard let testData = testTypesJSON.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: testData) as? [String: Any],
@@ -461,16 +679,12 @@ struct LabTestInputView: View {
                     Text("Scheduled: \(formattedDateTime(test.testDateTime))")
                         .font(.subheadline)
                 }
-                
                 Section(header: Text("Test Parameters")) {
-                    // Dynamic form based on test type
                     if let parameters = testParameters {
                         ForEach(Array(parameters.keys.sorted()), id: \.self) { key in
                             if let param = parameters[key] as? [String: Any],
                                let type = param["type"] as? String {
-                                
                                 if type == "number" {
-                                    // Numeric input field
                                     TestParameterField(
                                         label: "\(key) (\(param["unit"] as? String ?? ""))",
                                         key: key,
@@ -478,7 +692,6 @@ struct LabTestInputView: View {
                                         range: param["range"] as? String
                                     )
                                 } else if type == "text", let options = param["options"] as? [String] {
-                                    // Text selection from options
                                     PickerField(
                                         label: key,
                                         key: key,
@@ -489,7 +702,6 @@ struct LabTestInputView: View {
                                         )
                                     )
                                 } else if type == "table" {
-                                    // Table input (simplified for now)
                                     TextField("\(key) (enter details)", text: Binding(
                                         get: { testResults[key] ?? "" },
                                         set: { testResults[key] = $0 }
@@ -498,10 +710,8 @@ struct LabTestInputView: View {
                             }
                         }
                     }
-                    
                     TextField("Notes", text: $notes)
                 }
-                
                 if let error = errorMessage {
                     Section {
                         Text(error)
@@ -527,11 +737,7 @@ struct LabTestInputView: View {
     }
     
     private func submitResults() {
-        // Create request based on test type
         var request: LabTestResultRequest
-        
-        // Convert all inputs to the appropriate TestResultRequest
-        // This is a simplified version - you'll need to expand this for all test types
         request = LabTestResultRequest(
             testResult: TestResultRequest(
                 notes: notes.isEmpty ? nil : notes,
@@ -585,7 +791,6 @@ struct LabTestInputView: View {
     }
 }
 
-// Helper views
 struct TestParameterField: View {
     let label: String
     let key: String
@@ -633,7 +838,6 @@ struct PickerField: View {
     }
 }
 
-// Add this JSON string to your code (or load it from a file)
 let testTypesJSON = """
 {
   "Complete Blood Count (CBC)": {
@@ -746,10 +950,33 @@ struct PriorityBadge: View {
     
     private var priorityColor: Color {
         switch priority.lowercased() {
-        case "high": return .red
+        case "high": return ColorSet.accentRed
         case "medium": return .orange
-        case "low": return .green
-        default: return .gray
+        case "low": return ColorSet.accentGreen
+        default: return ColorSet.secondaryText
+        }
+    }
+}
+
+struct LabStatusBadge: View {
+    let status: String
+    
+    var body: some View {
+        Text(status)
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(statusColor)
+            .foregroundColor(.white)
+            .clipShape(Capsule())
+    }
+    
+    private var statusColor: Color {
+        switch status.lowercased() {
+        case "scheduled": return ColorSet.accentBlue
+        case "completed": return ColorSet.accentGreen
+        case "cancelled": return ColorSet.accentRed
+        default: return ColorSet.secondaryText
         }
     }
 }
@@ -875,7 +1102,7 @@ class LabTechnicianViewModel: ObservableObject {
                     self?.errorMessage = "Server error: \(errorMessage)"
                     completion(false)
                     return
-                }
+            }
                 
                 completion(true)
             }
