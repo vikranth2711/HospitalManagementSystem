@@ -13,7 +13,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from hospital.permissions import IsAdminStaff
 from accounts.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-
+import os
 def generate_otp(length=6):
     """Generate a random OTP consisting of digits."""
     return ''.join(random.choices(string.digits, k=length))
