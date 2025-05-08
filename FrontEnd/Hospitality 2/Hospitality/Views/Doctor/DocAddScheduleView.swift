@@ -76,9 +76,15 @@ struct DocAddScheduleView: View {
             
             datePicker
             
-            Text("Available Slots")
-                .font(.headline)
-                .padding(.horizontal)
+            HStack {
+                Text("Available Slots")
+                    .font(.headline)
+                Spacer()
+                Text("\(selectedSlots.count)/2 selected")
+                    .font(.caption)
+                    .foregroundColor(selectedSlots.count == 2 ? .green : .gray)
+            }
+            .padding(.horizontal)
             
             ForEach(availableSlots, id: \.id) { slot in
                 slotToggle(slot: slot)
@@ -111,7 +117,10 @@ struct DocAddScheduleView: View {
                 get: { selectedSlots.contains(slot.id) },
                 set: { isSelected in
                     if isSelected {
-                        selectedSlots.insert(slot.id)
+                        // Only allow selection if less than 2 slots are selected or this slot is already selected
+                        if selectedSlots.count < 2 || selectedSlots.contains(slot.id) {
+                            selectedSlots.insert(slot.id)
+                        }
                     } else {
                         selectedSlots.remove(slot.id)
                     }
@@ -120,12 +129,13 @@ struct DocAddScheduleView: View {
                 Text(slot.name)
                     .font(.subheadline)
             }
+            .disabled(!selectedSlots.contains(slot.id) && selectedSlots.count >= 2) // Disable if not selected and already 2 selected
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(colorScheme == .dark ? Color(.systemGray6) : Color(.systemBackground)))
+            .fill(colorScheme == .dark ? Color(.systemGray6) : Color(.systemBackground)))
     }
     
     private var submitButton: some View {

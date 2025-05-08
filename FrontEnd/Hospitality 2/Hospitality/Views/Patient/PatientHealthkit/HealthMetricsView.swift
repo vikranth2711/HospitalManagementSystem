@@ -4,20 +4,29 @@ import HealthKit
 struct HealthMetricsView: View {
     @StateObject private var viewModel = HealthMetricsViewModel()
     @State private var showingPermissionAlert = false
+    @Environment(\.colorScheme) var colorScheme
+    
+    // MARK: - Color Scheme
+    private let primaryColor = Color(hex: "3BD1D3")
+    private let titleColor = Color(hex: "0077CC")  // Blue color for subheadings
+    private let heartColor = Color(hex: "FF5D7A")
+    private let oxygenColor = Color(hex: "5E7CE2")
     
     var body: some View {
-        NavigationView {
             ZStack {
-                Color(UIColor.systemGroupedBackground)
+                // Background
+                (colorScheme == .dark ? Color(hex: "101420") : Color(hex: "F7FAFF"))
                     .ignoresSafeArea()
                 
                 if viewModel.isLoading {
                     VStack {
                         ProgressView()
                             .scaleEffect(1.5)
+                            .tint(primaryColor)
                         Text("Loading health data...")
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(.secondary)
-                            .padding(.top, 16)
+                            .padding(.top, 12)
                     }
                 } else {
                     ScrollView {
@@ -32,21 +41,15 @@ struct HealthMetricsView: View {
                             spO2Section
                         }
                         .padding(.horizontal)
-                        .padding(.bottom, 30)
+                        .padding(.top, 8)
+                        .padding(.bottom, 24)
                     }
                 }
             }
             .navigationTitle("Health Metrics")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: viewModel.refreshData) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                }
-            }
             .onAppear {
+                print("[swatiswapna] 2025-05-08 10:51:44: Loading health metrics view")
                 viewModel.requestAuthorization { success in
                     if !success {
                         showingPermissionAlert = true
@@ -64,43 +67,39 @@ struct HealthMetricsView: View {
                 Text("Please enable Health permissions in Settings to view your health metrics.")
             }
         }
-    }
     
     // MARK: - Header Stats View
     private var headerStatsView: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 20) {
-                // Average Heart Rate
-                MetricCardView(
-                    title: "Heart Rate",
-                    value: viewModel.averageHeartRate != nil ? "\(String(format: "%.0f", viewModel.averageHeartRate!))" : "–",
-                    unit: "BPM",
-                    iconName: "heart.fill",
-                    color: .red,
-                    trend: viewModel.heartRateTrend
-                )
-                
-                // Average SpO2
-                MetricCardView(
-                    title: "Blood Oxygen",
-                    value: viewModel.averageSpO2 != nil ? "\(String(format: "%.0f", viewModel.averageSpO2!))" : "–",
-                    unit: "%",
-                    iconName: "lungs.fill",
-                    color: .blue,
-                    trend: viewModel.spO2Trend
-                )
-            }
-            .padding(.top, 10)
+        HStack(spacing: 12) {
+            // Average Heart Rate
+            MetricCardView(
+                title: "Heart Rate",
+                value: viewModel.averageHeartRate != nil ? "\(String(format: "%.0f", viewModel.averageHeartRate!))" : "–",
+                unit: "BPM",
+                iconName: "heart.fill",
+                color: heartColor,
+                backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
+            )
+            
+            // Average SpO2
+            MetricCardView(
+                title: "Blood Oxygen",
+                value: viewModel.averageSpO2 != nil ? "\(String(format: "%.0f", viewModel.averageSpO2!))" : "–",
+                unit: "%",
+                iconName: "waveform.path.ecg",
+                color: oxygenColor,
+                backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
+            )
         }
     }
     
     // MARK: - Heart Rate Section
     private var heartRateSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Heart Rate Events")
-                .font(.title2)
-                .fontWeight(.bold)
-                .padding(.leading, 5)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(titleColor)  // Changed to blue color
+                .padding(.leading, 4)
             
             VStack(spacing: 12) {
                 // High Heart Rate Events
@@ -113,9 +112,10 @@ struct HealthMetricsView: View {
                         let bpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
                         return String(format: "%.0f", bpm)
                     },
-                    valueColor: .red,
+                    valueColor: heartColor,
                     valueUnit: "BPM",
-                    iconName: "arrow.up.heart.fill"
+                    iconName: "arrow.up.heart.fill",
+                    backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
                 )
                 
                 // Low Heart Rate Events
@@ -128,9 +128,10 @@ struct HealthMetricsView: View {
                         let bpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
                         return String(format: "%.0f", bpm)
                     },
-                    valueColor: .blue,
+                    valueColor: primaryColor,
                     valueUnit: "BPM",
-                    iconName: "arrow.down.heart.fill"
+                    iconName: "arrow.down.heart.fill",
+                    backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
                 )
             }
         }
@@ -138,11 +139,11 @@ struct HealthMetricsView: View {
     
     // MARK: - SpO2 Section
     private var spO2Section: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Blood Oxygen Events")
-                .font(.title2)
-                .fontWeight(.bold)
-                .padding(.leading, 5)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(titleColor)  // Changed to blue color
+                .padding(.leading, 4)
             
             // Low SpO2 Events
             EventsCardView(
@@ -154,9 +155,10 @@ struct HealthMetricsView: View {
                     let percent = sample.quantity.doubleValue(for: HKUnit.percent()) * 100
                     return String(format: "%.0f", percent)
                 },
-                valueColor: .orange,
+                valueColor: oxygenColor,
                 valueUnit: "%",
-                iconName: "lungs.fill"
+                iconName: "waveform.path.ecg",
+                backgroundColor: colorScheme == .dark ? Color(hex: "1A2234") : .white
             )
         }
     }
@@ -169,47 +171,36 @@ struct MetricCardView: View {
     let unit: String
     let iconName: String
     let color: Color
-    let trend: Double?
+    let backgroundColor: Color
     
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(backgroundColor)
+                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
             
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: iconName)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(color)
                     
                     Text(title)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundColor(.secondary)
                     
                     Spacer()
-                    
-                    if let trend = trend {
-                        HStack(spacing: 2) {
-                            Image(systemName: trend > 0 ? "arrow.up" : "arrow.down")
-                                .font(.caption)
-                                .foregroundColor(trend > 0 ? .red : .green)
-                            
-                            Text("\(abs(trend), specifier: "%.1f")%")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
                 }
                 
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(value)
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.primary)
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundColor(color)
                     
                     Text(unit)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.secondary)
+                        .padding(.leading, 2)
                 }
             }
             .padding(.horizontal, 16)
@@ -229,17 +220,20 @@ struct EventsCardView: View {
     let valueColor: Color
     let valueUnit: String
     let iconName: String
+    let backgroundColor: Color
+    @State private var showingAllItems = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: iconName)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(valueColor)
+                    .frame(width: 24, height: 24)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                     
                     Text(description)
                         .font(.system(size: 13))
@@ -249,57 +243,75 @@ struct EventsCardView: View {
                 Spacer()
                 
                 Text("\(samples.count)")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(valueColor)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
-            
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(UIColor.separator).opacity(0.5))
-                .padding(.horizontal, 16)
+            .padding(.top, 16)
             
             if samples.isEmpty {
                 HStack {
                     Spacer()
                     Text(noDataMessage)
-                        .font(.system(size: 15))
+                        .font(.system(size: 14))
                         .foregroundColor(.secondary)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, 18)
                     Spacer()
                 }
             } else {
+                Divider()
+                    .padding(.horizontal, 16)
+                
                 VStack(spacing: 0) {
-                    ForEach(samples.prefix(5), id: \.uuid) { sample in
+                    // Fix: Use Array constructor for prefix to avoid compile errors
+                    let displaySamples = showingAllItems ? samples : Array(samples.prefix(3))
+                    
+                    ForEach(displaySamples, id: \.uuid) { sample in
                         eventRow(sample: sample)
+                        
+                        if sample != displaySamples.last {
+                            Divider()
+                                .padding(.horizontal, 16)
+                        }
+                    }
+                }
+                
+                if samples.count > 3 {
+                    Button(action: {
+                        showingAllItems.toggle()
+                    }) {
+                        Text(showingAllItems ? "Show less" : "See more")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(valueColor)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 10)
                     }
                 }
             }
         }
-        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
     private func eventRow(sample: HKQuantitySample) -> some View {
         HStack {
             Text(valueFormatter(sample))
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(valueColor)
             
             Text(valueUnit)
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .foregroundColor(.secondary)
             
             Spacer()
             
             Text(formatDate(sample.startDate))
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
     }
     
     private func formatDate(_ date: Date) -> String {
@@ -318,8 +330,39 @@ class HealthMetricsViewModel: ObservableObject {
     @Published var lowHeartRateSamples: [HKQuantitySample] = []
     @Published var lowSpO2Samples: [HKQuantitySample] = []
     @Published var isLoading = true
-    @Published var heartRateTrend: Double? = 1.2 // Mock data, would calculate from historical data
-    @Published var spO2Trend: Double? = -0.3 // Mock data, would calculate from historical data
+    
+    // For preview testing
+    #if DEBUG
+    static func previewMock() -> HealthMetricsViewModel {
+        let model = HealthMetricsViewModel()
+        model.isLoading = false
+        model.averageHeartRate = 72
+        model.averageSpO2 = 98
+        
+        // Mock samples require a bit more work
+        model.highHeartRateSamples = createMockSamples(count: 5, value: 125, unit: HKUnit.count().unitDivided(by: .minute()))
+        model.lowHeartRateSamples = createMockSamples(count: 2, value: 45, unit: HKUnit.count().unitDivided(by: .minute()))
+        model.lowSpO2Samples = createMockSamples(count: 3, value: 0.93, unit: HKUnit.percent())
+        
+        return model
+    }
+    
+    static func createMockSamples(count: Int, value: Double, unit: HKUnit) -> [HKQuantitySample] {
+        var samples: [HKQuantitySample] = []
+        
+        // Use a type that's not actual health data for preview
+        let mockType = HKQuantityType.quantityType(forIdentifier: value < 1 ? .oxygenSaturation : .heartRate)!
+        
+        for i in 0..<count {
+            let quantity = HKQuantity(unit: unit, doubleValue: value + Double(i))
+            let startDate = Date().addingTimeInterval(-Double(i * 3600))
+            let sample = HKQuantitySample(type: mockType, quantity: quantity, start: startDate, end: startDate)
+            samples.append(sample)
+        }
+        
+        return samples
+    }
+    #endif
     
     func requestAuthorization(completion: @escaping (Bool) -> Void) {
         HealthKitManager.shared.requestAuthorization { [weak self] success in
@@ -382,21 +425,26 @@ class HealthMetricsViewModel: ObservableObject {
             self.isLoading = false
         }
     }
-    
-    func refreshData() {
-        loadData()
-    }
 }
 
 // MARK: - Preview
 struct HealthMetricsView_Previews: PreviewProvider {
     static var previews: some View {
-        HealthMetricsView()
+        Group {
+            // Preview with mock HealthKit data
+            HealthMetricsView(viewModel: HealthMetricsViewModel.previewMock())
+                .previewDisplayName("Light Mode")
+            
+            HealthMetricsView(viewModel: HealthMetricsViewModel.previewMock())
+                .preferredColorScheme(.dark)
+                .previewDisplayName("Dark Mode")
+        }
     }
 }
 
-
-
-
-
-
+// Helper initializer for preview
+extension HealthMetricsView {
+    init(viewModel: HealthMetricsViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
+    }
+}
