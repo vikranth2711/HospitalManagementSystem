@@ -360,7 +360,6 @@ struct HomeContent: View {
     var body: some View {
         ZStack {
             backgroundGradient
-            backgroundCircles
             contentScrollView
             if let appointment = selectedAppointment {
                 AppointmentDetailOverlay(
@@ -425,19 +424,7 @@ struct HomeContent: View {
         .ignoresSafeArea()
     }
     
-    private var backgroundCircles: some View {
-        ForEach(0..<8) { _ in
-            Circle()
-                .fill(colorScheme == .dark ? Color.blue.opacity(0.05) : Color.blue.opacity(0.03))
-                .frame(width: CGFloat.random(in: 50...200))
-                .position(
-                    x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                    y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-                )
-                .blur(radius: 3)
-        }
-    }
-    
+   
     private var contentScrollView: some View {
         RefreshableScrollView(onRefresh: { done in
             refreshAppointments {
@@ -558,7 +545,7 @@ struct HomeContent: View {
             NavigationLink(destination: DoctorRecommender()) {
                 SquareScheduleCard(
                     icon: "brain.head.profile",
-                    title: "Physician Referral",
+                    title: "Doctor Referral",
                     color: colorScheme == .dark ? Color(hex: "FF7043") : Color(hex: "FF5722")
                 )
                 .frame(width: 180)
