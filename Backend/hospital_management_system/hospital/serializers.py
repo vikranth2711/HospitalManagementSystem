@@ -94,13 +94,50 @@ class LabTestChargeSerializer(serializers.ModelSerializer):
         fields = ['test_charge_id', 'test', 'test_name', 'charge_amount', 'charge_unit', 'charge_unit_symbol', 'charge_remark', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['test_charge_id', 'created_at', 'updated_at']
 
+# class RecommendedLabTestSerializer(serializers.ModelSerializer):
+#     test_type_name = serializers.CharField(source='test_type.test_name', read_only=True)
+#     lab_name = serializers.CharField(source='lab.lab_name', read_only=True)
+
+#     class Meta:
+#         model = LabTest
+#         fields = ['lab_test_id', 'lab', 'lab_name', 'test_datetime', 'test_result', 'test_type', 'test_type_name', 'priority', 'appointment']
+
 class RecommendedLabTestSerializer(serializers.ModelSerializer):
     test_type_name = serializers.CharField(source='test_type.test_name', read_only=True)
     lab_name = serializers.CharField(source='lab.lab_name', read_only=True)
+    charge_amount = serializers.SerializerMethodField()
+    charge_unit_symbol = serializers.SerializerMethodField()
 
     class Meta:
         model = LabTest
-        fields = ['lab_test_id', 'lab', 'lab_name', 'test_datetime', 'test_result', 'test_type', 'test_type_name', 'priority', 'appointment']
+        fields = [
+            'lab_test_id', 
+            'lab', 
+            'lab_name', 
+            'test_datetime', 
+            'test_result', 
+            'test_type', 
+            'test_type_name', 
+            'priority', 
+            'appointment',
+            'status',
+            'charge_amount',
+            'charge_unit_symbol'
+        ]
+    
+    def get_charge_amount(self, obj):
+        try:
+            charge = LabTestCharge.objects.get(test=obj.test_type, is_active=True)
+            return str(charge.charge_amount)
+        except LabTestCharge.DoesNotExist:
+            return None
+    
+    def get_charge_unit_symbol(self, obj):
+        try:
+            charge = LabTestCharge.objects.get(test=obj.test_type, is_active=True)
+            return charge.charge_unit.unit_symbol
+        except LabTestCharge.DoesNotExist:
+            return None
 
 class AssignedPatientSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.patient_name', read_only=True)

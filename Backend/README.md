@@ -2362,6 +2362,48 @@ urlpatterns = [
   ]
   ```
 
+## Patient Recommended Lab Tests API Reference
+
+### Get Patient Recommended Lab Tests
+> ⚠️ **Deprecated**: This API is no longer recommended. Please use `/new-api-endpoint` instead.
+- **URL**: `/api/hospital/general/patient/recommended-lab-tests/`
+- **Method**: GET
+- **Authentication**: Required (Patient only)
+- **Description**: Retrieves all lab tests recommended for the authenticated patient
+
+#### Query Parameters
+- `status` (optional): Filter lab tests by status (recommended, paid, completed, missed, failed)
+
+#### Response
+```json
+{
+  "status_summary": {
+    "recommended": 3,
+    "paid": 2,
+    "completed": 1,
+    "missed": 0,
+    "failed": 0,
+    "total": 6
+  },
+  "lab_tests": [
+    {
+      "lab_test_id": 56,
+      "lab": 1,
+      "lab_name": "Central Pathology Lab",
+      "test_datetime": "2025-05-10T10:00:00Z",
+      "test_result": null,
+      "test_type": 1,
+      "test_type_name": "Complete Blood Count",
+      "priority": "high",
+      "appointment": 123,
+      "status": "recommended",
+      "charge_amount": "500.00",
+      "charge_unit_symbol": "₹"
+    }
+  ]
+}
+```
+
 ## Lab Technician APIs
 
 ### Lab Technician Assigned Patients

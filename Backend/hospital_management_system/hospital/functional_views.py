@@ -1885,17 +1885,53 @@ class LabTestListView(APIView):
         serializer = LabTestSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+# class PatientRecommendedLabTestsView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         patient = request.user
+#         # Get recommended lab tests for this patient
+#         lab_tests = LabTest.objects.filter(appointment__patient=patient).order_by('-test_datetime')
+#         serializer = RecommendedLabTestSerializer(lab_tests, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
 class PatientRecommendedLabTestsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         patient = request.user
+        
+        # Get status filter from query params (optional)
+        status_filter = request.query_params.get('status')
+        
         # Get recommended lab tests for this patient
         lab_tests = LabTest.objects.filter(appointment__patient=patient).order_by('-test_datetime')
+        
+        # Apply status filter if provided
+        if status_filter:
+            lab_tests = lab_tests.filter(status=status_filter)
+            
+        # Group by status for summary
+        status_counts = {
+            'recommended': lab_tests.filter(status='recommended').count(),
+            'paid': lab_tests.filter(status='paid').count(),
+            'completed': lab_tests.filter(status='completed').count(),
+            'missed': lab_tests.filter(status='missed').count(),
+            'failed': lab_tests.filter(status='failed').count(),
+            'total': lab_tests.count()
+        }
+        
         serializer = RecommendedLabTestSerializer(lab_tests, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
+        
+        response_data = {
+            'status_summary': status_counts,
+            'lab_tests': serializer.data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+
 # class LabTechnicianAssignedPatientsView(APIView):
 #     authentication_classes = [JWTAuthentication]
 #     permission_classes = [IsAuthenticated]
