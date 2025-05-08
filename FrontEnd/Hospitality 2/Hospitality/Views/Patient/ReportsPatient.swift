@@ -11,6 +11,7 @@ struct LabRecord: Identifiable, Codable {
     let testTypeName: String
     let priority: String
     let appointment: Int
+    let status: String
 
     enum CodingKeys: String, CodingKey {
         case id = "lab_test_id"
@@ -22,6 +23,7 @@ struct LabRecord: Identifiable, Codable {
         case testTypeName = "test_type_name"
         case priority
         case appointment
+        case status
     }
 }
 
@@ -151,6 +153,11 @@ struct ReportsContent: View {
     @State private var isDateFilterActive: Bool = false
     @State private var selectedRecord: LabRecord? // For overlay
     
+    @StateObject private var doctorViewModel = DoctorViewModel()
+    
+    //var patientid = 3
+    
+
     private var filteredRecords: [LabRecord] {
         viewModel.records.filter { record in
             let isUpcoming = record.scheduledTime >= Date()
@@ -202,22 +209,8 @@ struct ReportsContent: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            triggerHaptic()
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                isDateFilterActive.toggle()
-                            }
-                        }) {
-                            Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                                .font(.system(size: 30))
-                                .foregroundColor(colorScheme == .dark ? .white : Color(hex: "4A90E2"))
-                                .padding(8)
-                                .background(
-                                    Circle()
-                                        .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.blue.opacity(0.1))
-                                )
-                                .scaleEffect(iconScale)
-                        }
+                  
+                        
                     }
                     .padding(.top, 16)
                     .padding(.horizontal)
@@ -288,6 +281,7 @@ struct ReportsContent: View {
             .opacity(opacity)
             .onAppear {
                 viewModel.fetchLabRecords()
+                //doctorViewModel.fetchPatientProfileLab()
                 withAnimation(.easeInOut(duration: 0.8)) {
                     opacity = 1.0
                 }
@@ -301,7 +295,7 @@ struct ReportsContent: View {
                 LabRecordDetailOverlay(record: record, isPresented: Binding(
                     get: { selectedRecord != nil },
                     set: { if !$0 { selectedRecord = nil } }
-                ))
+                ), doctorViewModel: doctorViewModel)
             }
         }
     }
@@ -317,6 +311,8 @@ struct ReportsContent: View {
         let record: LabRecord
         @Binding var isPresented: Bool
         @Environment(\.colorScheme) var colorScheme
+        @ObservedObject var doctorViewModel: DoctorViewModel
+
 
         var body: some View {
             ZStack {
@@ -380,6 +376,32 @@ struct ReportsContent: View {
                         }
                     }
                     .padding(.horizontal)
+                    
+                    Button(action: {
+//                        let pdfData = PDFGenerator.createLabRecordPDF(from: record, using: DoctorViewModel)
+//                        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("LabTest-\(record.id).pdf")
+//
+//                        do {
+//                            try pdfData.write(to: tempURL)
+//                            let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+//                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+//                               let rootVC = scene.windows.first?.rootViewController {
+//                                rootVC.present(activityVC, animated: true, completion: nil)
+//                            }
+//                        } catch {
+//                            print("Failed to write PDF: \(error.localizedDescription)")
+//                        }
+                        generateAndSharePDF()
+
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.down.doc.fill")
+                            Text("Download PDF")
+                        }
+                        .padding()
+                        .background(Color.blue.opacity(0.2))
+                        .cornerRadius(10)
+                    }
 
                     // Close Button
                     Button(action: {
@@ -411,7 +433,40 @@ struct ReportsContent: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
+        @StateObject var viewModel11 = DoctorViewModel()
+        
+        private func generateAndSharePDF() {
+            // Break down the PDF generation into distinct steps
+            //let pdfData = PDFGenerator.createLabRecordPDF(from: record, using: viewModel11)
+            
+            PDFGenerator.createLabRecordPDF(from: record, using: viewModel11) { pdfData in
+                if let data = pdfData {
+                    // Use the PDF data (save to file, share, etc.)
+                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("LabTest-\(record.id).pdf")
+                    
+                    do {
+                        try pdfData!.write(to: tempURL)
+                        sharePDF(at: tempURL)
+                    } catch {
+                        print("Failed to write PDF: \(error.localizedDescription)")
+                    }
+                    
+                } else {
+                    print("Failed to generate PDF.")
+                }
+            }
+            
 
+        }
+        
+        private func sharePDF(at url: URL) {
+            let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = scene.windows.first?.rootViewController {
+                rootVC.present(activityVC, animated: true, completion: nil)
+            }
+        }
+        
         // Helper View for Detail Rows
         private struct DetailRow<Value>: View {
             let label: String

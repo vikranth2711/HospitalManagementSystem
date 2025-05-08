@@ -93,7 +93,7 @@ struct PDFGenerator {
                 drawText("Date of Birth: \(patient.patient_dob)", indent: 10)
                 drawText("Gender: \(patient.patient_gender)", indent: 10)
                 drawText("Blood Group: \(patient.patient_blood_group)", indent: 10)
-                drawText("Address: \(patient.patient_address ?? "123 Main St, SRM, Chennai"")", indent: 10)
+                drawText("Address: \(patient.patient_address ?? "123 Main St, SRM, Chennai")", indent: 10)
 
             } else {
                 drawText("Name: Akshita Sharma", indent: 10)
