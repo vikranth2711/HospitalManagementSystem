@@ -880,6 +880,57 @@ class PatientProfileView(APIView):
             
         return Response(patient_data, status=status.HTTP_200_OK)
 
+# class UpdatePatientProfileView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+#     parser_classes = [MultiPartParser, FormParser]
+    
+#     def put(self, request, *args, **kwargs):
+#         # Check if authenticated user is a patient
+#         if not hasattr(request.user, 'patient_id'):
+#             return Response({"error": "Not a patient account"}, 
+#                           status=status.HTTP_403_FORBIDDEN)
+        
+#         patient = request.user
+        
+#         # Extract data from request
+#         dob = request.data.get('patient_dob')
+#         blood_group = request.data.get('patient_blood_group')
+#         gender = request.data.get('patient_gender')
+#         address = request.data.get('patient_address')
+        
+#         if not all([dob, blood_group, gender, address]):
+#             return Response({"error": "Missing required fields"}, 
+#                           status=status.HTTP_400_BAD_REQUEST)
+        
+#         # Convert gender string to boolean if needed
+#         if isinstance(gender, str):
+#             gender = gender.lower() == 'true' or gender == '1'
+            
+#         # Parse date
+#         try:
+#             parsed_dob = datetime.datetime.strptime(dob, '%Y-%m-%d').date()
+#         except ValueError:
+#             return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, 
+#                           status=status.HTTP_400_BAD_REQUEST)
+        
+#         # Update or create patient details
+#         patient_details, created = PatientDetails.objects.update_or_create(
+#             patient=patient,
+#             defaults={
+#                 'patient_dob': parsed_dob,
+#                 'patient_gender': gender,
+#                 'patient_blood_group': blood_group,
+#                 'patient_address': address,
+#             }
+#         )
+        
+#         return Response({
+#             "message": "Profile updated successfully",
+#             "created": created,
+#             "success": True,
+#         }, status=status.HTTP_200_OK)
+
 class UpdatePatientProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -894,36 +945,60 @@ class UpdatePatientProfileView(APIView):
         patient = request.user
         
         # Extract data from request
+        patient_name = request.data.get('patient_name')
+        patient_mobile = request.data.get('patient_mobile')
         dob = request.data.get('patient_dob')
         blood_group = request.data.get('patient_blood_group')
         gender = request.data.get('patient_gender')
         address = request.data.get('patient_address')
         
-        if not all([dob, blood_group, gender, address]):
-            return Response({"error": "Missing required fields"}, 
-                          status=status.HTTP_400_BAD_REQUEST)
+        # Update patient fields
+        if patient_name:
+            patient.patient_name = patient_name
         
-        # Convert gender string to boolean if needed
-        if isinstance(gender, str):
-            gender = gender.lower() == 'true' or gender == '1'
+        if patient_mobile:
+            # Check if mobile number is already in use by another patient
+            if Patient.objects.filter(patient_mobile=patient_mobile).exclude(patient_id=patient.patient_id).exists():
+                return Response({"error": "Mobile number already in use"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+            patient.patient_mobile = patient_mobile
+        
+        # Save patient model changes
+        patient.save()
+        
+        # Handle patient details
+        patient_details_data = {}
+        
+        if dob:
+            # Parse date
+            try:
+                parsed_dob = datetime.datetime.strptime(dob, '%Y-%m-%d').date()
+                patient_details_data['patient_dob'] = parsed_dob
+            except ValueError:
+                return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+        
+        if gender is not None:
+            # Convert gender string to boolean if needed
+            if isinstance(gender, str):
+                gender = gender.lower() == 'true' or gender == '1' or gender.lower() == 'male'
+            patient_details_data['patient_gender'] = gender
+        
+        if blood_group:
+            patient_details_data['patient_blood_group'] = blood_group
             
-        # Parse date
-        try:
-            parsed_dob = datetime.datetime.strptime(dob, '%Y-%m-%d').date()
-        except ValueError:
-            return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, 
-                          status=status.HTTP_400_BAD_REQUEST)
+        if address:
+            patient_details_data['patient_address'] = address
         
-        # Update or create patient details
-        patient_details, created = PatientDetails.objects.update_or_create(
-            patient=patient,
-            defaults={
-                'patient_dob': parsed_dob,
-                'patient_gender': gender,
-                'patient_blood_group': blood_group,
-                'patient_address': address,
-            }
-        )
+        # Only update PatientDetails if we have data to update
+        if patient_details_data:
+            # Update or create patient details
+            patient_details, created = PatientDetails.objects.update_or_create(
+                patient=patient,
+                defaults=patient_details_data
+            )
+        else:
+            created = False
         
         return Response({
             "message": "Profile updated successfully",
