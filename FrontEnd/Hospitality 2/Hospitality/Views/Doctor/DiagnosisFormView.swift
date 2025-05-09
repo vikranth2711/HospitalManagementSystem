@@ -31,7 +31,16 @@ struct DoctorConsultationView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                backgroundView
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        colorScheme == .dark ? Color(hex: "101420") : Color(hex: "E8F5FF"),
+                        colorScheme == .dark ? Color(hex: "1A202C") : Color(hex: "F0F8FF")
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // Tab selector
@@ -62,32 +71,6 @@ struct DoctorConsultationView: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     
-                    // Submit button
-//                    Button(action: {
-//                        viewModel.submitAll()
-//                    }) {
-//                        HStack {
-//                            Text("Submit All")
-//                                .fontWeight(.semibold)
-//                            
-//                            if viewModel.isLoading {
-//                                ProgressView()
-//                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-//                                    .padding(.leading, 5)
-//                            }
-//                        }
-//                        .frame(maxWidth: .infinity)
-//                        .padding(.vertical, 14)
-//                        .background(
-//                            RoundedRectangle(cornerRadius: 10)
-//                                .fill(primaryColor)
-//                                .shadow(color: primaryColor.opacity(0.3), radius: 4, y: 2)
-//                        )
-//                        .foregroundColor(.white)
-//                    }
-//                    .padding(16)
-//                    .disabled(viewModel.isLoading)
-                    //MARK: Submit button
                     // Submit button
                     Button(action: {
                         viewModel.submitAll()
