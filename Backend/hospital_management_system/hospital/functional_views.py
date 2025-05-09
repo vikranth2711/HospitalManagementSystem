@@ -414,7 +414,7 @@ class RescheduleAppointmentView(APIView):
             
         # Update appointment
         appointment.slot = new_slot
-        appointment.appointment_date = datetime.combine(new_date, datetime.min.time())
+        appointment.appointment_date = appointment.appointment_date = new_date#datetime.combine(new_date, datetime.min.time())
         appointment.save()
         
         return Response({
