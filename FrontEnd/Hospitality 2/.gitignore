@@ -1,13 +1,4 @@
 venv
-<<<<<<< HEAD
-*.env
-*/codepaster.py
-*/migrations/*
-*/__pycache__/*
-*/__pycache__
-*/test.md
-*.pyc
-=======
 
 # Xcode user data
 *.xcuserstate
@@ -17,15 +8,10 @@ xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcdebugger/
 *.xcbkptlist
-**/*.pbxproj
 
 # Build and derived data
 DerivedData/
 build/
 
 # macOS metadata
-.DS_Store
->>>>>>> revanth_last
-.DS_Store
-__pycache__/
 .DS_Store
