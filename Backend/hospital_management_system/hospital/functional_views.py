@@ -414,7 +414,7 @@ class RescheduleAppointmentView(APIView):
             
         # Update appointment
         appointment.slot = new_slot
-        appointment.created_at = datetime.combine(new_date, datetime.min.time())
+        appointment.appointment_date = appointment.appointment_date = new_date#datetime.combine(new_date, datetime.min.time())
         appointment.save()
         
         return Response({
@@ -750,7 +750,7 @@ class AppointmentDetailView(APIView):
             
         data = {
             "appointment_id": appointment.appointment_id,
-            "date": appointment.created_at.date(),
+            "date": appointment.appointment_date,
             "slot_id": appointment.slot.slot_id,
             "staff_id": appointment.staff.staff_id,
             "patient_id": appointment.patient.patient_id,
@@ -787,16 +787,16 @@ class AllAppointmentsView(APIView):
         appointments = Appointment.objects.all()
         
         # Update statuses for appointments that should be marked as missed
-        now = timezone.now()
+        now = timezone.now().date()
         for appointment in appointments:
-            if appointment.status == 'upcoming' and appointment.created_at < now:
+            if appointment.status == 'upcoming' and appointment.appointment_date < now:
                 appointment.status = 'missed'
                 appointment.save()
                 
         data = [
             {
                 "appointment_id": app.appointment_id,
-                "date": app.created_at.date(),
+                "date": app.appointment_date,
                 "slot_id": app.slot.slot_id,
                 "staff_id": app.staff.staff_id,
                 "patient_id": app.patient.patient_id,
