@@ -2,7 +2,8 @@
 from rest_framework import serializers
 from .models import (Lab, LabType, LabTestType, LabTestCategory, 
                      TargetOrgan, AppointmentRating, AppointmentCharge, 
-                     LabTest, LabTestCharge, Appointment)
+                     LabTest, LabTestCharge, Appointment, PatientHistory, 
+                     PatientHistoryDocs)
 
 class LabTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -147,3 +148,84 @@ class AssignedPatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = ['appointment_id', 'patient', 'patient_name', 'staff', 'staff_name', 'slot', 'slot_start_time', 'created_at', 'status', 'reason']
+
+# OCR-related serializers
+class PatientHistorySerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.patient_name', read_only=True)
+    
+    class Meta:
+        model = PatientHistory
+        fields = [
+            'history_id', 'patient', 'patient_name', 'history', 
+            'allergies', 'notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['history_id', 'created_at', 'updated_at']
+
+class PatientHistoryDocsSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.patient_name', read_only=True)
+    
+    class Meta:
+        model = PatientHistoryDocs
+        fields = [
+            'doc_id', 'patient', 'patient_name', 'document_type', 
+            'document_name', 'document_url', 'document_processed', 
+            'created_at', 'document_remarks'
+        ]
+        read_only_fields = ['doc_id', 'created_at']
+
+class DocumentUploadSerializer(serializers.Serializer):
+    """
+    Serializer for handling multiple document uploads
+    """
+    patient_id = serializers.IntegerField()
+    files = serializers.ListField(
+        child=serializers.FileField(max_length=100000, allow_empty_file=False),
+        allow_empty=False
+    )
+    document_types = serializers.ListField(
+        child=serializers.ChoiceField(choices=PatientHistoryDocs.DOCUMENT_TYPE_CHOICES),
+        required=False,
+        allow_empty=True
+    )
+    
+    def validate_patient_id(self, value):
+        """Validate that patient exists"""
+        from .models import Patient
+        try:
+            Patient.objects.get(patient_id=value)
+            return value
+        except Patient.DoesNotExist:
+            raise serializers.ValidationError(f"Patient with ID {value} does not exist")
+    
+    def validate(self, data):
+        """Validate that document_types length matches files if provided"""
+        files = data.get('files', [])
+        document_types = data.get('document_types', [])
+        
+        if document_types and len(document_types) != len(files):
+            raise serializers.ValidationError(
+                "Number of document_types must match number of files"
+            )
+        
+        return data
+
+class ConsolidatedHistorySerializer(serializers.Serializer):
+    """
+    Serializer for consolidated patient history response
+    """
+    patient = serializers.DictField()
+    medical_history = serializers.DictField()
+    documents = serializers.ListField(child=serializers.DictField())
+    total_documents = serializers.IntegerField()
+    processed_documents = serializers.IntegerField()
+
+class DocumentProcessingStatusSerializer(serializers.Serializer):
+    """
+    Serializer for document processing status
+    """
+    patient_id = serializers.IntegerField()
+    total_documents = serializers.IntegerField()
+    processed_documents = serializers.IntegerField()
+    pending_documents = serializers.IntegerField()
+    processing_complete = serializers.BooleanField()
+    documents = serializers.ListField(child=serializers.DictField())

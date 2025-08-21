@@ -8,6 +8,7 @@ venv
 */test.md
 *.pyc
 =======
+db.sqlite3
 
 # Xcode user data
 *.xcuserstate

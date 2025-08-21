@@ -398,3 +398,47 @@ class AppointmentRating(models.Model):
 
     def __str__(self):
         return f"Rating for Appointment {self.appointment_id}: {self.rating}"
+
+
+# New models for OCR processing of patient reports
+class PatientHistory(models.Model):
+    history_id = models.AutoField(primary_key=True)
+    patient = models.OneToOneField(Patient, on_delete=models.CASCADE, related_name='patient_history')
+    history = models.JSONField(default=dict, help_text="Extracted structured patient medical history (diseases, conditions, treatments, etc.)")
+    allergies = models.JSONField(default=list, help_text="Extracted allergies if mentioned")
+    notes = models.JSONField(default=list, help_text="Extracted doctor/medical notes or unstructured text")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Medical History for {self.patient.patient_name}"
+
+    class Meta:
+        verbose_name = "Patient History"
+        verbose_name_plural = "Patient Histories"
+
+
+class PatientHistoryDocs(models.Model):
+    DOCUMENT_TYPE_CHOICES = [
+        ('lab_report', 'Lab Report'),
+        ('prescription', 'Prescription'),
+        ('discharge_summary', 'Discharge Summary'),
+        ('other', 'Other'),
+    ]
+
+    doc_id = models.AutoField(primary_key=True)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='history_documents')
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)
+    document_name = models.CharField(max_length=255, help_text="Original file name")
+    document_url = models.URLField(help_text="Path to uploaded document")
+    document_processed = models.BooleanField(default=False, help_text="Indicates if OCR completed")
+    created_at = models.DateTimeField(auto_now_add=True)
+    document_remarks = models.CharField(max_length=500, blank=True, null=True, help_text="Any comments about processing or document issues")
+
+    def __str__(self):
+        return f"{self.document_type} for {self.patient.patient_name} - {self.document_name}"
+
+    class Meta:
+        verbose_name = "Patient History Document"
+        verbose_name_plural = "Patient History Documents"
+        ordering = ['-created_at']
