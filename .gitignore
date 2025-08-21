@@ -9,7 +9,7 @@ venv
 *.pyc
 =======
 db.sqlite3
-
+testing
 # Xcode user data
 *.xcuserstate
 *.xcuserdatad
