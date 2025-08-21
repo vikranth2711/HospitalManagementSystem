@@ -10,7 +10,7 @@ import Combine
 
 // Base URL for all API calls
 struct APIConstants {
-    static let baseURL = "https://hggzrg5w-8000.inc1.devtunnels.ms"
+    static let baseURL = "http://localhost:8000"
 }
 
 // MARK: - Request Models

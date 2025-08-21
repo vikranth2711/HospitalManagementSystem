@@ -21,7 +21,7 @@ class DoctorServices {
     
     //
     func fetchAppointmentDetails(appointmentId: Int) async throws -> AppointmentDetailResponse {
-        guard let url = URL(string: "http://ec2-13-127-223-203.ap-south-1.compute.amazonaws.com/api/hospital/general/appointments/\(appointmentId)/") else {
+        guard let url = URL(string: "http://localhost:8000/api/hospital/general/appointments/\(appointmentId)/") else {
             print("[SwatiSwapna] Invalid URL for appointment details")
             throw NetworkError.invalidURL
         }

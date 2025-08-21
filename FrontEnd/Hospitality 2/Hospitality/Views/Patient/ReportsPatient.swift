@@ -67,7 +67,7 @@ class LabRecordService {
     
     func fetchUpcomingLabRecords(completion: @escaping (Result<[LabRecord], DoctorCreationError>) -> Void) {
         guard let url = URL(string: "\(baseURL)/hospital/general/patient/recommended-lab-tests/") ??
-                URL(string: "http://ec2-13-127-223-203.ap-south-1.compute.amazonaws.com/api/hospital/general/patient/recommended-lab-tests/")
+                URL(string: "http://localhost:8000/api/hospital/general/patient/recommended-lab-tests/")
         else {
             completion(.failure(.invalidURL))
             return
