@@ -89,6 +89,7 @@
 from django.urls import path
 from . import views
 from . import functional_views
+from . import ocr_views
 urlpatterns = [
     # Staff URLs
     path('staff/profile/', views.StaffProfileView.as_view(), name='staff-profile'),
@@ -174,4 +175,14 @@ urlpatterns = [
     
     # Lab Technician APIs
     path('general/lab-technician/assigned-patients/', functional_views.LabTechnicianAssignedPatientsView.as_view(), name='lab-tech-assigned-patients'),
+    
+    # OCR Patient Document Processing APIs
+    path('ocr/documents/upload/', ocr_views.DocumentUploadView.as_view(), name='document-upload'),
+    path('ocr/patients/<int:patient_id>/process/', ocr_views.ProcessDocumentsView.as_view(), name='process-documents'),
+    path('ocr/patients/<int:patient_id>/history/', ocr_views.PatientHistoryView.as_view(), name='patient-history'),
+    path('ocr/patients/<int:patient_id>/status/', ocr_views.DocumentStatusView.as_view(), name='document-status'),
+    path('ocr/patients/<int:patient_id>/documents/', ocr_views.PatientDocumentsListView.as_view(), name='patient-documents'),
+    path('ocr/histories/', ocr_views.PatientHistoryListView.as_view(), name='patient-histories-list'),
+    path('ocr/document-types/', ocr_views.DocumentTypesView.as_view(), name='document-types'),
+    path('ocr/supported-formats/', ocr_views.SupportedFormatsView.as_view(), name='supported-formats'),
 ]

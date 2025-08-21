@@ -21,3 +21,7 @@ typing_extensions
 boto3
 django-storages
 weasyprint
+google-genai
+PyPDF2
+pdf2image
+Pillow
