@@ -636,7 +636,7 @@ struct MedicalInfoCard: View {
 }
 
 struct NotesCard: View {
-    let notes: [String]
+    let notes: [PatientHistoryResponse.MedicalNote]
     @Environment(\.colorScheme) var colorScheme
     
     private var cardBackgroundColor: Color {
@@ -661,7 +661,19 @@ struct NotesCard: View {
                 ForEach(notes.indices, id: \.self) { index in
                     let note = notes[index]
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(note)
+                        HStack {
+                            Text(note.document_type.capitalized)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(hex: "4A90E2"))
+                            
+                            Spacer()
+                            
+                            Text(formattedDate(note.extracted_at))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Text(note.note)
                             .font(.system(size: 15, design: .rounded))
                             .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.9) : .primary)
                         
@@ -686,6 +698,20 @@ struct NotesCard: View {
                         .stroke(Color(hex: "4A90E2").opacity(0.2), lineWidth: 1)
                 )
         )
+    }
+    
+    private func formattedDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        if let date = formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .short
+            displayFormatter.timeStyle = .short
+            return displayFormatter.string(from: date)
+        }
+        
+        return "Unknown"
     }
 }
 

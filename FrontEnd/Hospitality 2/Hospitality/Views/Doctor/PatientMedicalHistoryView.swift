@@ -176,10 +176,10 @@ struct PatientMedicalHistoryView: View {
     }
     
     @ViewBuilder
-    private func notesSection(_ notes: [String]) -> some View {
+    private func notesSection(_ notes: [PatientHistoryResponse.MedicalNote]) -> some View {
         MedicalDataSection(title: "Additional Notes", icon: "note.text", color: .purple) {
             ForEach(notes.indices, id: \.self) { index in
-                SimpleTextCard(text: notes[index], icon: "note.text")
+                MedicalNoteCard(note: notes[index])
                     .padding(.bottom, index < notes.count - 1 ? 8 : 0)
             }
         }
@@ -373,6 +373,54 @@ private func extractStringArray(from history: [String: AnyCodable], key: String)
     }
     
     return nil
+}
+
+// MARK: - Medical Note Card Component
+struct MedicalNoteCard: View {
+    let note: PatientHistoryResponse.MedicalNote
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "note.text")
+                    .foregroundColor(.purple)
+                    .font(.caption)
+                
+                Text(note.document_type.capitalized)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.purple)
+                
+                Spacer()
+                
+                Text(formattedDate(note.extracted_at))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(note.note)
+                .font(.body)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private func formattedDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        if let date = formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            return displayFormatter.string(from: date)
+        }
+        
+        return "Unknown date"
+    }
 }
 
 

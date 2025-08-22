@@ -73,8 +73,19 @@ struct DocumentUploadRequest: Codable {
 struct DocumentUploadResponse: Codable {
     let success: Bool
     let message: String?
-    let data: UploadData?
+    let uploaded_documents: [UploadedDocument]
+    let errors: [String]
+    let total_uploaded: Int
     let error: String?
+    
+    // Computed property for backward compatibility with views that expect nested 'data'
+    var data: UploadData? {
+        return UploadData(
+            uploaded_documents: uploaded_documents,
+            total_uploaded: total_uploaded,
+            errors: errors
+        )
+    }
     
     struct UploadData: Codable {
         let uploaded_documents: [UploadedDocument]
@@ -92,8 +103,25 @@ struct DocumentUploadResponse: Codable {
 
 struct PatientDocumentStatusResponse: Codable {
     let success: Bool
-    let data: StatusData?
+    let patient_id: Int
+    let total_documents: Int
+    let processed_documents: Int
+    let pending_documents: Int
+    let processing_complete: Bool
+    let documents: [DocumentStatus]
     let error: String?
+    
+    // Computed property for backward compatibility with views that expect 'data'
+    var data: StatusData? {
+        return StatusData(
+            patient_id: patient_id,
+            total_documents: total_documents,
+            processed_documents: processed_documents,
+            pending_documents: pending_documents,
+            processing_complete: processing_complete,
+            documents: documents
+        )
+    }
     
     struct StatusData: Codable {
         let patient_id: Int
@@ -134,8 +162,14 @@ struct PatientHistoryResponse: Codable {
     struct MedicalHistory: Codable {
         let history: [String: AnyCodable]
         let allergies: [String]
-        let notes: [String]
+        let notes: [MedicalNote]
         let last_updated: String?
+    }
+    
+    struct MedicalNote: Codable {
+        let note: String
+        let extracted_at: String
+        let document_type: String
     }
     
     struct DocumentDetail: Codable {
@@ -148,67 +182,36 @@ struct PatientHistoryResponse: Codable {
     }
 }
 
-// Wrapper for potentially nested response
-private struct PatientHistoryResponseWrapper: Codable {
-    let success: Bool
-    let data: PatientHistoryData?
-    let patient: PatientHistoryResponse.PatientInfo?
-    let medical_history: PatientHistoryResponse.MedicalHistory?
-    let documents: [PatientHistoryResponse.DocumentDetail]?
-    let total_documents: Int?
-    let processed_documents: Int?
-    let error: String?
-    
-    struct PatientHistoryData: Codable {
-        let success: Bool
-        let patient: PatientHistoryResponse.PatientInfo
-        let medical_history: PatientHistoryResponse.MedicalHistory
-        let documents: [PatientHistoryResponse.DocumentDetail]
-        let total_documents: Int
-        let processed_documents: Int
-        let error: String?
-    }
-    
-    func toPatientHistoryResponse() -> PatientHistoryResponse? {
-        if let data = data {
-            // Wrapped response format
-            return PatientHistoryResponse(
-                success: success,
-                patient: data.patient,
-                medical_history: data.medical_history,
-                documents: data.documents,
-                total_documents: data.total_documents,
-                processed_documents: data.processed_documents,
-                error: data.error
-            )
-        } else if let patient = patient,
-                  let medical_history = medical_history,
-                  let documents = documents,
-                  let total_documents = total_documents,
-                  let processed_documents = processed_documents {
-            // Direct response format
-            return PatientHistoryResponse(
-                success: success,
-                patient: patient,
-                medical_history: medical_history,
-                documents: documents,
-                total_documents: total_documents,
-                processed_documents: processed_documents,
-                error: error
-            )
-        }
-        return nil
-    }
-}
-
 struct DocumentProcessResponse: Codable {
-    let status: String
-    let patient_id: Int
-    let total_documents: Int
+    let success: Bool
+    let message: String?
     let processed_count: Int
     let failed_count: Int
+    let total_documents: Int
     let errors: [String]
-    let processing_status: String
+    let patient_history_updated: Bool
+    let error: String?
+    
+    // Computed property for backward compatibility with views that expect nested 'data'
+    var data: ProcessData? {
+        return ProcessData(
+            success: success,
+            processed_count: processed_count,
+            failed_count: failed_count,
+            total_documents: total_documents,
+            errors: errors,
+            patient_history_updated: patient_history_updated
+        )
+    }
+    
+    struct ProcessData: Codable {
+        let success: Bool
+        let processed_count: Int
+        let failed_count: Int
+        let total_documents: Int
+        let errors: [String]
+        let patient_history_updated: Bool
+    }
 }
 
 struct SupportedFormatsResponse: Codable {
@@ -374,11 +377,22 @@ class OCRService: ObservableObject {
                     return
                 }
                 
+                // Debug: Print raw response
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📱 =====  DOCUMENT UPLOAD API RESPONSE  =====")
+                    print(responseString)
+                    print("📱 =======================================")
+                }
+                
                 do {
                     let response = try JSONDecoder().decode(DocumentUploadResponse.self, from: data)
+                    print("✅ Successfully decoded document upload response")
                     completion(.success(response))
                 } catch {
-                    print("OCR Upload decoding error: \(error)")
+                    print("❌ OCR Upload decoding error: \(error)")
+                    if let decodingError = error as? DecodingError {
+                        print("🔍 Detailed decoding error: \(decodingError)")
+                    }
                     completion(.failure(.decodingError))
                 }
             }
@@ -428,11 +442,22 @@ class OCRService: ObservableObject {
                     return
                 }
                 
+                // Debug: Print raw response
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📱 =====  DOCUMENT PROCESS API RESPONSE  =====")
+                    print(responseString)
+                    print("📱 =========================================")
+                }
+                
                 do {
                     let response = try JSONDecoder().decode(DocumentProcessResponse.self, from: data)
+                    print("✅ Successfully decoded document process response")
                     completion(.success(response))
                 } catch {
-                    print("OCR Process decoding error: \(error)")
+                    print("❌ OCR Process decoding error: \(error)")
+                    if let decodingError = error as? DecodingError {
+                        print("🔍 Detailed decoding error: \(decodingError)")
+                    }
                     completion(.failure(.decodingError))
                 }
             }
@@ -494,7 +519,15 @@ class OCRService: ObservableObject {
                     let response = try JSONDecoder().decode(PatientDocumentStatusResponse.self, from: data)
                     completion(.success(response))
                 } catch {
-                    print("OCR Status decoding error: \(error)")
+                    print("❌ OCR Status decoding error: \(error)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("📱 =====  DOCUMENT STATUS API RESPONSE  =====")
+                        print(responseString)
+                        print("📱 ========================================")
+                    }
+                    if let decodingError = error as? DecodingError {
+                        print("🔍 Detailed decoding error: \(decodingError)")
+                    }
                     completion(.failure(.decodingError))
                 }
             }
@@ -554,21 +587,15 @@ class OCRService: ObservableObject {
                 
                 // Debug: Print raw response
                 if let responseString = String(data: data, encoding: .utf8) {
-                    print("📱 OCR History Raw Response:")
+                    print("📱 =====  PATIENT HISTORY API RESPONSE  =====")
                     print(responseString)
+                    print("📱 ======================================")
                 }
                 
                 do {
-                    // First try to decode using the flexible wrapper
-                    let wrapper = try JSONDecoder().decode(PatientHistoryResponseWrapper.self, from: data)
-                    
-                    if let response = wrapper.toPatientHistoryResponse() {
-                        print("✅ Successfully decoded patient history response")
-                        completion(.success(response))
-                    } else {
-                        print("❌ Failed to convert wrapper to PatientHistoryResponse")
-                        completion(.failure(.decodingError))
-                    }
+                    let response = try JSONDecoder().decode(PatientHistoryResponse.self, from: data)
+                    print("✅ Successfully decoded patient history response")
+                    completion(.success(response))
                 } catch {
                     print("❌ OCR History decoding error: \(error)")
                     if let decodingError = error as? DecodingError {

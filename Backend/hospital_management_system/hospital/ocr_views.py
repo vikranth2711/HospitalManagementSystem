@@ -62,11 +62,9 @@ class DocumentUploadView(APIView):
             )
             
             if result['success']:
-                return Response({
-                    'success': True,
-                    'message': f"Successfully uploaded {result['total_uploaded']} documents",
-                    'data': result
-                }, status=status.HTTP_201_CREATED)
+                # Add message to the result and return directly
+                result['message'] = f"Successfully uploaded {result['total_uploaded']} documents"
+                return Response(result, status=status.HTTP_201_CREATED)
             else:
                 return Response({
                     'success': False,
@@ -106,11 +104,9 @@ class ProcessDocumentsView(APIView):
             result = processing_service.process_patient_documents(patient_id)
             
             if result['success']:
-                return Response({
-                    'success': True,
-                    'message': f"Successfully processed {result['processed_count']} documents",
-                    'data': result
-                }, status=status.HTTP_200_OK)
+                # Add message to the result and return directly
+                result['message'] = f"Successfully processed {result['processed_count']} documents"
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 return Response({
                     'success': False,
@@ -196,10 +192,8 @@ class DocumentStatusView(APIView):
             result = processing_service.get_document_processing_status(patient_id)
             
             if result['success']:
-                return Response({
-                    'success': True,
-                    'data': result
-                }, status=status.HTTP_200_OK)
+                # Return result directly since it already has the correct structure
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 return Response({
                     'success': False,
