@@ -1,5 +1,4 @@
 venv
-<<<<<<< HEAD
 *.env
 */codepaster.py
 */migrations/*
@@ -7,7 +6,6 @@ venv
 */__pycache__
 */test.md
 *.pyc
-=======
 db.sqlite3
 testing
 # Xcode user data
@@ -26,7 +24,46 @@ build/
 
 # macOS metadata
 .DS_Store
->>>>>>> revanth_last
 .DS_Store
 __pycache__/
 .DS_Store
+
+rough_note.md
+.github
+
+db.sqlite3
+*.sqlite3
+*.db
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.mp3
+*.mp4
+*.avi
+*.mov
+*.wav
+*.flac
+*.mkv
+*.webm
+*.svg
+*.ico
+*.bmp
+*.tiff
+*.heic
+*.ogg
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+*.xls
+*.xlsx
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.csv
+*.tsv
+*.log

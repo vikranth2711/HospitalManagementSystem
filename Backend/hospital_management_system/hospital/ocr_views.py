@@ -27,7 +27,7 @@ class DocumentUploadView(APIView):
     API endpoint for uploading patient documents
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminStaff]
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
     def post(self, request):
@@ -85,7 +85,7 @@ class ProcessDocumentsView(APIView):
     API endpoint for processing uploaded documents with OCR
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminStaff]
+    permission_classes = [IsAuthenticated]
     
     def post(self, request, patient_id):
         """

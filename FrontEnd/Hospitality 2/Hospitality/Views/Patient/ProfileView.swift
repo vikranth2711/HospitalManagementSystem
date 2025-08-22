@@ -41,6 +41,9 @@ struct ProfileView: View {
     @State private var showEditView = false
     @State private var animationOpacity: Double = 0.0
     @State private var profilePhotoOpacity: Double = 0.0
+    @State private var showDocumentHistory = false
+    @State private var documentCount = 0
+    @State private var hasUploadedDocuments = false
     
     // Color palette
     private let primaryColor = Color(hex: "4A90E2")
@@ -136,6 +139,7 @@ struct ProfileView: View {
                             profileHeader
                                 .padding(.top, 12)
                             profileDetailsCard
+                            medicalDocumentsCard
                             healthInsightsCard
                             logoutButton
                                 .padding(.vertical, 12)
@@ -180,6 +184,12 @@ struct ProfileView: View {
                         }
                 }
             }
+            .sheet(isPresented: $showDocumentHistory) {
+                DocumentHistoryView()
+                    .onDisappear {
+                        checkDocumentStatus()
+                    }
+            }
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(selectedImage: $selectedImage)
                     .onDisappear {
@@ -205,6 +215,7 @@ struct ProfileView: View {
             }
             .onAppear {
                 fetchPatientProfile()
+                checkDocumentStatus()
             }
         }
     }
@@ -388,6 +399,72 @@ struct ProfileView: View {
         .padding(.horizontal, 4)
     }
 
+    private var medicalDocumentsCard: some View {
+        NavigationLink(destination: DocumentHistoryView().navigationBarBackButtonHidden(false)) {
+            VStack(spacing: 0) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "doc.text.below.ecg")
+                                .font(.system(size: 26))
+                                .foregroundColor(.white)
+                            
+                            Text("Medical Documents")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Text(hasUploadedDocuments ? "View your uploaded medical documents" : "Upload your medical history documents")
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundColor(.white.opacity(0.85))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 4) {
+                        if hasUploadedDocuments {
+                            Text("\(documentCount)")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                            Text("Documents")
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundColor(.white.opacity(0.8))
+                        } else {
+                            Circle()
+                                .fill(Color.white.opacity(0.25))
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.white)
+                                )
+                        }
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 20)
+            }
+            .frame(height: 110)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(hex: "3BD1D3"),
+                        Color(hex: "2ECC71"),
+                        Color(hex: "27AE60")
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .shadow(color: Color(hex: "3BD1D3").opacity(colorScheme == .dark ? 0.25 : 0.35), radius: 12, x: 0, y: 6)
+            .padding(.horizontal, 4)
+        }
+        .scaleEffect(1.0)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: UUID())
+    }
+    
     private var healthInsightsCard: some View {
         NavigationLink(destination: HealthMetricsView().navigationBarBackButtonHidden(false)) {
             VStack(spacing: 0) {
@@ -741,6 +818,26 @@ struct ProfileView: View {
         let outputFormatter = DateFormatter()
         outputFormatter.dateFormat = "MMM d, yyyy"
         return outputFormatter.string(from: date)
+    }
+    
+    private func checkDocumentStatus() {
+        OCRService.shared.getDocumentStatus { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let response):
+                    if let statusData = response.data {
+                        self.documentCount = statusData.total_documents
+                        self.hasUploadedDocuments = statusData.total_documents > 0
+                        UserDefaults.hasUploadedDocuments = self.hasUploadedDocuments
+                    } else {
+                        self.hasUploadedDocuments = UserDefaults.hasUploadedDocuments
+                    }
+                case .failure(let error):
+                    print("Failed to check document status: \(error)")
+                    self.hasUploadedDocuments = UserDefaults.hasUploadedDocuments
+                }
+            }
+        }
     }
 }
 
