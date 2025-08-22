@@ -27,7 +27,7 @@ class DocumentUploadView(APIView):
     API endpoint for uploading patient documents
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminStaff]
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
     def post(self, request):
@@ -62,11 +62,9 @@ class DocumentUploadView(APIView):
             )
             
             if result['success']:
-                return Response({
-                    'success': True,
-                    'message': f"Successfully uploaded {result['total_uploaded']} documents",
-                    'data': result
-                }, status=status.HTTP_201_CREATED)
+                # Add message to the result and return directly
+                result['message'] = f"Successfully uploaded {result['total_uploaded']} documents"
+                return Response(result, status=status.HTTP_201_CREATED)
             else:
                 return Response({
                     'success': False,
@@ -85,7 +83,7 @@ class ProcessDocumentsView(APIView):
     API endpoint for processing uploaded documents with OCR
     """
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminStaff]
+    permission_classes = [IsAuthenticated]
     
     def post(self, request, patient_id):
         """
@@ -106,11 +104,9 @@ class ProcessDocumentsView(APIView):
             result = processing_service.process_patient_documents(patient_id)
             
             if result['success']:
-                return Response({
-                    'success': True,
-                    'message': f"Successfully processed {result['processed_count']} documents",
-                    'data': result
-                }, status=status.HTTP_200_OK)
+                # Add message to the result and return directly
+                result['message'] = f"Successfully processed {result['processed_count']} documents"
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 return Response({
                     'success': False,
@@ -150,9 +146,12 @@ class PatientHistoryView(APIView):
             result = processing_service.get_patient_consolidated_history(patient_id)
             
             if result['success']:
+                # Return the result data directly instead of wrapping it in 'data'
+                response_data = result.copy()
+                response_data.pop('success', None)  # Remove the inner success flag
                 return Response({
                     'success': True,
-                    'data': result
+                    **response_data
                 }, status=status.HTTP_200_OK)
             else:
                 return Response({
@@ -193,10 +192,8 @@ class DocumentStatusView(APIView):
             result = processing_service.get_document_processing_status(patient_id)
             
             if result['success']:
-                return Response({
-                    'success': True,
-                    'data': result
-                }, status=status.HTTP_200_OK)
+                # Return result directly since it already has the correct structure
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 return Response({
                     'success': False,

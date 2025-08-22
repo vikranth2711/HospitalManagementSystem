@@ -35,9 +35,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Using existing Super Admin role with ID: {admin_role.role_id}'))
 
         # Get admin details from arguments or use defaults
-        name = options['name'] or "Shashwat Bhatt"
-        email = options['email'] or "sb5392@srmist.edu.in"
-        mobile = options['mobile'] or "9899881804"
+        name = options['name'] or "A Akhil"
+        email = options['email'] or "az3805@srmist.edu.in"
+        mobile = options['mobile'] or "7904175297"
         password = options['password'] or "admin123"
         
         # Check if staff with this email already exists

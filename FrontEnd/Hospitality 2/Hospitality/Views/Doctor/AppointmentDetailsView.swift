@@ -124,6 +124,34 @@ struct PatientInfoSection: View {
                     if let address = patientProfile.address {
                         DetailRow(label: "Address", value: address)
                     }
+                    
+                    // Medical history and documents navigation
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    HStack(spacing: 12) {
+                        NavigationLink(destination: PatientMedicalHistoryView(
+                            patientId: String(patientId),
+                            patientName: patientProfile.patientName
+                        )) {
+                            PatientActionButton(
+                                icon: "heart.text.square",
+                                title: "Medical History",
+                                color: accentBlue
+                            )
+                        }
+                        
+                        NavigationLink(destination: PatientDocumentsView(
+                            patientId: String(patientId),
+                            patientName: patientProfile.patientName
+                        )) {
+                            PatientActionButton(
+                                icon: "doc.text",
+                                title: "Documents",
+                                color: Color(hex: "28a745")
+                            )
+                        }
+                    }
                 }
             } else if viewModel.isLoading {
                 // Show loading indicator if data is being fetched
@@ -281,6 +309,33 @@ struct ActionButtonContent: View {
                 .foregroundColor(color)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+struct PatientActionButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+                .frame(width: 40, height: 40)
+                .background(color.opacity(0.1))
+                .cornerRadius(10)
+            
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(color)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
     }
 }
 

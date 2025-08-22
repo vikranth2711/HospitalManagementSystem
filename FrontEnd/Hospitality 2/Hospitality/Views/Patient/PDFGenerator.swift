@@ -2,19 +2,19 @@ import PDFKit
 
 struct PDFGenerator {
 
+    @MainActor
     static func createLabRecordPDF(from record: LabRecord, using viewModel: DoctorViewModel, completion: @escaping (Data?) -> Void) {
         viewModel.fetchPatientProfileLab { success in
-            DispatchQueue.main.async {
-                if success {
-                    let pdfData = generatePDF(from: record, using: viewModel)
-                    completion(pdfData)
-                } else {
-                    completion(nil)
-                }
+            if success {
+                let pdfData = generatePDF(from: record, using: viewModel)
+                completion(pdfData)
+            } else {
+                completion(nil)
             }
         }
     }
 
+    @MainActor
     private static func generatePDF(from record: LabRecord, using viewModel: DoctorViewModel) -> Data {
         let pdfMetaData = [
             kCGPDFContextCreator: "MediCARE",
