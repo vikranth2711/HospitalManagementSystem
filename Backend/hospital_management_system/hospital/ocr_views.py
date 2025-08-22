@@ -150,9 +150,12 @@ class PatientHistoryView(APIView):
             result = processing_service.get_patient_consolidated_history(patient_id)
             
             if result['success']:
+                # Return the result data directly instead of wrapping it in 'data'
+                response_data = result.copy()
+                response_data.pop('success', None)  # Remove the inner success flag
                 return Response({
                     'success': True,
-                    'data': result
+                    **response_data
                 }, status=status.HTTP_200_OK)
             else:
                 return Response({

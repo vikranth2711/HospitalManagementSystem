@@ -59,6 +59,21 @@ struct DocumentHistoryView: View {
             )
     }
     
+    // Helper function to extract string arrays from dynamic history data
+    private func extractStringArray(from history: [String: AnyCodable], key: String) -> [String]? {
+        guard let anyValue = history[key] else { return nil }
+        
+        if let stringArray = anyValue.value as? [String] {
+            return stringArray
+        } else if let anyArray = anyValue.value as? [Any] {
+            return anyArray.compactMap { $0 as? String }
+        } else if let string = anyValue.value as? String {
+            return [string]
+        }
+        
+        return nil
+    }
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -195,11 +210,13 @@ struct DocumentHistoryView: View {
                 }
             }
             
-            if history.documents.isEmpty {
+            // Use documents from documentStatus instead of patientHistory
+            let documents = documentStatus?.data?.documents ?? []
+            if documents.isEmpty {
                 emptyDocumentsView
             } else {
                 LazyVStack(spacing: 12) {
-                    ForEach(history.documents.sorted(by: { $0.doc_id > $1.doc_id })) { document in
+                    ForEach(documents.sorted(by: { $0.doc_id > $1.doc_id })) { document in
                         DocumentCard(document: document)
                     }
                 }
@@ -214,48 +231,49 @@ struct DocumentHistoryView: View {
                 .foregroundColor(textPrimaryColor)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            let medicalHistory = history.medical_history
-            VStack(spacing: 12) {
-                if let allergies = medicalHistory.allergies, !allergies.isEmpty {
+                        // Use the new structure: history.medical_history.allergies, history.medical_history.notes, etc.
+            VStack(spacing: 20) {
+                if !history.medical_history.allergies.isEmpty {
                     MedicalInfoCard(
                         title: "Allergies",
-                        items: allergies,
-                        color: dangerColor,
-                        icon: "exclamationmark.triangle"
+                        items: history.medical_history.allergies,
+                        color: .orange,
+                        icon: "exclamationmark.triangle.fill"
                     )
                 }
                 
-                if let historyData = medicalHistory.history {
-                    if let diseases = historyData.diseases, !diseases.isEmpty {
-                        MedicalInfoCard(
-                            title: "Medical Conditions",
-                            items: diseases,
-                            color: primaryColor,
-                            icon: "heart.text.square"
-                        )
-                    }
-                    
-                    if let medications = historyData.medications, !medications.isEmpty {
-                        MedicalInfoCard(
-                            title: "Medications",
-                            items: medications,
-                            color: successColor,
-                            icon: "pills"
-                        )
-                    }
-                    
-                    if let surgeries = historyData.surgeries, !surgeries.isEmpty {
-                        MedicalInfoCard(
-                            title: "Surgeries",
-                            items: surgeries,
-                            color: warningColor,
-                            icon: "cross.case"
-                        )
-                    }
+                // Extract diseases from dynamic history data
+                if let diseases = extractStringArray(from: history.medical_history.history, key: "diseases"), !diseases.isEmpty {
+                    MedicalInfoCard(
+                        title: "Medical Conditions",
+                        items: diseases,
+                        color: .red,
+                        icon: "heart.text.square.fill"
+                    )
                 }
                 
-                if let notes = medicalHistory.notes, !notes.isEmpty {
-                    NotesCard(notes: notes)
+                // Extract medications from dynamic history data
+                if let medications = extractStringArray(from: history.medical_history.history, key: "medications"), !medications.isEmpty {
+                    MedicalInfoCard(
+                        title: "Current Medications",
+                        items: medications,
+                        color: .green,
+                        icon: "pills.fill"
+                    )
+                }
+                
+                // Extract surgeries from dynamic history data
+                if let surgeries = extractStringArray(from: history.medical_history.history, key: "surgeries"), !surgeries.isEmpty {
+                    MedicalInfoCard(
+                        title: "Past Surgeries",
+                        items: surgeries,
+                        color: .blue,
+                        icon: "scissors"
+                    )
+                }
+                
+                if !history.medical_history.notes.isEmpty {
+                    NotesCard(notes: history.medical_history.notes)
                 }
             }
         }
@@ -430,7 +448,7 @@ struct StatCard: View {
 }
 
 struct DocumentCard: View {
-    let document: PatientHistoryResponse.DocumentDetail
+    let document: PatientDocumentStatusResponse.DocumentStatus
     @Environment(\.colorScheme) var colorScheme
     
     private var cardBackgroundColor: Color {
@@ -438,7 +456,7 @@ struct DocumentCard: View {
     }
     
     private var statusColor: Color {
-        document.document_processed ? Color(hex: "38A169") : Color(hex: "F6AD55")
+        document.processed ? Color(hex: "38A169") : Color(hex: "F6AD55")
     }
     
     private var documentTypeColor: Color {
@@ -462,7 +480,7 @@ struct DocumentCard: View {
                     .foregroundColor(documentTypeColor)
                 
                 DocumentStatusBadge(
-                    text: document.document_processed ? "Processed" : "Processing",
+                    text: document.processed ? "Processed" : "Processing",
                     color: statusColor
                 )
             }
@@ -481,7 +499,7 @@ struct DocumentCard: View {
                     .font(.system(size: 12, design: .rounded))
                     .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : .secondary)
                 
-                if let remarks = document.document_remarks, !remarks.isEmpty {
+                if let remarks = document.remarks, !remarks.isEmpty {
                     Text(remarks)
                         .font(.system(size: 12, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : .secondary)
@@ -618,7 +636,7 @@ struct MedicalInfoCard: View {
 }
 
 struct NotesCard: View {
-    let notes: [PatientHistoryResponse.MedicalHistory.MedicalNote]
+    let notes: [String]
     @Environment(\.colorScheme) var colorScheme
     
     private var cardBackgroundColor: Color {
@@ -643,11 +661,11 @@ struct NotesCard: View {
                 ForEach(notes.indices, id: \.self) { index in
                     let note = notes[index]
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(note.note)
+                        Text(note)
                             .font(.system(size: 15, design: .rounded))
                             .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.9) : .primary)
                         
-                        Text("From \(note.document_type.replacingOccurrences(of: "_", with: " ").capitalized)")
+                        Text("Medical Note")
                             .font(.system(size: 12, design: .rounded))
                             .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.6) : .secondary)
                     }

@@ -8,6 +8,56 @@
 import SwiftUI
 import Foundation
 
+// MARK: - Helper for Dynamic JSON
+struct AnyCodable: Codable {
+    let value: Any
+    
+    init<T>(_ value: T?) {
+        self.value = value ?? ()
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if let intValue = try? container.decode(Int.self) {
+            value = intValue
+        } else if let doubleValue = try? container.decode(Double.self) {
+            value = doubleValue
+        } else if let stringValue = try? container.decode(String.self) {
+            value = stringValue
+        } else if let boolValue = try? container.decode(Bool.self) {
+            value = boolValue
+        } else if let arrayValue = try? container.decode([AnyCodable].self) {
+            value = arrayValue.map { $0.value }
+        } else if let dictValue = try? container.decode([String: AnyCodable].self) {
+            value = dictValue.mapValues { $0.value }
+        } else {
+            value = ()
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        
+        switch value {
+        case let intValue as Int:
+            try container.encode(intValue)
+        case let doubleValue as Double:
+            try container.encode(doubleValue)
+        case let stringValue as String:
+            try container.encode(stringValue)
+        case let boolValue as Bool:
+            try container.encode(boolValue)
+        case let arrayValue as [Any]:
+            try container.encode(arrayValue.map { AnyCodable($0) })
+        case let dictValue as [String: Any]:
+            try container.encode(dictValue.mapValues { AnyCodable($0) })
+        default:
+            try container.encodeNil()
+        }
+    }
+}
+
 // MARK: - Request/Response Models
 struct DocumentUploadRequest: Codable {
     let patient_id: Int
@@ -73,6 +123,7 @@ struct PatientHistoryResponse: Codable {
     let documents: [DocumentDetail]
     let total_documents: Int
     let processed_documents: Int
+    let error: String?
     
     struct PatientInfo: Codable {
         let patient_id: Int
@@ -81,33 +132,72 @@ struct PatientHistoryResponse: Codable {
     }
     
     struct MedicalHistory: Codable {
-        let history: HistoryData?
-        let allergies: [String]?
-        let notes: [MedicalNote]?
+        let history: [String: AnyCodable]
+        let allergies: [String]
+        let notes: [String]
         let last_updated: String?
-        
-        struct HistoryData: Codable {
-            let diseases: [String]?
-            let surgeries: [String]?
-            let medications: [String]?
-        }
-        
-        struct MedicalNote: Codable {
-            let note: String
-            let extracted_at: String
-            let document_type: String
-        }
     }
     
-    struct DocumentDetail: Codable, Identifiable {
+    struct DocumentDetail: Codable {
         let doc_id: Int
-        let document_name: String
         let document_type: String
+        let document_name: String
         let document_processed: Bool
         let created_at: String
         let document_remarks: String?
-        
-        var id: Int { doc_id }
+    }
+}
+
+// Wrapper for potentially nested response
+private struct PatientHistoryResponseWrapper: Codable {
+    let success: Bool
+    let data: PatientHistoryData?
+    let patient: PatientHistoryResponse.PatientInfo?
+    let medical_history: PatientHistoryResponse.MedicalHistory?
+    let documents: [PatientHistoryResponse.DocumentDetail]?
+    let total_documents: Int?
+    let processed_documents: Int?
+    let error: String?
+    
+    struct PatientHistoryData: Codable {
+        let success: Bool
+        let patient: PatientHistoryResponse.PatientInfo
+        let medical_history: PatientHistoryResponse.MedicalHistory
+        let documents: [PatientHistoryResponse.DocumentDetail]
+        let total_documents: Int
+        let processed_documents: Int
+        let error: String?
+    }
+    
+    func toPatientHistoryResponse() -> PatientHistoryResponse? {
+        if let data = data {
+            // Wrapped response format
+            return PatientHistoryResponse(
+                success: success,
+                patient: data.patient,
+                medical_history: data.medical_history,
+                documents: data.documents,
+                total_documents: data.total_documents,
+                processed_documents: data.processed_documents,
+                error: data.error
+            )
+        } else if let patient = patient,
+                  let medical_history = medical_history,
+                  let documents = documents,
+                  let total_documents = total_documents,
+                  let processed_documents = processed_documents {
+            // Direct response format
+            return PatientHistoryResponse(
+                success: success,
+                patient: patient,
+                medical_history: medical_history,
+                documents: documents,
+                total_documents: total_documents,
+                processed_documents: processed_documents,
+                error: error
+            )
+        }
+        return nil
     }
 }
 
@@ -359,6 +449,14 @@ class OCRService: ObservableObject {
             return
         }
         
+        getDocumentStatus(patientId: patientId, completion: completion)
+    }
+    
+    // MARK: - Get Document Status (for doctors with patient_id parameter)
+    func getDocumentStatus(
+        patientId: Int,
+        completion: @escaping (Result<PatientDocumentStatusResponse, OCRError>) -> Void
+    ) {
         guard let url = URL(string: "\(baseURL)/hospital/ocr/patients/\(patientId)/status/") else {
             completion(.failure(.invalidURL))
             return
@@ -413,6 +511,14 @@ class OCRService: ObservableObject {
             return
         }
         
+        getPatientHistory(patientId: patientId, completion: completion)
+    }
+    
+    // MARK: - Get Patient History (for doctors with patient_id parameter)
+    func getPatientHistory(
+        patientId: Int,
+        completion: @escaping (Result<PatientHistoryResponse, OCRError>) -> Void
+    ) {
         guard let url = URL(string: "\(baseURL)/hospital/ocr/patients/\(patientId)/history/") else {
             completion(.failure(.invalidURL))
             return
@@ -446,11 +552,28 @@ class OCRService: ObservableObject {
                     return
                 }
                 
+                // Debug: Print raw response
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📱 OCR History Raw Response:")
+                    print(responseString)
+                }
+                
                 do {
-                    let response = try JSONDecoder().decode(PatientHistoryResponse.self, from: data)
-                    completion(.success(response))
+                    // First try to decode using the flexible wrapper
+                    let wrapper = try JSONDecoder().decode(PatientHistoryResponseWrapper.self, from: data)
+                    
+                    if let response = wrapper.toPatientHistoryResponse() {
+                        print("✅ Successfully decoded patient history response")
+                        completion(.success(response))
+                    } else {
+                        print("❌ Failed to convert wrapper to PatientHistoryResponse")
+                        completion(.failure(.decodingError))
+                    }
                 } catch {
-                    print("OCR History decoding error: \(error)")
+                    print("❌ OCR History decoding error: \(error)")
+                    if let decodingError = error as? DecodingError {
+                        print("🔍 Detailed decoding error: \(decodingError)")
+                    }
                     completion(.failure(.decodingError))
                 }
             }
