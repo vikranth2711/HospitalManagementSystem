@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 
+@MainActor
 class DoctorViewModel: ObservableObject {
     
     // Published properties to bind data to the View

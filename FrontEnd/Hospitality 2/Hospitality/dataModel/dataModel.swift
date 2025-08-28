@@ -498,7 +498,7 @@ class MockHospitalDataStore: ObservableObject {
             labTechnicianService.createLabTechnician(
                 name: staff.staffName,
                 email: staff.staffEmail,
-                mobile: techDetails.staffMobile ?? "",
+                mobile: techDetails.staffMobile,
                 certification: techDetails.certificationId,
                 experienceYears: techDetails.labExperienceYears,
                 assignedLab: techDetails.assignedLabId,

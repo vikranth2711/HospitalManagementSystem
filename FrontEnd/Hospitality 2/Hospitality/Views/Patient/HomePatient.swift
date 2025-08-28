@@ -194,7 +194,7 @@ struct AppointmentHistoryCard: View {
                 }
                 
                 let dateString = dateFormatter.string(from: appointmentDate)
-                let slots = try await DoctorServices().fetchDoctorSlots(doctorId: appointment.staff_id ?? "", date: dateString)
+                let slots = try await DoctorServices().fetchDoctorSlots(doctorId: appointment.staff_id, date: dateString)
                 
                 if let slot = slots.first(where: { $0.slot_id == appointment.slot_id }) {
                     let timeFormatter = DateFormatter()
@@ -233,7 +233,7 @@ struct AppointmentHistoryCard: View {
         
         Task {
             do {
-                guard let url = URL(string: "\(Constants.baseURL)/hospital/general/doctors/\(appointment.staff_id ?? "")/") else {
+                guard let url = URL(string: "\(Constants.baseURL)/hospital/general/doctors/\(appointment.staff_id)/") else {
                     throw NetworkError.invalidURL
                 }
                 
@@ -299,6 +299,8 @@ struct HomePatient: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedTab = 0
     @State private var showProfile = false
+    @State private var showDocumentUpload = false
+    @State private var hasCheckedDocuments = false
     
     var body: some View {
         NavigationStack {
@@ -331,7 +333,30 @@ struct HomePatient: View {
             .sheet(isPresented: $showProfile) {
                 ProfileView()
             }
+            .sheet(isPresented: $showDocumentUpload) {
+                DocumentUploadView()
+            }
             .navigationBarBackButtonHidden(true)
+            .onAppear {
+                checkFirstTimeDocumentUpload()
+            }
+        }
+    }
+    
+    private func checkFirstTimeDocumentUpload() {
+        guard !hasCheckedDocuments else { return }
+        hasCheckedDocuments = true
+        
+        // Check if user has uploaded documents
+        OCRService.shared.hasUploadedDocuments { hasDocuments in
+            DispatchQueue.main.async {
+                if !hasDocuments && !UserDefaults.hasUploadedDocuments {
+                    // Show document upload prompt after a delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        showDocumentUpload = true
+                    }
+                }
+            }
         }
     }
 }
@@ -354,6 +379,8 @@ struct HomeContent: View {
     @State private var appointmentToReschedule: PatientAppointHistoryListResponse?
     @State private var patientData: PatientProfile?
     @State private var profilePhotoOpacity: Double = 0.0
+    @State private var showDocumentUploadBanner = false
+    @State private var showDocumentUpload = false
     
     private let primaryColor = Color(hex: "4A90E2")
     
@@ -394,12 +421,13 @@ struct HomeContent: View {
             }
             refreshAppointments()
             fetchPatientProfile()
+            checkDocumentUploadStatus()
         }
         .sheet(isPresented: $showRescheduleView) {
             if let appointment = appointmentToReschedule {
                 AppointmentRescheduleView(
                     appointmentId: appointment.appointment_id,
-                    doctorId: appointment.staff_id ?? "",
+                    doctorId: appointment.staff_id,
                     currentDate: appointment.date,
                     currentSlotId: appointment.slot_id,
                     reason: appointment.reason ?? "",
@@ -433,6 +461,11 @@ struct HomeContent: View {
         }) {
             VStack(alignment: .leading, spacing: 20) {
                 headerView
+                
+                if showDocumentUploadBanner {
+                    documentUploadBanner
+                }
+                
                 actionCardsView
                 recentAppointmentsView
             }
@@ -475,6 +508,8 @@ struct HomeContent: View {
                            let url = URL(string: urlString) {
                             CachedAsyncImage(url: url, cache: UserProfileCache.shared.imageCache) { phase in
                                 switch phase {
+                                case .loading:
+                                    profilePlaceholder
                                 case .success(let image):
                                     image
                                         .resizable()
@@ -506,6 +541,90 @@ struct HomeContent: View {
         }
         .padding(.top, 16)
         .padding(.horizontal)
+    }
+    
+    private var documentUploadBanner: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "doc.text.below.ecg")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                        
+                        Text("Complete Your Medical Profile")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Text("Upload your medical history documents to help us provide better care")
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                        .multilineTextAlignment(.leading)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    showDocumentUploadBanner = false
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            
+            HStack(spacing: 12) {
+                Button(action: {
+                    showDocumentUpload = true
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 16))
+                        Text("Upload Documents")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.white.opacity(0.2))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                }
+                
+                Button(action: {
+                    showDocumentUploadBanner = false
+                }) {
+                    Text("Maybe Later")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                }
+                
+                Spacer()
+            }
+        }
+        .padding(20)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(hex: "667eea"),
+                    Color(hex: "764ba2")
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: Color(hex: "667eea").opacity(0.4), radius: 12, x: 0, y: 6)
+        .padding(.horizontal)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
     
     private var profilePlaceholder: some View {
@@ -593,7 +712,7 @@ struct HomeContent: View {
                                 appointmentId: appointment.appointment_id,
                                 date: appointment.date,
                                 slotId: appointment.slot_id,
-                                staffId: appointment.staff_id ?? "Unknown",
+                                staffId: appointment.staff_id,
                                 patientId: appointment.patient_id,
                                 status: appointment.status
                             )
@@ -649,7 +768,7 @@ struct HomeContent: View {
                 if appointment.status == "upcoming" {
                     withAnimation {
                         selectedAppointment = AppointmentData(
-                            doctorName: appointment.staff_id ?? "Unknown",
+                            doctorName: appointment.staff_id,
                             specialty: appointment.reason ?? "Unknown",
                             date: appointment.date,
                             time: getTimeForSlot(appointment.slot_id),
@@ -754,6 +873,20 @@ struct HomeContent: View {
         let generator = UIImpactFeedbackGenerator(style: style)
         generator.prepare()
         generator.impactOccurred()
+    }
+    
+    private func checkDocumentUploadStatus() {
+        OCRService.shared.hasUploadedDocuments { hasDocuments in
+            DispatchQueue.main.async {
+                if !hasDocuments && !UserDefaults.hasUploadedDocuments {
+                    withAnimation(.easeInOut(duration: 0.5).delay(1.0)) {
+                        showDocumentUploadBanner = true
+                    }
+                } else {
+                    showDocumentUploadBanner = false
+                }
+            }
+        }
     }
 }
 
